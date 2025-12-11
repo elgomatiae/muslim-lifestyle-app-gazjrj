@@ -3,6 +3,9 @@ import React from 'react';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 import { colors } from '@/styles/commonStyles';
+import { Dimensions } from 'react-native';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function TabLayout() {
   // Define the tabs configuration
@@ -29,7 +32,7 @@ export default function TabLayout() {
       name: '(learning)',
       route: '/(tabs)/(learning)/',
       icon: 'school',
-      label: 'Learning',
+      label: 'Learn',
     },
     {
       name: '(wellness)',
@@ -46,6 +49,7 @@ export default function TabLayout() {
   ];
 
   // For Android and Web, use Stack navigation with custom floating tab bar
+  // Use full screen width minus small margins for 6 tabs
   return (
     <>
       <Stack
@@ -61,7 +65,7 @@ export default function TabLayout() {
         <Stack.Screen key="wellness" name="(wellness)" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>
-      <FloatingTabBar tabs={tabs} containerWidth={380} />
+      <FloatingTabBar tabs={tabs} containerWidth={screenWidth - 20} />
     </>
   );
 }

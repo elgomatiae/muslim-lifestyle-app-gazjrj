@@ -41,8 +41,8 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = screenWidth - 40,
-  borderRadius = 35,
+  containerWidth = screenWidth - 20,
+  borderRadius = 30,
   bottomMargin
 }: FloatingTabBarProps) {
   const router = useRouter();
@@ -117,27 +117,27 @@ export default function FloatingTabBar({
     };
   });
 
-  // Dynamic styles based on theme
+  // Dynamic styles based on theme - SOLID BACKGROUND
   const dynamicStyles = {
     blurContainer: {
       ...styles.blurContainer,
-      borderWidth: 1.2,
-      borderColor: colors.secondary,
+      borderWidth: 1.5,
+      borderColor: colors.border,
       ...Platform.select({
         ios: {
-          backgroundColor: 'rgba(255, 255, 255, 0.8)',
+          backgroundColor: colors.card,
         },
         android: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
+          backgroundColor: colors.card,
         },
         web: {
-          backgroundColor: 'rgba(255, 255, 255, 0.95)',
-          backdropFilter: 'blur(10px)',
+          backgroundColor: colors.card,
         },
       }),
     },
     background: {
       ...styles.background,
+      backgroundColor: colors.card,
     },
     indicator: {
       ...styles.indicator,
@@ -152,11 +152,10 @@ export default function FloatingTabBar({
         styles.container,
         {
           width: containerWidth,
-          marginBottom: bottomMargin ?? 20
+          marginBottom: bottomMargin ?? 16
         }
       ]}>
-        <BlurView
-          intensity={80}
+        <View
           style={[dynamicStyles.blurContainer, { borderRadius }]}
         >
           <View style={dynamicStyles.background} />
@@ -176,7 +175,7 @@ export default function FloatingTabBar({
                     <IconSymbol
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
-                      size={22}
+                      size={20}
                       color={isActive ? colors.primary : colors.textSecondary}
                     />
                     <Text
@@ -185,6 +184,7 @@ export default function FloatingTabBar({
                         { color: colors.textSecondary },
                         isActive && { color: colors.primary, fontWeight: '600' },
                       ]}
+                      numberOfLines={1}
                     >
                       {tab.label}
                     </Text>
@@ -194,7 +194,7 @@ export default function FloatingTabBar({
               );
             })}
           </View>
-        </BlurView>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -210,8 +210,23 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    marginHorizontal: 20,
+    marginHorizontal: 10,
     alignSelf: 'center',
+    ...Platform.select({
+      web: {
+        boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.15)',
+      },
+      default: {
+        shadowColor: '#000',
+        shadowOffset: {
+          width: 0,
+          height: 4,
+        },
+        shadowOpacity: 0.15,
+        shadowRadius: 10,
+        elevation: 8,
+      },
+    }),
   },
   blurContainer: {
     overflow: 'hidden',
@@ -224,12 +239,12 @@ const styles = StyleSheet.create({
     top: 4,
     left: 2,
     bottom: 4,
-    borderRadius: 27,
+    borderRadius: 24,
     width: `${(100 / 2) - 1}%`,
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 60,
+    height: 64,
     alignItems: 'center',
     paddingHorizontal: 4,
   },
@@ -238,6 +253,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   tabContent: {
     alignItems: 'center',
@@ -245,8 +261,9 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   tabLabel: {
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '500',
     marginTop: 2,
+    textAlign: 'center',
   },
 });

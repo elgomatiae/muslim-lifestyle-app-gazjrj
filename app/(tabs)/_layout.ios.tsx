@@ -23,7 +23,7 @@ export default function TabLayout() {
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="learning" name="(learning)">
         <Icon sf="book.fill" />
-        <Label>Learning</Label>
+        <Label>Learn</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger key="wellness" name="(wellness)">
         <Icon sf="heart.fill" />

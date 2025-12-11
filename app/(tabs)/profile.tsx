@@ -1,91 +1,177 @@
+
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from "react-native";
+import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
-import { GlassView } from "expo-glass-effect";
-import { useTheme } from "@react-navigation/native";
+
+interface ProfileOption {
+  title: string;
+  icon: string;
+  color: string;
+}
 
 export default function ProfileScreen() {
-  const theme = useTheme();
+  const profileOptions: ProfileOption[] = [
+    { title: 'Edit Profile', icon: 'edit', color: colors.primary },
+    { title: 'Notifications', icon: 'notifications', color: colors.accent },
+    { title: 'Prayer Settings', icon: 'settings', color: colors.primary },
+    { title: 'About', icon: 'info', color: colors.secondary },
+  ];
 
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+    <View style={styles.container}>
       <ScrollView
-        style={styles.container}
-        contentContainerStyle={[
-          styles.contentContainer,
-          Platform.OS !== 'ios' && styles.contentContainerWithTabBar
-        ]}
+        style={styles.scrollView}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
       >
-        <GlassView style={[
-          styles.profileHeader,
-          Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-        ]} glassEffectStyle="regular">
-          <IconSymbol ios_icon_name="person.circle.fill" android_material_icon_name="person" size={80} color={theme.colors.primary} />
-          <Text style={[styles.name, { color: theme.colors.text }]}>John Doe</Text>
-          <Text style={[styles.email, { color: theme.dark ? '#98989D' : '#666' }]}>john.doe@example.com</Text>
-        </GlassView>
+        {/* Profile Header */}
+        <View style={styles.profileHeader}>
+          <View style={styles.avatarContainer}>
+            <IconSymbol
+              ios_icon_name="person-circle"
+              android_material_icon_name="account-circle"
+              size={80}
+              color={colors.primary}
+            />
+          </View>
+          <Text style={styles.name}>User Name</Text>
+          <Text style={styles.email}>user@example.com</Text>
+        </View>
 
-        <GlassView style={[
-          styles.section,
-          Platform.OS !== 'ios' && { backgroundColor: theme.dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)' }
-        ]} glassEffectStyle="regular">
-          <View style={styles.infoRow}>
-            <IconSymbol ios_icon_name="phone.fill" android_material_icon_name="phone" size={20} color={theme.dark ? '#98989D' : '#666'} />
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>+1 (555) 123-4567</Text>
+        {/* Stats Cards */}
+        <View style={styles.statsContainer}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>15</Text>
+            <Text style={styles.statLabel}>Days Active</Text>
           </View>
-          <View style={styles.infoRow}>
-            <IconSymbol ios_icon_name="location.fill" android_material_icon_name="location-on" size={20} color={theme.dark ? '#98989D' : '#666'} />
-            <Text style={[styles.infoText, { color: theme.colors.text }]}>San Francisco, CA</Text>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>42</Text>
+            <Text style={styles.statLabel}>Prayers</Text>
           </View>
-        </GlassView>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>8</Text>
+            <Text style={styles.statLabel}>Streak</Text>
+          </View>
+        </View>
+
+        {/* Options List */}
+        <View style={styles.optionsContainer}>
+          {profileOptions.map((option, index) => (
+            <React.Fragment key={index}>
+              <TouchableOpacity
+                style={styles.optionCard}
+                activeOpacity={0.7}
+                onPress={() => console.log(`Pressed ${option.title}`)}
+              >
+                <View style={[styles.optionIconContainer, { backgroundColor: option.color }]}>
+                  <IconSymbol
+                    ios_icon_name={option.icon}
+                    android_material_icon_name={option.icon}
+                    size={24}
+                    color={colors.card}
+                  />
+                </View>
+                <Text style={styles.optionTitle}>{option.title}</Text>
+                <IconSymbol
+                  ios_icon_name="chevron-right"
+                  android_material_icon_name="chevron-right"
+                  size={24}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </React.Fragment>
+          ))}
+        </View>
+
+        <View style={styles.bottomPadding} />
       </ScrollView>
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    // backgroundColor handled dynamically
-  },
   container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  scrollView: {
     flex: 1,
   },
   contentContainer: {
-    padding: 20,
-  },
-  contentContainerWithTabBar: {
-    paddingBottom: 100, // Extra padding for floating tab bar
+    paddingTop: Platform.OS === 'android' ? 48 : 16,
+    paddingHorizontal: 20,
   },
   profileHeader: {
     alignItems: 'center',
-    borderRadius: 12,
-    padding: 32,
+    marginBottom: 32,
+  },
+  avatarContainer: {
     marginBottom: 16,
-    gap: 12,
   },
   name: {
     fontSize: 24,
     fontWeight: 'bold',
-    // color handled dynamically
+    color: colors.text,
+    marginBottom: 4,
   },
   email: {
     fontSize: 16,
-    // color handled dynamically
+    color: colors.textSecondary,
   },
-  section: {
+  statsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 32,
+  },
+  statCard: {
+    flex: 1,
+    backgroundColor: colors.card,
     borderRadius: 12,
-    padding: 20,
-    gap: 12,
+    padding: 16,
+    alignItems: 'center',
+    marginHorizontal: 4,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
-  infoRow: {
+  statValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  optionsContainer: {
+    marginBottom: 24,
+  },
+  optionCard: {
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    boxShadow: '0px 2px 4px rgba(0, 0, 0, 0.1)',
+    elevation: 2,
   },
-  infoText: {
-    fontSize: 16,
-    // color handled dynamically
+  optionIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  optionTitle: {
+    flex: 1,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  bottomPadding: {
+    height: 120,
   },
 });

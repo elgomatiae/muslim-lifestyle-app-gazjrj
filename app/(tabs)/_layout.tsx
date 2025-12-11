@@ -1,6 +1,8 @@
+
 import React from 'react';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { colors } from '@/styles/commonStyles';
 
 export default function TabLayout() {
   // Define the tabs configuration
@@ -10,6 +12,30 @@ export default function TabLayout() {
       route: '/(tabs)/(home)/',
       icon: 'home',
       label: 'Home',
+    },
+    {
+      name: '(prayer)',
+      route: '/(tabs)/(prayer)/',
+      icon: 'schedule',
+      label: 'Prayer',
+    },
+    {
+      name: '(iman)',
+      route: '/(tabs)/(iman)/',
+      icon: 'track-changes',
+      label: 'Iman',
+    },
+    {
+      name: '(learning)',
+      route: '/(tabs)/(learning)/',
+      icon: 'school',
+      label: 'Learning',
+    },
+    {
+      name: '(wellness)',
+      route: '/(tabs)/(wellness)/',
+      icon: 'favorite',
+      label: 'Wellness',
     },
     {
       name: 'profile',
@@ -25,13 +51,17 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none', // Remove fade animation to prevent black screen flash
+          animation: 'none',
         }}
       >
         <Stack.Screen key="home" name="(home)" />
+        <Stack.Screen key="prayer" name="(prayer)" />
+        <Stack.Screen key="iman" name="(iman)" />
+        <Stack.Screen key="learning" name="(learning)" />
+        <Stack.Screen key="wellness" name="(wellness)" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>
-      <FloatingTabBar tabs={tabs} />
+      <FloatingTabBar tabs={tabs} containerWidth={380} />
     </>
   );
 }

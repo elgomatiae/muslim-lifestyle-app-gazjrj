@@ -6,9 +6,13 @@ import { colors } from '@/styles/commonStyles';
 export default function TabLayout() {
   return (
     <NativeTabs
+      backgroundColor="#000000"
       tintColor={colors.primary}
-      iconColor={colors.textSecondary}
-      barTintColor="#000000"
+      iconColor="#FFFFFF"
+      labelStyle={{
+        color: '#FFFFFF',
+      }}
+      disableTransparentOnScrollEdge
     >
       <NativeTabs.Trigger key="home" name="(home)">
         <Icon sf="house.fill" />

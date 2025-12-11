@@ -1,11 +1,8 @@
 
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
-import { colors } from '@/styles/commonStyles';
-import { Dimensions } from 'react-native';
-
-const { width: screenWidth } = Dimensions.get('window');
 
 export default function TabLayout() {
   // Define the tabs configuration - Prayer tab removed
@@ -42,22 +39,34 @@ export default function TabLayout() {
     },
   ];
 
-  // For Android and Web, use Stack navigation with custom floating tab bar
+  // For Android and Web, use Stack navigation with custom tab bar at the bottom
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-        }}
-      >
-        <Stack.Screen key="home" name="(home)" />
-        <Stack.Screen key="iman" name="(iman)" />
-        <Stack.Screen key="learning" name="(learning)" />
-        <Stack.Screen key="wellness" name="(wellness)" />
-        <Stack.Screen key="profile" name="profile" />
-      </Stack>
-      <FloatingTabBar tabs={tabs} containerWidth={screenWidth - 20} />
-    </>
+    <View style={styles.container}>
+      <View style={styles.content}>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            animation: 'none',
+          }}
+        >
+          <Stack.Screen key="home" name="(home)" />
+          <Stack.Screen key="iman" name="(iman)" />
+          <Stack.Screen key="learning" name="(learning)" />
+          <Stack.Screen key="wellness" name="(wellness)" />
+          <Stack.Screen key="profile" name="profile" />
+        </Stack>
+      </View>
+      <FloatingTabBar tabs={tabs} />
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8F8FF',
+  },
+  content: {
+    flex: 1,
+  },
+});

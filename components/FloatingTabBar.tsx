@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Dimensions,
 } from 'react-native';
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -21,8 +20,6 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
 import { colors } from '@/styles/commonStyles';
 
-const { width: screenWidth } = Dimensions.get('window');
-
 export interface TabBarItem {
   name: string;
   route: Href;
@@ -32,17 +29,9 @@ export interface TabBarItem {
 
 interface FloatingTabBarProps {
   tabs: TabBarItem[];
-  containerWidth?: number;
-  borderRadius?: number;
-  bottomMargin?: number;
 }
 
-export default function FloatingTabBar({
-  tabs,
-  containerWidth = screenWidth - 20,
-  borderRadius = 30,
-  bottomMargin
-}: FloatingTabBarProps) {
+export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const animatedValue = useSharedValue(0);
@@ -97,10 +86,8 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
-  const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
-
   const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 8) / tabs.length;
+    const tabWidth = 100 / tabs.length;
     return {
       transform: [
         {
@@ -111,56 +98,46 @@ export default function FloatingTabBar({
           ),
         },
       ],
+      width: `${tabWidth}%`,
     };
   });
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['bottom']}>
-      <View style={[
-        styles.container,
-        {
-          width: containerWidth,
-          marginBottom: bottomMargin ?? 16
-        }
-      ]}>
-        <View
-          style={[styles.tabBarContainer, { borderRadius }]}
-        >
-          <View style={styles.background} />
-          <Animated.View style={[styles.indicator, indicatorStyle, { width: `${tabWidthPercent}%` }]} />
-          <View style={styles.tabsContainer}>
-            {tabs.map((tab, index) => {
-              const isActive = activeTabIndex === index;
+      <View style={styles.container}>
+        <Animated.View style={[styles.indicator, indicatorStyle]} />
+        <View style={styles.tabsContainer}>
+          {tabs.map((tab, index) => {
+            const isActive = activeTabIndex === index;
 
-              return (
-                <React.Fragment key={index}>
-                  <TouchableOpacity
-                    style={styles.tab}
-                    onPress={() => handleTabPress(tab.route)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.tabContent}>
-                      <IconSymbol
-                        android_material_icon_name={tab.icon}
-                        ios_icon_name={tab.icon}
-                        size={24}
-                        color={isActive ? colors.primary : '#FFFFFF'}
-                      />
-                      <Text
-                        style={[
-                          styles.tabLabel,
-                          isActive && styles.tabLabelActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {tab.label}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
-          </View>
+            return (
+              <React.Fragment key={index}>
+                <TouchableOpacity
+                  style={styles.tab}
+                  onPress={() => handleTabPress(tab.route)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.tabContent}>
+                    <IconSymbol
+                      android_material_icon_name={tab.icon}
+                      ios_icon_name={tab.icon}
+                      size={24}
+                      color={isActive ? colors.primary : '#FFFFFF'}
+                    />
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        isActive && styles.tabLabelActive,
+                      ]}
+                      numberOfLines={1}
+                    >
+                      {tab.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              </React.Fragment>
+            );
+          })}
         </View>
       </View>
     </SafeAreaView>
@@ -169,62 +146,39 @@ export default function FloatingTabBar({
 
 const styles = StyleSheet.create({
   safeArea: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    alignItems: 'center',
+    backgroundColor: '#000000',
+    borderTopWidth: 1,
+    borderTopColor: '#1A1A1A',
   },
   container: {
-    marginHorizontal: 10,
-    alignSelf: 'center',
-    ...Platform.select({
-      web: {
-        boxShadow: '0px 4px 20px rgba(0, 0, 0, 0.3)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: {
-          width: 0,
-          height: 4,
-        },
-        shadowOpacity: 0.3,
-        shadowRadius: 10,
-        elevation: 10,
-      },
-    }),
-  },
-  tabBarContainer: {
-    overflow: 'hidden',
     backgroundColor: '#000000',
-    borderWidth: 1,
-    borderColor: '#333333',
-  },
-  background: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: '#000000',
+    width: '100%',
+    position: 'relative',
   },
   indicator: {
     position: 'absolute',
-    top: 4,
-    left: 2,
-    bottom: 4,
-    borderRadius: 24,
-    backgroundColor: 'rgba(56, 142, 60, 0.2)',
+    top: 0,
+    left: 0,
+    height: 3,
+    backgroundColor: colors.primary,
+    borderRadius: 2,
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 70,
+    height: 65,
     alignItems: 'center',
-    paddingHorizontal: 4,
+    justifyContent: 'space-around',
+    backgroundColor: '#000000',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
   },
   tabContent: {
     alignItems: 'center',

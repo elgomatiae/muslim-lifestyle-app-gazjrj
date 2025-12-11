@@ -24,6 +24,7 @@ export interface TabBarItem {
   name: string;
   route: Href;
   icon: keyof typeof MaterialIcons.glyphMap;
+  iosIcon?: string;
   label: string;
 }
 
@@ -118,12 +119,14 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
                   activeOpacity={0.7}
                 >
                   <View style={styles.tabContent}>
-                    <IconSymbol
-                      android_material_icon_name={tab.icon}
-                      ios_icon_name={tab.icon}
-                      size={26}
-                      color={isActive ? colors.primary : '#FFFFFF'}
-                    />
+                    <View style={styles.iconContainer}>
+                      <IconSymbol
+                        android_material_icon_name={tab.icon}
+                        ios_icon_name={tab.iosIcon || tab.icon}
+                        size={28}
+                        color={isActive ? colors.primary : '#FFFFFF'}
+                      />
+                    </View>
                     <Text
                       style={[
                         styles.tabLabel,
@@ -184,6 +187,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
+  },
+  iconContainer: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   tabLabel: {
     fontSize: 12,

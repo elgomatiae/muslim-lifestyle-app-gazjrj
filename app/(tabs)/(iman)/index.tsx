@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, TextInput, Modal, Animated } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
@@ -419,15 +420,15 @@ export default function ImanTrackerScreen() {
                 />
               </Animated.View>
               
-              {/* Prayer Ring (Outer) */}
+              {/* Prayer Ring (Outer) - Darker empty ring */}
               <Circle
                 cx={centerX}
                 cy={centerY}
                 r={prayerRadius}
-                stroke={colors.highlight}
+                stroke="#808080"
                 strokeWidth={prayerStroke}
                 fill="none"
-                opacity={0.3}
+                opacity={0.6}
               />
               <Circle
                 cx={centerX}
@@ -443,15 +444,15 @@ export default function ImanTrackerScreen() {
                 origin={`${centerX}, ${centerY}`}
               />
               
-              {/* Quran Ring (Middle) */}
+              {/* Quran Ring (Middle) - Darker empty ring */}
               <Circle
                 cx={centerX}
                 cy={centerY}
                 r={quranRadius}
-                stroke={colors.highlight}
+                stroke="#808080"
                 strokeWidth={quranStroke}
                 fill="none"
-                opacity={0.3}
+                opacity={0.6}
               />
               <Circle
                 cx={centerX}
@@ -467,15 +468,15 @@ export default function ImanTrackerScreen() {
                 origin={`${centerX}, ${centerY}`}
               />
               
-              {/* Dhikr Ring (Inner) */}
+              {/* Dhikr Ring (Inner) - Darker empty ring */}
               <Circle
                 cx={centerX}
                 cy={centerY}
                 r={dhikrRadius}
-                stroke={colors.highlight}
+                stroke="#808080"
                 strokeWidth={dhikrStroke}
                 fill="none"
-                opacity={0.3}
+                opacity={0.6}
               />
               <Circle
                 cx={centerX}
@@ -636,7 +637,7 @@ export default function ImanTrackerScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
@@ -1065,7 +1066,7 @@ export default function ImanTrackerScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -1078,8 +1079,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingTop: Platform.OS === 'android' ? 48 : 56,
-    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.xl,
   },
   headerContainer: {
     flexDirection: 'row',

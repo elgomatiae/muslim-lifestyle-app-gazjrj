@@ -182,24 +182,24 @@ export default function ImanTrackerScreen() {
     // Prayer ring (outer) - Green
     const prayerRadius = 140;
     const prayerStroke = 20;
-    const prayerProgress = prayerProgress.completed / prayerProgress.total;
+    const prayerProgressValue = prayerProgress.completed / prayerProgress.total;
     const prayerCircumference = 2 * Math.PI * prayerRadius;
-    const prayerOffset = prayerCircumference * (1 - prayerProgress);
+    const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
     
     // Quran ring (middle) - Amber
     const quranRadius = 100;
     const quranStroke = 18;
-    const quranProgress = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
+    const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
                           (quranGoals.pagesRead / quranGoals.pagesToRead)) / 2;
     const quranCircumference = 2 * Math.PI * quranRadius;
-    const quranOffset = quranCircumference * (1 - quranProgress);
+    const quranOffset = quranCircumference * (1 - quranProgressValue);
     
     // Dhikr ring (inner) - Blue
     const dhikrRadius = 60;
     const dhikrStroke = 16;
-    const dhikrProgress = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
+    const dhikrProgressValue = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
     const dhikrCircumference = 2 * Math.PI * dhikrRadius;
-    const dhikrOffset = dhikrCircumference * (1 - dhikrProgress);
+    const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
 
     return (
       <View style={styles.nestedRingsContainer}>
@@ -279,7 +279,7 @@ export default function ImanTrackerScreen() {
           <Text style={styles.centerTitle}>Iman</Text>
           <Text style={styles.centerSubtitle}>Score</Text>
           <Text style={styles.centerPercentage}>
-            {Math.round(((prayerProgress + quranProgress + dhikrProgress) / 3) * 100)}%
+            {Math.round(((prayerProgressValue + quranProgressValue + dhikrProgressValue) / 3) * 100)}%
           </Text>
         </View>
         
@@ -291,7 +291,7 @@ export default function ImanTrackerScreen() {
           </View>
           <View style={styles.ringLabel}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.accent }]} />
-            <Text style={styles.ringLabelText}>Quran ({Math.round(quranProgress * 100)}%)</Text>
+            <Text style={styles.ringLabelText}>Quran ({Math.round(quranProgressValue * 100)}%)</Text>
           </View>
           <View style={styles.ringLabel}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.info }]} />

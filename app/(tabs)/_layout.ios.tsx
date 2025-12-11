@@ -6,11 +6,11 @@ import { colors } from '@/styles/commonStyles';
 export default function TabLayout() {
   return (
     <NativeTabs
-      backgroundColor="#000000"
+      backgroundColor="#FFFFFF"
       tintColor={colors.primary}
-      iconColor="#FFFFFF"
+      iconColor="#666666"
       labelStyle={{
-        color: '#FFFFFF',
+        color: '#666666',
       }}
       disableTransparentOnScrollEdge
     >

@@ -124,7 +124,7 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
                         android_material_icon_name={tab.icon}
                         ios_icon_name={tab.iosIcon || tab.icon}
                         size={28}
-                        color={isActive ? colors.primary : '#FFFFFF'}
+                        color={isActive ? colors.primary : '#666666'}
                       />
                     </View>
                     <Text
@@ -149,12 +149,12 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
 
 const styles = StyleSheet.create({
   safeArea: {
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
-    borderTopColor: '#1A1A1A',
+    borderTopColor: '#E5E5E5',
   },
   container: {
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     width: '100%',
     position: 'relative',
   },
@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     height: 90,
     alignItems: 'center',
     justifyContent: 'space-around',
-    backgroundColor: '#000000',
+    backgroundColor: '#FFFFFF',
     paddingHorizontal: 8,
     paddingTop: 12,
     paddingBottom: 8,
@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
     textAlign: 'center',
-    color: '#FFFFFF',
+    color: '#666666',
   },
   tabLabelActive: {
     color: colors.primary,

@@ -1,10 +1,11 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from 'react-native-svg';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PrayerTime {
   name: string;
@@ -22,14 +23,51 @@ export default function HomeScreen() {
     { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: false },
   ]);
 
-  const togglePrayer = (index: number) => {
+  // Load prayer data and check for daily reset
+  useEffect(() => {
+    loadPrayerData();
+  }, []);
+
+  const loadPrayerData = async () => {
+    try {
+      const lastDate = await AsyncStorage.getItem('lastPrayerDate');
+      const today = new Date().toDateString();
+      
+      if (lastDate !== today) {
+        // Reset prayers for new day
+        await AsyncStorage.setItem('lastPrayerDate', today);
+        await AsyncStorage.removeItem('prayerData');
+        setPrayers([
+          { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: false },
+          { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: false },
+          { name: 'Asr', time: '4:15 PM', arabicName: 'العصر', completed: false },
+          { name: 'Maghrib', time: '6:30 PM', arabicName: 'المغرب', completed: false },
+          { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: false },
+        ]);
+      } else {
+        const savedData = await AsyncStorage.getItem('prayerData');
+        if (savedData) {
+          setPrayers(JSON.parse(savedData));
+        }
+      }
+    } catch (error) {
+      console.log('Error loading prayer data:', error);
+    }
+  };
+
+  const togglePrayer = async (index: number) => {
     const newPrayers = [...prayers];
     newPrayers[index].completed = !newPrayers[index].completed;
     setPrayers(newPrayers);
+    
+    try {
+      await AsyncStorage.setItem('prayerData', JSON.stringify(newPrayers));
+    } catch (error) {
+      console.log('Error saving prayer data:', error);
+    }
   };
 
   const completedCount = prayers.filter(p => p.completed).length;
-  const progressPercentage = (completedCount / prayers.length) * 100;
 
   const dailyHadith = {
     text: "The best of you are those who are best to their families.",
@@ -107,7 +145,7 @@ export default function HomeScreen() {
             <IconSymbol
               ios_icon_name="moon-stars"
               android_material_icon_name="nightlight"
-              size={36}
+              size={32}
               color={colors.card}
             />
           </View>
@@ -122,7 +160,7 @@ export default function HomeScreen() {
               <IconSymbol
                 ios_icon_name="clock"
                 android_material_icon_name="schedule"
-                size={22}
+                size={20}
                 color={colors.primary}
               />
             </View>
@@ -164,7 +202,7 @@ export default function HomeScreen() {
                       <IconSymbol
                         ios_icon_name="moon"
                         android_material_icon_name="brightness-3"
-                        size={18}
+                        size={16}
                         color={prayer.completed ? colors.card : colors.primary}
                       />
                     </View>
@@ -197,7 +235,7 @@ export default function HomeScreen() {
                       <IconSymbol
                         ios_icon_name="checkmark"
                         android_material_icon_name="check"
-                        size={18}
+                        size={16}
                         color={colors.card}
                       />
                     )}
@@ -215,7 +253,7 @@ export default function HomeScreen() {
               <IconSymbol
                 ios_icon_name="book"
                 android_material_icon_name="menu-book"
-                size={22}
+                size={20}
                 color={colors.accent}
               />
             </View>
@@ -226,7 +264,7 @@ export default function HomeScreen() {
               <IconSymbol
                 ios_icon_name="quote"
                 android_material_icon_name="format-quote"
-                size={32}
+                size={28}
                 color={colors.accent}
               />
             </View>
@@ -245,7 +283,7 @@ export default function HomeScreen() {
               <IconSymbol
                 ios_icon_name="book-closed"
                 android_material_icon_name="book"
-                size={22}
+                size={20}
                 color={colors.primary}
               />
             </View>
@@ -279,28 +317,28 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   contentContainer: {
-    paddingTop: Platform.OS === 'android' ? 56 : 20,
-    paddingHorizontal: spacing.xl,
+    paddingTop: Platform.OS === 'android' ? 48 : 56,
+    paddingHorizontal: spacing.lg,
     paddingBottom: spacing.xl,
   },
   headerGradient: {
-    borderRadius: borderRadius.xl,
-    padding: spacing.xxxl,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xxl,
     alignItems: 'center',
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
     ...shadows.colored,
   },
   headerIconContainer: {
-    width: 64,
-    height: 64,
+    width: 56,
+    height: 56,
     borderRadius: borderRadius.round,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   greeting: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.card,
     marginBottom: spacing.xs,
   },
@@ -310,18 +348,18 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   section: {
-    marginBottom: spacing.xxxl,
+    marginBottom: spacing.xxl,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: spacing.lg,
-    gap: spacing.md,
+    marginBottom: spacing.md,
+    gap: spacing.sm,
   },
   sectionIconContainer: {
-    width: 36,
-    height: 36,
-    borderRadius: borderRadius.md,
+    width: 32,
+    height: 32,
+    borderRadius: borderRadius.sm,
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
@@ -331,9 +369,9 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   summaryCard: {
-    borderRadius: borderRadius.xl,
-    padding: spacing.xxl,
-    marginBottom: spacing.lg,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.md,
     alignItems: 'center',
     ...shadows.colored,
   },
@@ -349,7 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   progressNumber: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.card,
   },
@@ -360,17 +398,18 @@ const styles = StyleSheet.create({
     marginTop: spacing.xs,
   },
   summaryText: {
-    ...typography.bodyBold,
+    ...typography.body,
     color: colors.card,
     textAlign: 'center',
+    fontWeight: '600',
   },
   prayerList: {
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   prayerCard: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -389,8 +428,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   prayerIconContainer: {
-    width: 44,
-    height: 44,
+    width: 40,
+    height: 40,
     borderRadius: borderRadius.round,
     backgroundColor: colors.highlight,
     alignItems: 'center',
@@ -404,7 +443,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   prayerName: {
-    ...typography.bodyBold,
+    ...typography.body,
+    fontWeight: '600',
     color: colors.text,
     marginBottom: 2,
   },
@@ -412,7 +452,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   prayerArabic: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textSecondary,
     marginBottom: 2,
   },
@@ -420,7 +460,7 @@ const styles = StyleSheet.create({
     color: colors.primary,
   },
   prayerTime: {
-    ...typography.small,
+    fontSize: 11,
     color: colors.textSecondary,
   },
   prayerTimeCompleted: {
@@ -428,9 +468,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   checkbox: {
-    width: 32,
-    height: 32,
-    borderRadius: borderRadius.md,
+    width: 28,
+    height: 28,
+    borderRadius: borderRadius.sm,
     borderWidth: 2,
     borderColor: colors.textSecondary,
     alignItems: 'center',
@@ -442,23 +482,23 @@ const styles = StyleSheet.create({
   },
   contentCard: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xxl,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
     ...shadows.medium,
     borderWidth: 1,
     borderColor: colors.border,
   },
   quoteIconContainer: {
     alignSelf: 'flex-start',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
     opacity: 0.3,
   },
   contentText: {
     ...typography.body,
-    lineHeight: 28,
+    lineHeight: 24,
     color: colors.text,
     fontStyle: 'italic',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   sourceContainer: {
     flexDirection: 'row',
@@ -466,7 +506,7 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   sourceDivider: {
-    width: 40,
+    width: 36,
     height: 3,
     backgroundColor: colors.accent,
     borderRadius: borderRadius.sm,
@@ -476,30 +516,30 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
   },
   verseCard: {
-    borderRadius: borderRadius.lg,
-    padding: spacing.xxl,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
     ...shadows.colored,
   },
   verseArabic: {
-    fontSize: 26,
+    fontSize: 22,
     fontWeight: '700',
     color: colors.card,
     textAlign: 'center',
-    marginBottom: spacing.lg,
-    lineHeight: 40,
+    marginBottom: spacing.md,
+    lineHeight: 36,
   },
   verseDivider: {
     height: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
   verseText: {
     ...typography.body,
-    lineHeight: 28,
+    lineHeight: 24,
     color: colors.card,
     fontStyle: 'italic',
     textAlign: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   verseReference: {
     ...typography.captionBold,
@@ -508,6 +548,6 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   bottomPadding: {
-    height: 120,
+    height: 100,
   },
 });

@@ -1,5 +1,11 @@
 
-import { StyleSheet, ViewStyle, TextStyle } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, Dimensions } from 'react-native';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// iPhone 13 dimensions: 390 x 844
+// Optimize spacing and sizing for smaller screens
+const isSmallScreen = SCREEN_WIDTH < 400;
 
 export const colors = {
   // Light mode colors
@@ -34,27 +40,27 @@ export const colors = {
   gradientRed: ['#F44336', '#D32F2F'],
 };
 
-// Typography scale
+// Typography scale - optimized for smaller screens
 export const typography = {
   h1: {
-    fontSize: 32,
+    fontSize: isSmallScreen ? 28 : 32,
     fontWeight: '800' as const,
-    lineHeight: 40,
+    lineHeight: isSmallScreen ? 36 : 40,
   },
   h2: {
-    fontSize: 28,
+    fontSize: isSmallScreen ? 24 : 28,
     fontWeight: '700' as const,
-    lineHeight: 36,
+    lineHeight: isSmallScreen ? 32 : 36,
   },
   h3: {
-    fontSize: 24,
+    fontSize: isSmallScreen ? 20 : 24,
     fontWeight: '700' as const,
-    lineHeight: 32,
+    lineHeight: isSmallScreen ? 28 : 32,
   },
   h4: {
-    fontSize: 20,
+    fontSize: isSmallScreen ? 18 : 20,
     fontWeight: '600' as const,
-    lineHeight: 28,
+    lineHeight: isSmallScreen ? 24 : 28,
   },
   body: {
     fontSize: 16,
@@ -88,15 +94,15 @@ export const typography = {
   },
 };
 
-// Spacing scale
+// Spacing scale - optimized for smaller screens
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
-  lg: 16,
-  xl: 20,
-  xxl: 24,
-  xxxl: 32,
+  lg: isSmallScreen ? 14 : 16,
+  xl: isSmallScreen ? 18 : 20,
+  xxl: isSmallScreen ? 20 : 24,
+  xxxl: isSmallScreen ? 26 : 32,
 };
 
 // Border radius scale

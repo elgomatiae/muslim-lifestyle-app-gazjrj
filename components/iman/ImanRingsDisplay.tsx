@@ -5,45 +5,21 @@ import { colors, typography, spacing, borderRadius, shadows } from "@/styles/com
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import { getCurrentImanScore, getScoreBreakdown } from "@/utils/imanScoreCalculator";
+import { getCurrentSectionScores, getOverallImanScore, type SectionScores } from "@/utils/imanScoreCalculator";
 import * as Haptics from 'expo-haptics';
 
 interface ImanRingsDisplayProps {
-  prayerProgress: number;
-  quranProgress: number;
-  dhikrProgress: number;
-  streakData: {
-    currentStreak: number;
-    longestStreak: number;
-    lastCompletedDate: string;
-  };
-  prayerCompleted: number;
-  prayerTotal: number;
-  quranCompleted: number;
-  quranTotal: number;
-  dhikrCompleted: number;
-  dhikrTotal: number;
+  onRefresh?: () => void;
 }
 
-export default function ImanRingsDisplay({
-  prayerProgress,
-  quranProgress,
-  dhikrProgress,
-  streakData,
-  prayerCompleted,
-  prayerTotal,
-  quranCompleted,
-  quranTotal,
-  dhikrCompleted,
-  dhikrTotal,
-}: ImanRingsDisplayProps) {
+export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const pulseAnim = useState(new Animated.Value(1))[0];
   const glowAnim = useState(new Animated.Value(0))[0];
   const rotateAnim = useState(new Animated.Value(0))[0];
   
-  const [imanScore, setImanScore] = useState(0);
+  const [sectionScores, setSectionScores] = useState<SectionScores>({ prayer: 0, dhikr: 0, quran: 0 });
+  const [overallScore, setOverallScore] = useState(0);
   const [showBreakdown, setShowBreakdown] = useState(false);
-  const [scoreBreakdown, setScoreBreakdown] = useState<any>(null);
 
   useEffect(() => {
     Animated.loop(
@@ -86,20 +62,17 @@ export default function ImanRingsDisplay({
   }, []);
 
   useEffect(() => {
-    loadImanScore();
-    const interval = setInterval(loadImanScore, 30000);
+    loadScores();
+    const interval = setInterval(loadScores, 30000); // Update every 30 seconds
     return () => clearInterval(interval);
-  }, [prayerProgress, quranProgress, dhikrProgress]);
+  }, []);
 
-  const loadImanScore = async () => {
-    const score = await getCurrentImanScore();
-    setImanScore(score);
-    
-    const breakdown = await getScoreBreakdown();
-    setScoreBreakdown(breakdown);
+  const loadScores = async () => {
+    const scores = await getCurrentSectionScores();
+    const overall = await getOverallImanScore();
+    setSectionScores(scores);
+    setOverallScore(overall);
   };
-
-  const totalPercentage = Math.round(imanScore);
 
   const getAchievementBadge = (percentage: number) => {
     if (percentage >= 100) return { icon: "star.fill", color: colors.accent, label: "Perfect" };
@@ -108,41 +81,13 @@ export default function ImanRingsDisplay({
     return { icon: "leaf.fill", color: colors.primary, label: "Growing" };
   };
 
-  const getDailyInsight = () => {
-    if (imanScore >= 100) {
-      return { text: "Perfect! All goals completed! 🎉", color: colors.success };
-    }
-    if (imanScore >= 90) {
-      return { text: "Almost perfect! Keep going! 💪", color: colors.success };
-    }
-    if (prayerProgress === 1) {
-      return { text: "All prayers completed! 🤲", color: colors.primary };
-    }
-    if (quranProgress === 1) {
-      return { text: "Quran goals achieved! 📖", color: colors.accent };
-    }
-    if (dhikrProgress === 1) {
-      return { text: "Dhikr goal reached! ✨", color: colors.info };
-    }
-    if (imanScore >= 70) {
-      return { text: "Great progress today! 💫", color: colors.primary };
-    }
-    if (imanScore >= 50) {
-      return { text: "Keep building momentum! 🌱", color: colors.textSecondary };
-    }
-    if (imanScore >= 30) {
-      return { text: "Every step counts! 🚀", color: colors.warning };
-    }
-    return { text: "Begin your journey today! 🌙", color: colors.textSecondary };
-  };
-
   const getMotivationalMessage = (percentage: number) => {
-    if (percentage >= 100) return "Masha'Allah! Perfect day! 🌟";
+    if (percentage >= 100) return "Masha'Allah! Perfect! 🌟";
     if (percentage >= 90) return "Outstanding! Almost there! 💪";
-    if (percentage >= 80) return "Excellent progress! Keep going! ✨";
-    if (percentage >= 70) return "Great effort! You're doing well! 🌟";
+    if (percentage >= 80) return "Excellent progress! ✨";
+    if (percentage >= 70) return "Great effort! Keep going! 🌟";
     if (percentage >= 60) return "Good progress! Stay consistent! 💫";
-    if (percentage >= 50) return "Halfway there! Don't give up! 🌱";
+    if (percentage >= 50) return "Halfway there! 🌱";
     if (percentage >= 40) return "Keep pushing forward! 🚀";
     if (percentage >= 30) return "Every action counts! 💪";
     if (percentage >= 20) return "Start small, grow big! 🌱";
@@ -150,35 +95,40 @@ export default function ImanRingsDisplay({
   };
 
   const getDecayWarning = () => {
-    if (imanScore < 30) {
+    if (overallScore < 30) {
       return { text: "⚠️ Low Iman score! Complete goals to increase.", color: colors.error };
     }
-    if (imanScore < 50) {
+    if (overallScore < 50) {
       return { text: "⏰ Score decaying. Stay active!", color: colors.warning };
     }
     return null;
   };
 
-  const badge = getAchievementBadge(totalPercentage);
-  const insight = getDailyInsight();
+  const badge = getAchievementBadge(overallScore);
   const decayWarning = getDecayWarning();
 
   const centerX = 170;
   const centerY = 170;
   
+  // Prayer ring (outer)
   const prayerRadius = 140;
   const prayerStroke = 20;
   const prayerCircumference = 2 * Math.PI * prayerRadius;
+  const prayerProgress = sectionScores.prayer / 100;
   const prayerOffset = prayerCircumference * (1 - prayerProgress);
   
+  // Quran ring (middle)
   const quranRadius = 100;
   const quranStroke = 18;
   const quranCircumference = 2 * Math.PI * quranRadius;
+  const quranProgress = sectionScores.quran / 100;
   const quranOffset = quranCircumference * (1 - quranProgress);
   
+  // Dhikr ring (inner)
   const dhikrRadius = 60;
   const dhikrStroke = 16;
   const dhikrCircumference = 2 * Math.PI * dhikrRadius;
+  const dhikrProgress = sectionScores.dhikr / 100;
   const dhikrOffset = dhikrCircumference * (1 - dhikrProgress);
 
   const spin = rotateAnim.interpolate({
@@ -222,14 +172,15 @@ export default function ImanRingsDisplay({
               />
             </Animated.View>
             
+            {/* Prayer Ring (Outer) */}
             <Circle
               cx={centerX}
               cy={centerY}
               r={prayerRadius}
-              stroke="#808080"
+              stroke="#D0D0D0"
               strokeWidth={prayerStroke}
               fill="none"
-              opacity={0.6}
+              opacity={0.3}
             />
             <Circle
               cx={centerX}
@@ -245,14 +196,15 @@ export default function ImanRingsDisplay({
               origin={`${centerX}, ${centerY}`}
             />
             
+            {/* Quran Ring (Middle) */}
             <Circle
               cx={centerX}
               cy={centerY}
               r={quranRadius}
-              stroke="#808080"
+              stroke="#D0D0D0"
               strokeWidth={quranStroke}
               fill="none"
-              opacity={0.6}
+              opacity={0.3}
             />
             <Circle
               cx={centerX}
@@ -268,14 +220,15 @@ export default function ImanRingsDisplay({
               origin={`${centerX}, ${centerY}`}
             />
             
+            {/* Dhikr Ring (Inner) */}
             <Circle
               cx={centerX}
               cy={centerY}
               r={dhikrRadius}
-              stroke="#808080"
+              stroke="#D0D0D0"
               strokeWidth={dhikrStroke}
               fill="none"
-              opacity={0.6}
+              opacity={0.3}
             />
             <Circle
               cx={centerX}
@@ -307,7 +260,7 @@ export default function ImanRingsDisplay({
             ]}
           >
             <Text style={styles.centerTitle}>Iman Score</Text>
-            <Text style={[styles.centerPercentage, { color: badge.color }]}>{totalPercentage}%</Text>
+            <Text style={[styles.centerPercentage, { color: badge.color }]}>{overallScore}%</Text>
             <Text style={styles.centerHint}>Tap for details</Text>
           </Animated.View>
         </TouchableOpacity>
@@ -332,90 +285,57 @@ export default function ImanRingsDisplay({
         </LinearGradient>
       )}
       
-      <LinearGradient
-        colors={[insight.color + '20', insight.color + '10']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={styles.insightContainer}
-      >
-        <IconSymbol
-          ios_icon_name="lightbulb.fill"
-          android_material_icon_name="lightbulb"
-          size={20}
-          color={insight.color}
-        />
-        <Text style={[styles.insightText, { color: insight.color }]}>
-          {insight.text}
-        </Text>
-      </LinearGradient>
-      
       <View style={styles.motivationalContainer}>
         <Text style={styles.motivationalText}>
-          {getMotivationalMessage(totalPercentage)}
+          {getMotivationalMessage(overallScore)}
         </Text>
       </View>
       
-      {showBreakdown && scoreBreakdown && (
+      {showBreakdown && (
         <View style={styles.breakdownContainer}>
           <Text style={styles.breakdownTitle}>Score Breakdown</Text>
           
           <View style={styles.breakdownSection}>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Daily Goals (85%)</Text>
-              <Text style={styles.breakdownValue}>{scoreBreakdown.dailyTotal.toFixed(1)}%</Text>
+              <View style={styles.breakdownLabelRow}>
+                <View style={[styles.colorDot, { backgroundColor: colors.primary }]} />
+                <Text style={styles.breakdownLabel}>Prayer</Text>
+              </View>
+              <Text style={[styles.breakdownValue, { color: colors.primary }]}>
+                {Math.round(sectionScores.prayer)}%
+              </Text>
             </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Prayer (30%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.prayer.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Quran (25%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.quran.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Dhikr (20%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dhikr.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Sunnah Prayers (10%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.sunnahPrayers.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Daily Duas (5%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dailyDuas.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Fasting (5%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.fasting.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Charity (5%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.charity.toFixed(1)}%</Text>
-            </View>
-          </View>
-
-          <View style={styles.breakdownSection}>
             <View style={styles.breakdownRow}>
-              <Text style={styles.breakdownLabel}>Weekly Goals (15%)</Text>
-              <Text style={styles.breakdownValue}>{scoreBreakdown.weekly.toFixed(1)}%</Text>
+              <View style={styles.breakdownLabelRow}>
+                <View style={[styles.colorDot, { backgroundColor: colors.accent }]} />
+                <Text style={styles.breakdownLabel}>Quran</Text>
+              </View>
+              <Text style={[styles.breakdownValue, { color: colors.accent }]}>
+                {Math.round(sectionScores.quran)}%
+              </Text>
             </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Challenges (60%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.weeklyBreakdown.challenges.toFixed(1)}%</Text>
-            </View>
-            <View style={styles.breakdownSubRow}>
-              <Text style={styles.breakdownSubLabel}>• Weekly Fasting (40%)</Text>
-              <Text style={styles.breakdownSubValue}>{scoreBreakdown.weeklyBreakdown.fasting.toFixed(1)}%</Text>
+            <View style={styles.breakdownRow}>
+              <View style={styles.breakdownLabelRow}>
+                <View style={[styles.colorDot, { backgroundColor: colors.info }]} />
+                <Text style={styles.breakdownLabel}>Dhikr</Text>
+              </View>
+              <Text style={[styles.breakdownValue, { color: colors.info }]}>
+                {Math.round(sectionScores.dhikr)}%
+              </Text>
             </View>
           </View>
 
           <View style={styles.breakdownDivider} />
           <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownTotalLabel}>Total Score</Text>
+            <Text style={styles.breakdownTotalLabel}>Overall Score</Text>
             <Text style={[styles.breakdownTotalValue, { color: badge.color }]}>
-              {scoreBreakdown.total.toFixed(1)}%
+              {overallScore}%
             </Text>
           </View>
+          
+          <Text style={styles.breakdownNote}>
+            Each ring reaches 100% when all daily and weekly goals are met.
+          </Text>
         </View>
       )}
       
@@ -429,11 +349,11 @@ export default function ImanRingsDisplay({
           />
           <View style={styles.ringLabelContent}>
             <Text style={styles.ringLabelText}>Prayer</Text>
-            <Text style={styles.ringLabelProgress}>{prayerCompleted}/{prayerTotal} completed</Text>
+            <Text style={styles.ringLabelProgress}>5 Fard + Sunnah + Tahajjud</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: colors.primary }]}>
-              {Math.round(prayerProgress * 100)}%
+              {Math.round(sectionScores.prayer)}%
             </Text>
           </View>
         </View>
@@ -447,13 +367,11 @@ export default function ImanRingsDisplay({
           />
           <View style={styles.ringLabelContent}>
             <Text style={styles.ringLabelText}>Quran</Text>
-            <Text style={styles.ringLabelProgress}>
-              {quranCompleted}/{quranTotal} completed
-            </Text>
+            <Text style={styles.ringLabelProgress}>Reading + Memorization</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: colors.accent }]}>
-              {Math.round(quranProgress * 100)}%
+              {Math.round(sectionScores.quran)}%
             </Text>
           </View>
         </View>
@@ -467,41 +385,15 @@ export default function ImanRingsDisplay({
           />
           <View style={styles.ringLabelContent}>
             <Text style={styles.ringLabelText}>Dhikr</Text>
-            <Text style={styles.ringLabelProgress}>{dhikrCompleted}/{dhikrTotal} counted</Text>
+            <Text style={styles.ringLabelProgress}>Daily + Weekly Goals</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: colors.info }]}>
-              {Math.round(dhikrProgress * 100)}%
+              {Math.round(sectionScores.dhikr)}%
             </Text>
           </View>
         </View>
       </View>
-      
-      {streakData.currentStreak > 0 && (
-        <View style={styles.streakContainer}>
-          <LinearGradient
-            colors={[colors.accent, colors.accentDark]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={styles.streakBadge}
-          >
-            <IconSymbol
-              ios_icon_name="flame.fill"
-              android_material_icon_name="local-fire-department"
-              size={24}
-              color={colors.card}
-            />
-            <View>
-              <Text style={styles.streakText}>{streakData.currentStreak} Day Streak!</Text>
-              {streakData.longestStreak > streakData.currentStreak && (
-                <Text style={styles.streakSubtext}>
-                  Best: {streakData.longestStreak} days
-                </Text>
-              )}
-            </View>
-          </LinearGradient>
-        </View>
-      )}
     </LinearGradient>
   );
 }
@@ -564,19 +456,6 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     flex: 1,
   },
-  insightContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  insightText: {
-    ...typography.bodyBold,
-    flex: 1,
-  },
   motivationalContainer: {
     marginTop: spacing.md,
     paddingHorizontal: spacing.lg,
@@ -614,6 +493,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.sm,
   },
+  breakdownLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  colorDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
   breakdownLabel: {
     ...typography.body,
     color: colors.text,
@@ -621,22 +510,7 @@ const styles = StyleSheet.create({
   },
   breakdownValue: {
     ...typography.bodyBold,
-    color: colors.primary,
-  },
-  breakdownSubRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.xs,
-    marginLeft: spacing.md,
-  },
-  breakdownSubLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
-  },
-  breakdownSubValue: {
-    ...typography.caption,
-    color: colors.text,
+    fontSize: 18,
   },
   breakdownDivider: {
     height: 1,
@@ -651,6 +525,13 @@ const styles = StyleSheet.create({
   breakdownTotalValue: {
     ...typography.h3,
     fontWeight: '700',
+  },
+  breakdownNote: {
+    ...typography.small,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginTop: spacing.md,
+    fontStyle: 'italic',
   },
   ringLabelsContainer: {
     marginTop: spacing.xl,
@@ -689,28 +570,5 @@ const styles = StyleSheet.create({
   ringLabelPercentText: {
     ...typography.captionBold,
     fontSize: 16,
-  },
-  streakContainer: {
-    marginTop: spacing.lg,
-    alignItems: 'center',
-  },
-  streakBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    paddingHorizontal: spacing.xl,
-    paddingVertical: spacing.lg,
-    borderRadius: borderRadius.lg,
-    ...shadows.medium,
-  },
-  streakText: {
-    ...typography.h4,
-    color: colors.card,
-    fontWeight: '700',
-  },
-  streakSubtext: {
-    ...typography.small,
-    color: colors.card,
-    opacity: 0.9,
   },
 });

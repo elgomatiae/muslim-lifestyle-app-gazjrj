@@ -10,59 +10,10 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
-import QuickStatsCards from "@/components/iman/QuickStatsCards";
-import SunnahPrayerTracker from "@/components/iman/SunnahPrayerTracker";
-import CharityTracker from "@/components/iman/CharityTracker";
-import FastingTracker from "@/components/iman/FastingTracker";
-import DailyDuaTracker from "@/components/iman/DailyDuaTracker";
-import ChallengesSection from "@/components/iman/ChallengesSection";
-import AchievementsBadges from "@/components/iman/AchievementsBadges";
-import { updateImanScore, resetDailyGoals } from "@/utils/imanScoreCalculator";
-
-interface PrayerProgress {
-  completed: number;
-  total: number;
-}
-
-interface QuranGoals {
-  versesToMemorize: number;
-  versesMemorized: number;
-  pagesToRead: number;
-  pagesRead: number;
-}
-
-interface DhikrGoals {
-  dailyTarget: number;
-  currentCount: number;
-}
-
-interface StreakData {
-  currentStreak: number;
-  longestStreak: number;
-  lastCompletedDate: string;
-}
+import { resetDailyGoals, resetWeeklyGoals, updateSectionScores } from "@/utils/imanScoreCalculator";
 
 export default function ImanTrackerScreen() {
   const [refreshing, setRefreshing] = useState(false);
-  const [prayerProgress, setPrayerProgress] = useState<PrayerProgress>({
-    completed: 0,
-    total: 5,
-  });
-  const [quranGoals, setQuranGoals] = useState<QuranGoals>({
-    versesToMemorize: 5,
-    versesMemorized: 0,
-    pagesToRead: 2,
-    pagesRead: 0,
-  });
-  const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals>({
-    dailyTarget: 100,
-    currentCount: 0,
-  });
-  const [streakData, setStreakData] = useState<StreakData>({
-    currentStreak: 0,
-    longestStreak: 0,
-    lastCompletedDate: '',
-  });
 
   const loadData = useCallback(async () => {
     try {
@@ -73,117 +24,49 @@ export default function ImanTrackerScreen() {
         // New day - reset daily goals
         await resetDailyGoals();
         await AsyncStorage.setItem('lastImanDate', today);
-        
-        const savedQuranGoals = await AsyncStorage.getItem('quranGoalTargets');
-        const savedDhikrTarget = await AsyncStorage.getItem('dhikrGoalTarget');
-        
-        const newQuranGoals = savedQuranGoals ? JSON.parse(savedQuranGoals) : quranGoals;
-        const newDhikrTarget = savedDhikrTarget ? parseInt(savedDhikrTarget) : dhikrGoals.dailyTarget;
-        
-        setQuranGoals({
-          ...newQuranGoals,
-          versesMemorized: 0,
-          pagesRead: 0,
-        });
-        setDhikrGoals({
-          dailyTarget: newDhikrTarget,
-          currentCount: 0,
-        });
-        
-        await AsyncStorage.setItem('quranProgress', JSON.stringify({
-          ...newQuranGoals,
-          versesMemorized: 0,
-          pagesRead: 0,
-        }));
-        await AsyncStorage.setItem('dhikrProgress', JSON.stringify({
-          dailyTarget: newDhikrTarget,
-          currentCount: 0,
-        }));
-      } else {
-        const savedQuranProgress = await AsyncStorage.getItem('quranProgress');
-        const savedDhikrProgress = await AsyncStorage.getItem('dhikrProgress');
-        
-        if (savedQuranProgress) {
-          setQuranGoals(JSON.parse(savedQuranProgress));
-        }
-        if (savedDhikrProgress) {
-          setDhikrGoals(JSON.parse(savedDhikrProgress));
-        }
       }
       
-      // Update Iman score with decay
-      await updateImanScore();
+      // Check if it's a new week
+      const currentWeek = getWeekNumber(new Date());
+      const lastWeek = await AsyncStorage.getItem('lastImanWeek');
+      
+      if (lastWeek !== currentWeek.toString()) {
+        // New week - reset weekly goals
+        await resetWeeklyGoals();
+        await AsyncStorage.setItem('lastImanWeek', currentWeek.toString());
+      }
+      
+      // Update scores with decay
+      await updateSectionScores();
     } catch (error) {
       console.log('Error loading iman data:', error);
     }
   }, []);
 
-  const loadPrayerProgress = useCallback(async () => {
-    try {
-      const savedPrayerProgress = await AsyncStorage.getItem('prayerProgress');
-      if (savedPrayerProgress) {
-        setPrayerProgress(JSON.parse(savedPrayerProgress));
-      } else {
-        const savedPrayerData = await AsyncStorage.getItem('prayerData');
-        if (savedPrayerData) {
-          const prayers = JSON.parse(savedPrayerData);
-          const completed = prayers.filter((p: any) => p.completed).length;
-          setPrayerProgress({ completed, total: 5 });
-        }
-      }
-    } catch (error) {
-      console.log('Error loading prayer progress:', error);
-    }
-  }, []);
-
-  const loadStreakData = useCallback(async () => {
-    try {
-      const savedStreak = await AsyncStorage.getItem('imanStreak');
-      if (savedStreak) {
-        setStreakData(JSON.parse(savedStreak));
-      }
-    } catch (error) {
-      console.log('Error loading streak data:', error);
-    }
-  }, []);
+  const getWeekNumber = (date: Date): number => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([
-      loadData(),
-      loadPrayerProgress(),
-      loadStreakData(),
-    ]);
+    await loadData();
     setRefreshing(false);
-  }, [loadData, loadPrayerProgress, loadStreakData]);
+  }, [loadData]);
 
   useEffect(() => {
     loadData();
-    loadPrayerProgress();
-    loadStreakData();
-  }, [loadData, loadPrayerProgress, loadStreakData]);
+  }, [loadData]);
 
   useEffect(() => {
-    // Update prayer progress every second
-    const interval = setInterval(() => {
-      loadPrayerProgress();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [loadPrayerProgress]);
-
-  useEffect(() => {
-    // Update Iman score every minute to apply decay
+    // Update scores every minute to apply decay
     const scoreInterval = setInterval(async () => {
-      await updateImanScore();
+      await updateSectionScores();
     }, 60000); // Every minute
     
     return () => clearInterval(scoreInterval);
   }, []);
-
-  const prayerProgressValue = prayerProgress.completed / prayerProgress.total;
-  const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
-                        (quranGoals.pagesRead / quranGoals.pagesToRead)) / 2;
-  const dhikrProgressValue = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -198,44 +81,11 @@ export default function ImanTrackerScreen() {
         <View style={styles.headerContainer}>
           <View>
             <Text style={styles.header}>Iman Tracker</Text>
-            <Text style={styles.subtitle}>Your spiritual journey dashboard</Text>
+            <Text style={styles.subtitle}>Track your spiritual journey</Text>
           </View>
-          <TouchableOpacity
-            style={styles.settingsButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/(iman)/goals-settings');
-            }}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              ios_icon_name="gear"
-              android_material_icon_name="settings"
-              size={24}
-              color={colors.primary}
-            />
-          </TouchableOpacity>
         </View>
 
-        <ImanRingsDisplay
-          prayerProgress={prayerProgressValue}
-          quranProgress={quranProgressValue}
-          dhikrProgress={dhikrProgressValue}
-          streakData={streakData}
-          prayerCompleted={prayerProgress.completed}
-          prayerTotal={prayerProgress.total}
-          quranCompleted={quranGoals.versesMemorized + quranGoals.pagesRead}
-          quranTotal={quranGoals.versesToMemorize + quranGoals.pagesToRead}
-          dhikrCompleted={dhikrGoals.currentCount}
-          dhikrTotal={dhikrGoals.dailyTarget}
-        />
-
-        <QuickStatsCards
-          prayerProgress={prayerProgressValue}
-          quranProgress={quranProgressValue}
-          dhikrProgress={dhikrProgressValue}
-          streakData={streakData}
-        />
+        <ImanRingsDisplay onRefresh={onRefresh} />
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -246,21 +96,48 @@ export default function ImanTrackerScreen() {
               style={styles.sectionIconContainer}
             >
               <IconSymbol
-                ios_icon_name="sparkles"
-                android_material_icon_name="auto-awesome"
+                ios_icon_name="target"
+                android_material_icon_name="track-changes"
                 size={20}
                 color={colors.card}
               />
             </LinearGradient>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
+            <Text style={styles.sectionTitle}>Manage Your Goals</Text>
           </View>
           
-          <View style={styles.quickActionsGrid}>
+          <View style={styles.goalsGrid}>
             <TouchableOpacity
-              style={styles.quickActionCard}
+              style={styles.goalCard}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/(iman)/quran-tracker');
+                router.push('/(tabs)/(iman)/prayer-goals');
+              }}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={[colors.primary, colors.primaryDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.goalCardGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="hands.sparkles.fill"
+                  android_material_icon_name="auto-awesome"
+                  size={32}
+                  color={colors.card}
+                />
+                <Text style={styles.goalCardTitle}>Prayer Goals</Text>
+                <Text style={styles.goalCardDescription}>
+                  5 Fard + Sunnah + Tahajjud
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.goalCard}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/(iman)/quran-goals');
               }}
               activeOpacity={0.7}
             >
@@ -268,23 +145,26 @@ export default function ImanTrackerScreen() {
                 colors={[colors.accent, colors.accentDark]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.quickActionGradient}
+                style={styles.goalCardGradient}
               >
                 <IconSymbol
                   ios_icon_name="book.fill"
                   android_material_icon_name="book"
-                  size={28}
+                  size={32}
                   color={colors.card}
                 />
-                <Text style={styles.quickActionText}>Quran</Text>
+                <Text style={styles.goalCardTitle}>Quran Goals</Text>
+                <Text style={styles.goalCardDescription}>
+                  Reading + Memorization
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.quickActionCard}
+              style={styles.goalCard}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/(iman)/dhikr-counter');
+                router.push('/(tabs)/(iman)/dhikr-goals');
               }}
               activeOpacity={0.7}
             >
@@ -292,74 +172,43 @@ export default function ImanTrackerScreen() {
                 colors={colors.gradientInfo}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.quickActionGradient}
+                style={styles.goalCardGradient}
               >
                 <IconSymbol
                   ios_icon_name="hand.raised.fill"
                   android_material_icon_name="back-hand"
-                  size={28}
+                  size={32}
                   color={colors.card}
                 />
-                <Text style={styles.quickActionText}>Dhikr</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/(iman)/good-deeds');
-              }}
-              activeOpacity={0.7}
-            >
-              <LinearGradient
-                colors={[colors.success, '#2E7D32']}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.quickActionGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="heart.fill"
-                  android_material_icon_name="favorite"
-                  size={28}
-                  color={colors.card}
-                />
-                <Text style={styles.quickActionText}>Good Deeds</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.quickActionCard}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/(iman)/reflection');
-              }}
-              activeOpacity={0.7}
-            >
-              <LinearGradient
-                colors={colors.gradientPurple}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.quickActionGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="pencil"
-                  android_material_icon_name="edit"
-                  size={28}
-                  color={colors.card}
-                />
-                <Text style={styles.quickActionText}>Reflect</Text>
+                <Text style={styles.goalCardTitle}>Dhikr Goals</Text>
+                <Text style={styles.goalCardDescription}>
+                  Daily + Weekly Targets
+                </Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
-        <SunnahPrayerTracker />
-        <CharityTracker />
-        <FastingTracker />
-        <DailyDuaTracker />
-        <ChallengesSection />
-        <AchievementsBadges />
+        <View style={styles.infoSection}>
+          <View style={styles.infoCard}>
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={24}
+              color={colors.primary}
+            />
+            <View style={styles.infoContent}>
+              <Text style={styles.infoTitle}>How It Works</Text>
+              <Text style={styles.infoText}>
+                - Each ring represents a section: Prayer, Quran, and Dhikr{'\n'}
+                - Set custom goals for each section{'\n'}
+                - Rings reach 100% when all daily and weekly goals are met{'\n'}
+                - Scores decay if goals aren&apos;t completed{'\n'}
+                - Stay consistent to maintain high scores!
+              </Text>
+            </View>
+          </View>
+        </View>
 
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -394,15 +243,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.textSecondary,
   },
-  settingsButton: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.round,
-    backgroundColor: colors.highlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    ...shadows.small,
-  },
   section: {
     marginBottom: spacing.xxl,
   },
@@ -423,28 +263,61 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.text,
   },
-  quickActionsGrid: {
+  goalsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.md,
   },
-  quickActionCard: {
+  goalCard: {
     flex: 1,
-    minWidth: '45%',
+    minWidth: '30%',
     borderRadius: borderRadius.md,
     overflow: 'hidden',
     ...shadows.medium,
   },
-  quickActionGradient: {
+  goalCardGradient: {
     padding: spacing.lg,
     alignItems: 'center',
     gap: spacing.sm,
-    minHeight: 100,
+    minHeight: 140,
     justifyContent: 'center',
   },
-  quickActionText: {
+  goalCardTitle: {
     ...typography.bodyBold,
     color: colors.card,
+    textAlign: 'center',
+  },
+  goalCardDescription: {
+    ...typography.small,
+    color: colors.card,
+    opacity: 0.9,
+    textAlign: 'center',
+  },
+  infoSection: {
+    marginBottom: spacing.xxl,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    backgroundColor: colors.card,
+    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+  },
+  infoContent: {
+    flex: 1,
+  },
+  infoTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  infoText: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    lineHeight: 20,
   },
   bottomPadding: {
     height: 100,

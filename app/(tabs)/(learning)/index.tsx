@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from "
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 
 interface LearningSection {
   title: string;
@@ -11,26 +12,28 @@ interface LearningSection {
   iosIcon: string;
   androidIcon: string;
   gradientColors: string[];
-  count: number;
+  route: string;
 }
 
 export default function LearningScreen() {
+  const router = useRouter();
+
   const sections: LearningSection[] = [
     {
       title: 'Islamic Lectures',
-      description: 'Listen to inspiring lectures from scholars',
-      iosIcon: 'play.circle.fill',
+      description: 'Watch inspiring lectures from scholars',
+      iosIcon: 'play.rectangle.fill',
       androidIcon: 'play-circle',
       gradientColors: colors.gradientPrimary,
-      count: 24,
+      route: '/(tabs)/(learning)/lectures',
     },
     {
       title: 'Quran Recitations',
       description: 'Beautiful recitations of the Holy Quran',
-      iosIcon: 'headphones',
+      iosIcon: 'music.note',
       androidIcon: 'headset',
       gradientColors: colors.gradientAccent,
-      count: 30,
+      route: '/(tabs)/(learning)/recitations',
     },
     {
       title: 'Islamic Quizzes',
@@ -38,7 +41,7 @@ export default function LearningScreen() {
       iosIcon: 'questionmark.circle.fill',
       androidIcon: 'quiz',
       gradientColors: colors.gradientInfo,
-      count: 15,
+      route: '',
     },
     {
       title: 'Daily Duas',
@@ -46,9 +49,17 @@ export default function LearningScreen() {
       iosIcon: 'book.pages.fill',
       androidIcon: 'auto-stories',
       gradientColors: colors.gradientPurple,
-      count: 40,
+      route: '',
     },
   ];
+
+  const handleSectionPress = (section: LearningSection) => {
+    if (section.route) {
+      router.push(section.route as any);
+    } else {
+      console.log(`${section.title} - Coming soon`);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -88,7 +99,7 @@ export default function LearningScreen() {
               <TouchableOpacity
                 style={styles.sectionCard}
                 activeOpacity={0.7}
-                onPress={() => console.log(`Pressed ${section.title}`)}
+                onPress={() => handleSectionPress(section)}
               >
                 <LinearGradient
                   colors={section.gradientColors}
@@ -108,9 +119,11 @@ export default function LearningScreen() {
                     <View style={styles.sectionTextContainer}>
                       <Text style={styles.sectionTitle}>{section.title}</Text>
                       <Text style={styles.sectionDescription}>{section.description}</Text>
-                      <View style={styles.countBadge}>
-                        <Text style={styles.countText}>{section.count} items</Text>
-                      </View>
+                      {section.route && (
+                        <View style={styles.newBadge}>
+                          <Text style={styles.newBadgeText}>Netflix Style</Text>
+                        </View>
+                      )}
                     </View>
                   </View>
                   <IconSymbol
@@ -125,19 +138,19 @@ export default function LearningScreen() {
           ))}
         </View>
 
-        {/* Placeholder for content */}
-        <View style={styles.placeholderCard}>
-          <View style={styles.placeholderIconContainer}>
+        {/* Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconContainer}>
             <IconSymbol
-              ios_icon_name="icloud.and.arrow.up.fill"
-              android_material_icon_name="cloud-upload"
-              size={52}
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={32}
               color={colors.primary}
             />
           </View>
-          <Text style={styles.placeholderTitle}>Content Coming Soon</Text>
-          <Text style={styles.placeholderText}>
-            Upload your Islamic lectures, Quran recitations, and other learning materials via Supabase to populate these sections.
+          <Text style={styles.infoTitle}>Supabase Integration</Text>
+          <Text style={styles.infoText}>
+            Islamic Lectures and Quran Recitations now feature a Netflix-style browsing experience. Connect to Supabase to upload and manage your video content.
           </Text>
         </View>
 
@@ -241,41 +254,43 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
     lineHeight: 20,
   },
-  countBadge: {
+  newBadge: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: borderRadius.md,
   },
-  countText: {
+  newBadgeText: {
     ...typography.smallBold,
     color: colors.card,
   },
-  placeholderCard: {
+  infoCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    padding: spacing.xxxl,
+    padding: spacing.xl,
     alignItems: 'center',
     ...shadows.medium,
     borderWidth: 1,
     borderColor: colors.border,
+    marginBottom: spacing.xxl,
   },
-  placeholderIconContainer: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
+  infoIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.md,
   },
-  placeholderTitle: {
+  infoTitle: {
     ...typography.h4,
     color: colors.text,
     marginBottom: spacing.md,
+    textAlign: 'center',
   },
-  placeholderText: {
+  infoText: {
     ...typography.body,
     color: colors.textSecondary,
     textAlign: 'center',

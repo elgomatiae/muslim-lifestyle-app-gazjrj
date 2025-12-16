@@ -6,6 +6,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
 interface Challenge {
   id: string;
@@ -13,15 +14,17 @@ interface Challenge {
   description: string;
   points: number;
   completed: boolean;
+  enabled: boolean;
 }
 
-const WEEKLY_CHALLENGES: Challenge[] = [
+const DEFAULT_CHALLENGES: Challenge[] = [
   {
     id: 'kahf',
     title: 'Surah Al-Kahf Friday',
     description: 'Recite Surah Al-Kahf on Friday',
     points: 20,
     completed: false,
+    enabled: true,
   },
   {
     id: 'morning_adhkar',
@@ -29,6 +32,7 @@ const WEEKLY_CHALLENGES: Challenge[] = [
     description: 'Complete morning adhkar for 7 days',
     points: 30,
     completed: false,
+    enabled: true,
   },
   {
     id: 'tahajjud',
@@ -36,11 +40,12 @@ const WEEKLY_CHALLENGES: Challenge[] = [
     description: 'Pray Tahajjud 3 times this week',
     points: 25,
     completed: false,
+    enabled: true,
   },
 ];
 
 export default function ChallengesSection() {
-  const [challenges, setChallenges] = useState<Challenge[]>(WEEKLY_CHALLENGES);
+  const [challenges, setChallenges] = useState<Challenge[]>(DEFAULT_CHALLENGES);
 
   useEffect(() => {
     loadChallenges();
@@ -48,10 +53,24 @@ export default function ChallengesSection() {
 
   const loadChallenges = async () => {
     try {
+      // Load custom challenge goals
+      const savedGoals = await AsyncStorage.getItem('challengeGoals');
+      const goals = savedGoals ? JSON.parse(savedGoals) : DEFAULT_CHALLENGES;
+      
+      // Load challenge completion status
       const saved = await AsyncStorage.getItem('challenges');
-      if (saved) {
-        setChallenges(JSON.parse(saved));
-      }
+      const savedChallenges = saved ? JSON.parse(saved) : [];
+      
+      // Merge goals with completion status
+      const mergedChallenges = goals.map((goal: Challenge) => {
+        const savedChallenge = savedChallenges.find((c: Challenge) => c.id === goal.id);
+        return {
+          ...goal,
+          completed: savedChallenge?.completed || false,
+        };
+      });
+      
+      setChallenges(mergedChallenges);
     } catch (error) {
       console.log('Error loading challenges:', error);
     }
@@ -72,8 +91,51 @@ export default function ChallengesSection() {
     }
   };
 
-  const completedCount = challenges.filter(c => c.completed).length;
-  const totalPoints = challenges.filter(c => c.completed).reduce((sum, c) => sum + c.points, 0);
+  const enabledChallenges = challenges.filter(c => c.enabled);
+  const completedCount = enabledChallenges.filter(c => c.completed).length;
+  const totalPoints = enabledChallenges.filter(c => c.completed).reduce((sum, c) => sum + c.points, 0);
+
+  if (enabledChallenges.length === 0) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <LinearGradient
+            colors={[colors.accent, colors.accentDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sectionIconContainer}
+          >
+            <IconSymbol
+              ios_icon_name="trophy.fill"
+              android_material_icon_name="emoji-events"
+              size={20}
+              color={colors.card}
+            />
+          </LinearGradient>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Weekly Challenges</Text>
+            <Text style={styles.sectionSubtitle}>No challenges set</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.emptyCard}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/(iman)/goals-settings');
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="plus.circle.fill"
+            android_material_icon_name="add-circle"
+            size={32}
+            color={colors.accent}
+          />
+          <Text style={styles.emptyText}>Tap to set weekly challenges</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
@@ -93,12 +155,29 @@ export default function ChallengesSection() {
         </LinearGradient>
         <View style={styles.sectionTitleContainer}>
           <Text style={styles.sectionTitle}>Weekly Challenges</Text>
-          <Text style={styles.sectionSubtitle}>{completedCount}/{challenges.length} • {totalPoints} points</Text>
+          <Text style={styles.sectionSubtitle}>
+            {completedCount}/{enabledChallenges.length} • {totalPoints} points
+          </Text>
         </View>
+        <TouchableOpacity
+          style={styles.settingsIcon}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/(iman)/goals-settings');
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="gear"
+            android_material_icon_name="settings"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.challengesScroll}>
-        {challenges.map((challenge, index) => (
+        {enabledChallenges.map((challenge, index) => (
           <React.Fragment key={index}>
             <TouchableOpacity
               style={[
@@ -189,6 +268,12 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textSecondary,
   },
+  settingsIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   challengesScroll: {
     marginHorizontal: -spacing.xl,
     paddingHorizontal: spacing.xl,
@@ -255,5 +340,22 @@ const styles = StyleSheet.create({
   challengeDescriptionCompleted: {
     color: colors.card,
     opacity: 0.9,
+  },
+  emptyCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    ...shadows.small,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
 });

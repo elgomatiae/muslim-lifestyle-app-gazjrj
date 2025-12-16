@@ -6,19 +6,28 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
-const SUNNAH_PRAYERS = [
-  { id: 'fajr_sunnah', name: 'Fajr Sunnah', rakats: 2 },
-  { id: 'dhuhr_sunnah_before', name: 'Dhuhr Sunnah (Before)', rakats: 4 },
-  { id: 'dhuhr_sunnah_after', name: 'Dhuhr Sunnah (After)', rakats: 2 },
-  { id: 'maghrib_sunnah', name: 'Maghrib Sunnah', rakats: 2 },
-  { id: 'isha_sunnah', name: 'Isha Sunnah', rakats: 2 },
-  { id: 'tahajjud', name: 'Tahajjud', rakats: 8 },
-  { id: 'duha', name: 'Duha', rakats: 2 },
+interface SunnahPrayer {
+  id: string;
+  name: string;
+  rakats: number;
+  enabled: boolean;
+}
+
+const DEFAULT_SUNNAH_PRAYERS: SunnahPrayer[] = [
+  { id: 'fajr_sunnah', name: 'Fajr Sunnah', rakats: 2, enabled: true },
+  { id: 'dhuhr_sunnah_before', name: 'Dhuhr Sunnah (Before)', rakats: 4, enabled: true },
+  { id: 'dhuhr_sunnah_after', name: 'Dhuhr Sunnah (After)', rakats: 2, enabled: true },
+  { id: 'maghrib_sunnah', name: 'Maghrib Sunnah', rakats: 2, enabled: true },
+  { id: 'isha_sunnah', name: 'Isha Sunnah', rakats: 2, enabled: true },
+  { id: 'tahajjud', name: 'Tahajjud', rakats: 8, enabled: false },
+  { id: 'duha', name: 'Duha', rakats: 2, enabled: false },
 ];
 
 export default function SunnahPrayerTracker() {
   const [completedPrayers, setCompletedPrayers] = useState<Set<string>>(new Set());
+  const [sunnahPrayers, setSunnahPrayers] = useState<SunnahPrayer[]>(DEFAULT_SUNNAH_PRAYERS);
 
   useEffect(() => {
     loadSunnahPrayers();
@@ -28,6 +37,11 @@ export default function SunnahPrayerTracker() {
     try {
       const today = new Date().toDateString();
       const lastDate = await AsyncStorage.getItem('sunnahPrayersDate');
+      
+      // Load custom goals
+      const savedGoals = await AsyncStorage.getItem('sunnahPrayerGoals');
+      const goals = savedGoals ? JSON.parse(savedGoals) : DEFAULT_SUNNAH_PRAYERS;
+      setSunnahPrayers(goals);
       
       if (lastDate !== today) {
         await AsyncStorage.setItem('sunnahPrayersDate', today);
@@ -59,9 +73,54 @@ export default function SunnahPrayerTracker() {
     await AsyncStorage.setItem('sunnahPrayers', JSON.stringify(Array.from(newCompleted)));
   };
 
-  const completedCount = completedPrayers.size;
-  const totalCount = SUNNAH_PRAYERS.length;
-  const progress = (completedCount / totalCount) * 100;
+  const enabledPrayers = sunnahPrayers.filter(p => p.enabled);
+  const completedCount = Array.from(completedPrayers).filter(id => 
+    enabledPrayers.some(p => p.id === id)
+  ).length;
+  const totalCount = enabledPrayers.length;
+  const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+  if (totalCount === 0) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <LinearGradient
+            colors={[colors.primary, colors.primaryDark]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sectionIconContainer}
+          >
+            <IconSymbol
+              ios_icon_name="hands.sparkles.fill"
+              android_material_icon_name="auto-awesome"
+              size={20}
+              color={colors.card}
+            />
+          </LinearGradient>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Sunnah Prayers</Text>
+            <Text style={styles.sectionSubtitle}>No goals set</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.emptyCard}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/(iman)/goals-settings');
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="plus.circle.fill"
+            android_material_icon_name="add-circle"
+            size={32}
+            color={colors.primary}
+          />
+          <Text style={styles.emptyText}>Tap to set Sunnah prayer goals</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.section}>
@@ -83,6 +142,21 @@ export default function SunnahPrayerTracker() {
           <Text style={styles.sectionTitle}>Sunnah Prayers</Text>
           <Text style={styles.sectionSubtitle}>{completedCount}/{totalCount} completed</Text>
         </View>
+        <TouchableOpacity
+          style={styles.settingsIcon}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            router.push('/(tabs)/(iman)/goals-settings');
+          }}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="gear"
+            android_material_icon_name="settings"
+            size={20}
+            color={colors.textSecondary}
+          />
+        </TouchableOpacity>
       </View>
 
       <View style={styles.progressBarContainer}>
@@ -97,7 +171,7 @@ export default function SunnahPrayerTracker() {
       </View>
 
       <View style={styles.prayersGrid}>
-        {SUNNAH_PRAYERS.map((prayer, index) => (
+        {enabledPrayers.map((prayer, index) => (
           <React.Fragment key={index}>
             <TouchableOpacity
               style={[
@@ -167,6 +241,12 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.textSecondary,
   },
+  settingsIcon: {
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   progressBarContainer: {
     marginBottom: spacing.lg,
   },
@@ -231,5 +311,22 @@ const styles = StyleSheet.create({
   prayerRakats: {
     ...typography.small,
     color: colors.textSecondary,
+  },
+  emptyCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+    borderStyle: 'dashed',
+    ...shadows.small,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.md,
+    textAlign: 'center',
   },
 });

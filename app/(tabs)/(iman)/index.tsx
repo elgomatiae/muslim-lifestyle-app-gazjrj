@@ -204,7 +204,7 @@ export default function ImanTrackerScreen() {
             style={styles.settingsButton}
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/modal');
+              router.push('/(tabs)/(iman)/goals-settings');
             }}
             activeOpacity={0.7}
           >

@@ -50,6 +50,11 @@ export interface WeeklyGoalsProgress {
     total: number;
     progress: number;
   };
+  fasting: {
+    completed: number;
+    goal: number;
+    progress: number;
+  };
 }
 
 // Configuration constants
@@ -82,7 +87,7 @@ const DECAY_CONFIG = {
     DHIKR: 0.20, // 20% weight
     SUNNAH_PRAYERS: 0.10, // 10% weight
     DAILY_DUAS: 0.05, // 5% weight
-    FASTING: 0.05, // 5% weight
+    FASTING: 0.05, // 5% weight (daily)
     CHARITY: 0.05, // 5% weight
   },
   
@@ -109,7 +114,10 @@ export function calculateImanScore(
     (dailyProgress.charity.progress * DECAY_CONFIG.WEIGHTS.CHARITY);
   
   // Calculate weekly goals score (0-100)
-  const weeklyScore = weeklyProgress.challenges.progress;
+  // Weekly challenges contribute 60%, weekly fasting goal contributes 40%
+  const weeklyScore = 
+    (weeklyProgress.challenges.progress * 0.6) +
+    (weeklyProgress.fasting.progress * 0.4);
   
   // Combine daily and weekly scores with their respective weights
   const totalScore = 
@@ -159,7 +167,10 @@ export function applyDecay(
     (dailyProgress.fasting.progress * DECAY_CONFIG.WEIGHTS.FASTING) +
     (dailyProgress.charity.progress * DECAY_CONFIG.WEIGHTS.CHARITY);
   
-  const weeklyScore = weeklyProgress.challenges.progress;
+  const weeklyScore = 
+    (weeklyProgress.challenges.progress * 0.6) +
+    (weeklyProgress.fasting.progress * 0.4);
+    
   const overallProgress = 
     (dailyScore * DECAY_CONFIG.DAILY_GOALS_WEIGHT) +
     (weeklyScore * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT);
@@ -206,17 +217,31 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       currentCount: 0,
     };
     
-    // Load Sunnah prayers
+    // Load Sunnah prayers with custom goals
+    const sunnahGoalsStr = await AsyncStorage.getItem('sunnahPrayerGoals');
+    const sunnahGoals = sunnahGoalsStr ? JSON.parse(sunnahGoalsStr) : [];
+    const enabledSunnahPrayers = sunnahGoals.filter((p: any) => p.enabled);
+    const sunnahTotal = enabledSunnahPrayers.length || 1; // Avoid division by zero
+    
     const sunnahPrayersStr = await AsyncStorage.getItem('sunnahPrayers');
     const sunnahPrayers = sunnahPrayersStr ? JSON.parse(sunnahPrayersStr) : [];
-    const sunnahTotal = 7; // Total number of sunnah prayers
+    const sunnahCompleted = sunnahPrayers.filter((id: string) => 
+      enabledSunnahPrayers.some((p: any) => p.id === id)
+    ).length;
     
-    // Load daily duas
+    // Load daily duas with custom goals
+    const duaGoalsStr = await AsyncStorage.getItem('duaGoals');
+    const duaGoals = duaGoalsStr ? JSON.parse(duaGoalsStr) : [];
+    const enabledDuas = duaGoals.filter((d: any) => d.enabled);
+    const duasTotal = enabledDuas.length || 1; // Avoid division by zero
+    
     const completedDuasStr = await AsyncStorage.getItem('completedDuas');
     const completedDuas = completedDuasStr ? JSON.parse(completedDuasStr) : [];
-    const duasTotal = 3; // Total number of daily duas
+    const duasCompleted = completedDuas.filter((id: string) => 
+      enabledDuas.some((d: any) => d.id === id)
+    ).length;
     
-    // Load fasting status
+    // Load fasting status (daily)
     const todayFasting = await AsyncStorage.getItem('todayFasting');
     const isFasting = todayFasting === 'true';
     
@@ -250,14 +275,14 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
         progress: Math.min(1, dhikrProgress.currentCount / dhikrProgress.dailyTarget),
       },
       sunnahPrayers: {
-        completed: sunnahPrayers.length,
+        completed: sunnahCompleted,
         total: sunnahTotal,
-        progress: sunnahPrayers.length / sunnahTotal,
+        progress: sunnahCompleted / sunnahTotal,
       },
       dailyDuas: {
-        completed: completedDuas.length,
+        completed: duasCompleted,
         total: duasTotal,
-        progress: completedDuas.length / duasTotal,
+        progress: duasCompleted / duasTotal,
       },
       fasting: {
         isFasting,
@@ -274,8 +299,8 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       prayer: { completed: 0, total: 5, progress: 0 },
       quran: { completed: 0, total: 7, progress: 0 },
       dhikr: { completed: 0, total: 100, progress: 0 },
-      sunnahPrayers: { completed: 0, total: 7, progress: 0 },
-      dailyDuas: { completed: 0, total: 3, progress: 0 },
+      sunnahPrayers: { completed: 0, total: 1, progress: 0 },
+      dailyDuas: { completed: 0, total: 1, progress: 0 },
       fasting: { isFasting: false, progress: 0 },
       charity: { donated: false, progress: 0 },
     };
@@ -287,11 +312,25 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
  */
 export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
   try {
+    // Load weekly challenges with custom goals
+    const challengeGoalsStr = await AsyncStorage.getItem('challengeGoals');
+    const challengeGoals = challengeGoalsStr ? JSON.parse(challengeGoalsStr) : [];
+    const enabledChallenges = challengeGoals.filter((c: any) => c.enabled);
+    
     const challengesStr = await AsyncStorage.getItem('challenges');
     const challenges = challengesStr ? JSON.parse(challengesStr) : [];
     
-    const completedChallenges = challenges.filter((c: any) => c.completed).length;
-    const totalChallenges = challenges.length || 3; // Default to 3 if no challenges
+    const completedChallenges = challenges.filter((c: any) => 
+      c.completed && enabledChallenges.some((ec: any) => ec.id === c.id)
+    ).length;
+    const totalChallenges = enabledChallenges.length || 1; // Avoid division by zero
+    
+    // Load weekly fasting goal
+    const weeklyFastingGoalStr = await AsyncStorage.getItem('weeklyFastingGoal');
+    const weeklyFastingGoal = weeklyFastingGoalStr ? parseInt(weeklyFastingGoalStr) : 2;
+    
+    const weeklyFastingCountStr = await AsyncStorage.getItem('weeklyFastingCount');
+    const weeklyFastingCount = weeklyFastingCountStr ? parseInt(weeklyFastingCountStr) : 0;
     
     return {
       challenges: {
@@ -299,13 +338,23 @@ export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
         total: totalChallenges,
         progress: completedChallenges / totalChallenges,
       },
+      fasting: {
+        completed: weeklyFastingCount,
+        goal: weeklyFastingGoal || 1, // Avoid division by zero
+        progress: weeklyFastingGoal > 0 ? Math.min(1, weeklyFastingCount / weeklyFastingGoal) : 0,
+      },
     };
   } catch (error) {
     console.log('Error loading weekly goals progress:', error);
     return {
       challenges: {
         completed: 0,
-        total: 3,
+        total: 1,
+        progress: 0,
+      },
+      fasting: {
+        completed: 0,
+        goal: 2,
         progress: 0,
       },
     };
@@ -369,7 +418,9 @@ export async function updateImanScore(): Promise<number> {
       dailyProgress.sunnahPrayers.progress === 1 &&
       dailyProgress.dailyDuas.progress === 1;
     
-    const weeklyGoalsCompleted = weeklyProgress.challenges.progress === 1;
+    const weeklyGoalsCompleted = 
+      weeklyProgress.challenges.progress === 1 &&
+      weeklyProgress.fasting.progress === 1;
     
     // Save updated score
     const scoreData: ImanScoreData = {
@@ -406,13 +457,20 @@ export async function getScoreBreakdown() {
   };
   
   const dailyTotal = Object.values(dailyScores).reduce((sum, score) => sum + score, 0);
-  const weeklyTotal = weeklyProgress.challenges.progress * 100 * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT;
+  
+  const weeklyScores = {
+    challenges: weeklyProgress.challenges.progress * 100 * 0.6,
+    fasting: weeklyProgress.fasting.progress * 100 * 0.4,
+  };
+  
+  const weeklyTotal = Object.values(weeklyScores).reduce((sum, score) => sum + score, 0);
   
   return {
     daily: dailyScores,
     dailyTotal: dailyTotal * DECAY_CONFIG.DAILY_GOALS_WEIGHT,
-    weekly: weeklyTotal,
-    total: (dailyTotal * DECAY_CONFIG.DAILY_GOALS_WEIGHT) + weeklyTotal,
+    weekly: weeklyTotal * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT,
+    weeklyBreakdown: weeklyScores,
+    total: (dailyTotal * DECAY_CONFIG.DAILY_GOALS_WEIGHT) + (weeklyTotal * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT),
     breakdown: {
       dailyProgress,
       weeklyProgress,

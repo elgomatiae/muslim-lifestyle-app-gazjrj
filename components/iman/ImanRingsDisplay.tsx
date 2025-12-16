@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
+import { View, Text, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
+import { getCurrentImanScore, getScoreBreakdown } from "@/utils/imanScoreCalculator";
+import * as Haptics from 'expo-haptics';
 
 interface ImanRingsDisplayProps {
   prayerProgress: number;
@@ -38,6 +40,10 @@ export default function ImanRingsDisplay({
   const pulseAnim = useState(new Animated.Value(1))[0];
   const glowAnim = useState(new Animated.Value(0))[0];
   const rotateAnim = useState(new Animated.Value(0))[0];
+  
+  const [imanScore, setImanScore] = useState(0);
+  const [showBreakdown, setShowBreakdown] = useState(false);
+  const [scoreBreakdown, setScoreBreakdown] = useState<any>(null);
 
   useEffect(() => {
     Animated.loop(
@@ -79,8 +85,21 @@ export default function ImanRingsDisplay({
     ).start();
   }, []);
 
-  const totalProgress = (prayerProgress + quranProgress + dhikrProgress) / 3;
-  const totalPercentage = Math.round(totalProgress * 100);
+  useEffect(() => {
+    loadImanScore();
+    const interval = setInterval(loadImanScore, 30000); // Update every 30 seconds
+    return () => clearInterval(interval);
+  }, [prayerProgress, quranProgress, dhikrProgress]);
+
+  const loadImanScore = async () => {
+    const score = await getCurrentImanScore();
+    setImanScore(score);
+    
+    const breakdown = await getScoreBreakdown();
+    setScoreBreakdown(breakdown);
+  };
+
+  const totalPercentage = Math.round(imanScore);
 
   const getAchievementBadge = (percentage: number) => {
     if (percentage >= 100) return { icon: "star.fill", color: colors.accent, label: "Perfect" };
@@ -90,8 +109,11 @@ export default function ImanRingsDisplay({
   };
 
   const getDailyInsight = () => {
-    if (prayerProgress === 1 && quranProgress === 1 && dhikrProgress === 1) {
-      return { text: "All goals completed! 🎉", color: colors.success };
+    if (imanScore >= 100) {
+      return { text: "Perfect! All goals completed! 🎉", color: colors.success };
+    }
+    if (imanScore >= 90) {
+      return { text: "Almost perfect! Keep going! 💪", color: colors.success };
     }
     if (prayerProgress === 1) {
       return { text: "All prayers completed! 🤲", color: colors.primary };
@@ -102,24 +124,44 @@ export default function ImanRingsDisplay({
     if (dhikrProgress === 1) {
       return { text: "Dhikr goal reached! ✨", color: colors.info };
     }
-    const highest = Math.max(prayerProgress, quranProgress, dhikrProgress);
-    if (highest >= 0.5) {
+    if (imanScore >= 70) {
       return { text: "Great progress today! 💫", color: colors.primary };
     }
-    return { text: "Keep building momentum! 🌱", color: colors.textSecondary };
+    if (imanScore >= 50) {
+      return { text: "Keep building momentum! 🌱", color: colors.textSecondary };
+    }
+    if (imanScore >= 30) {
+      return { text: "Every step counts! 🚀", color: colors.warning };
+    }
+    return { text: "Begin your journey today! 🌙", color: colors.textSecondary };
   };
 
   const getMotivationalMessage = (percentage: number) => {
     if (percentage >= 100) return "Masha'Allah! Perfect day! 🌟";
-    if (percentage >= 80) return "Excellent progress! Keep going! 💪";
-    if (percentage >= 60) return "Great effort! You're doing well! ✨";
-    if (percentage >= 40) return "Good start! Keep it up! 🌱";
-    if (percentage >= 20) return "Every step counts! 🚀";
+    if (percentage >= 90) return "Outstanding! Almost there! 💪";
+    if (percentage >= 80) return "Excellent progress! Keep going! ✨";
+    if (percentage >= 70) return "Great effort! You're doing well! 🌟";
+    if (percentage >= 60) return "Good progress! Stay consistent! 💫";
+    if (percentage >= 50) return "Halfway there! Don't give up! 🌱";
+    if (percentage >= 40) return "Keep pushing forward! 🚀";
+    if (percentage >= 30) return "Every action counts! 💪";
+    if (percentage >= 20) return "Start small, grow big! 🌱";
     return "Begin your journey today! 🌙";
+  };
+
+  const getDecayWarning = () => {
+    if (imanScore < 30) {
+      return { text: "⚠️ Low Iman score! Complete goals to increase.", color: colors.error };
+    }
+    if (imanScore < 50) {
+      return { text: "⏰ Score decaying. Stay active!", color: colors.warning };
+    }
+    return null;
   };
 
   const badge = getAchievementBadge(totalPercentage);
   const insight = getDailyInsight();
+  const decayWarning = getDecayWarning();
 
   const centerX = 170;
   const centerY = 170;
@@ -148,6 +190,11 @@ export default function ImanRingsDisplay({
     inputRange: [0, 1],
     outputRange: [0.3, 0.7],
   });
+
+  const toggleBreakdown = () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setShowBreakdown(!showBreakdown);
+  };
 
   return (
     <LinearGradient
@@ -246,7 +293,11 @@ export default function ImanRingsDisplay({
           </Svg>
         </Animated.View>
         
-        <View style={styles.centerContentWrapper}>
+        <TouchableOpacity 
+          style={styles.centerContentWrapper}
+          onPress={toggleBreakdown}
+          activeOpacity={0.8}
+        >
           <Animated.View 
             style={[
               styles.centerContent,
@@ -257,9 +308,29 @@ export default function ImanRingsDisplay({
           >
             <Text style={styles.centerTitle}>Iman Score</Text>
             <Text style={[styles.centerPercentage, { color: badge.color }]}>{totalPercentage}%</Text>
+            <Text style={styles.centerHint}>Tap for details</Text>
           </Animated.View>
-        </View>
+        </TouchableOpacity>
       </View>
+      
+      {decayWarning && (
+        <LinearGradient
+          colors={[decayWarning.color + '20', decayWarning.color + '10']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.warningContainer}
+        >
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={20}
+            color={decayWarning.color}
+          />
+          <Text style={[styles.warningText, { color: decayWarning.color }]}>
+            {decayWarning.text}
+          </Text>
+        </LinearGradient>
+      )}
       
       <LinearGradient
         colors={[insight.color + '20', insight.color + '10']}
@@ -283,6 +354,55 @@ export default function ImanRingsDisplay({
           {getMotivationalMessage(totalPercentage)}
         </Text>
       </View>
+      
+      {showBreakdown && scoreBreakdown && (
+        <View style={styles.breakdownContainer}>
+          <Text style={styles.breakdownTitle}>Score Breakdown</Text>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Daily Goals (85%)</Text>
+            <Text style={styles.breakdownValue}>{scoreBreakdown.dailyTotal.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Prayer (30%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.prayer.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Quran (25%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.quran.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Dhikr (20%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dhikr.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Sunnah Prayers (10%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.sunnahPrayers.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Daily Duas (5%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dailyDuas.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Fasting (5%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.fasting.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownSubRow}>
+            <Text style={styles.breakdownSubLabel}>• Charity (5%)</Text>
+            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.charity.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Weekly Goals (15%)</Text>
+            <Text style={styles.breakdownValue}>{scoreBreakdown.weekly.toFixed(1)}%</Text>
+          </View>
+          <View style={styles.breakdownDivider} />
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownTotalLabel}>Total Score</Text>
+            <Text style={[styles.breakdownTotalValue, { color: badge.color }]}>
+              {scoreBreakdown.total.toFixed(1)}%
+            </Text>
+          </View>
+        </View>
+      )}
       
       <View style={styles.ringLabelsContainer}>
         <View style={styles.ringLabel}>
@@ -394,7 +514,6 @@ const styles = StyleSheet.create({
     bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
-    pointerEvents: 'none',
   },
   centerContent: {
     alignItems: 'center',
@@ -410,6 +529,25 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: 'bold',
     lineHeight: 52,
+  },
+  centerHint: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  warningContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.md,
+    borderRadius: borderRadius.md,
+    width: '100%',
+  },
+  warningText: {
+    ...typography.bodyBold,
+    flex: 1,
   },
   insightContainer: {
     flexDirection: 'row',
@@ -437,6 +575,64 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
     textAlign: 'center',
+  },
+  breakdownContainer: {
+    marginTop: spacing.lg,
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    ...shadows.medium,
+  },
+  breakdownTitle: {
+    ...typography.h4,
+    color: colors.text,
+    marginBottom: spacing.md,
+    textAlign: 'center',
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  breakdownLabel: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  breakdownValue: {
+    ...typography.bodyBold,
+    color: colors.primary,
+  },
+  breakdownSubRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    marginLeft: spacing.md,
+  },
+  breakdownSubLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  breakdownSubValue: {
+    ...typography.caption,
+    color: colors.text,
+  },
+  breakdownDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: spacing.md,
+  },
+  breakdownTotalLabel: {
+    ...typography.h4,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  breakdownTotalValue: {
+    ...typography.h3,
+    fontWeight: '700',
   },
   ringLabelsContainer: {
     marginTop: spacing.xl,

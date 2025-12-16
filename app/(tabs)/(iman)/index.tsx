@@ -17,6 +17,7 @@ import FastingTracker from "@/components/iman/FastingTracker";
 import DailyDuaTracker from "@/components/iman/DailyDuaTracker";
 import ChallengesSection from "@/components/iman/ChallengesSection";
 import AchievementsBadges from "@/components/iman/AchievementsBadges";
+import { updateImanScore, resetDailyGoals } from "@/utils/imanScoreCalculator";
 
 interface PrayerProgress {
   completed: number;
@@ -69,7 +70,10 @@ export default function ImanTrackerScreen() {
       const today = new Date().toDateString();
       
       if (lastDate !== today) {
+        // New day - reset daily goals
+        await resetDailyGoals();
         await AsyncStorage.setItem('lastImanDate', today);
+        
         const savedQuranGoals = await AsyncStorage.getItem('quranGoalTargets');
         const savedDhikrTarget = await AsyncStorage.getItem('dhikrGoalTarget');
         
@@ -106,6 +110,9 @@ export default function ImanTrackerScreen() {
           setDhikrGoals(JSON.parse(savedDhikrProgress));
         }
       }
+      
+      // Update Iman score with decay
+      await updateImanScore();
     } catch (error) {
       console.log('Error loading iman data:', error);
     }
@@ -157,11 +164,21 @@ export default function ImanTrackerScreen() {
   }, [loadData, loadPrayerProgress, loadStreakData]);
 
   useEffect(() => {
+    // Update prayer progress every second
     const interval = setInterval(() => {
       loadPrayerProgress();
     }, 1000);
     return () => clearInterval(interval);
   }, [loadPrayerProgress]);
+
+  useEffect(() => {
+    // Update Iman score every minute to apply decay
+    const scoreInterval = setInterval(async () => {
+      await updateImanScore();
+    }, 60000); // Every minute
+    
+    return () => clearInterval(scoreInterval);
+  }, []);
 
   const prayerProgressValue = prayerProgress.completed / prayerProgress.total;
   const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 

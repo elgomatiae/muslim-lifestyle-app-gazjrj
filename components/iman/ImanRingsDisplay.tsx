@@ -87,7 +87,7 @@ export default function ImanRingsDisplay({
 
   useEffect(() => {
     loadImanScore();
-    const interval = setInterval(loadImanScore, 30000); // Update every 30 seconds
+    const interval = setInterval(loadImanScore, 30000);
     return () => clearInterval(interval);
   }, [prayerProgress, quranProgress, dhikrProgress]);
 
@@ -358,42 +358,57 @@ export default function ImanRingsDisplay({
       {showBreakdown && scoreBreakdown && (
         <View style={styles.breakdownContainer}>
           <Text style={styles.breakdownTitle}>Score Breakdown</Text>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Daily Goals (85%)</Text>
-            <Text style={styles.breakdownValue}>{scoreBreakdown.dailyTotal.toFixed(1)}%</Text>
+          
+          <View style={styles.breakdownSection}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Daily Goals (85%)</Text>
+              <Text style={styles.breakdownValue}>{scoreBreakdown.dailyTotal.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Prayer (30%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.prayer.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Quran (25%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.quran.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Dhikr (20%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dhikr.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Sunnah Prayers (10%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.sunnahPrayers.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Daily Duas (5%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dailyDuas.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Fasting (5%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.fasting.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Charity (5%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.charity.toFixed(1)}%</Text>
+            </View>
           </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Prayer (30%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.prayer.toFixed(1)}%</Text>
+
+          <View style={styles.breakdownSection}>
+            <View style={styles.breakdownRow}>
+              <Text style={styles.breakdownLabel}>Weekly Goals (15%)</Text>
+              <Text style={styles.breakdownValue}>{scoreBreakdown.weekly.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Challenges (60%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.weeklyBreakdown.challenges.toFixed(1)}%</Text>
+            </View>
+            <View style={styles.breakdownSubRow}>
+              <Text style={styles.breakdownSubLabel}>• Weekly Fasting (40%)</Text>
+              <Text style={styles.breakdownSubValue}>{scoreBreakdown.weeklyBreakdown.fasting.toFixed(1)}%</Text>
+            </View>
           </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Quran (25%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.quran.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Dhikr (20%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dhikr.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Sunnah Prayers (10%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.sunnahPrayers.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Daily Duas (5%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.dailyDuas.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Fasting (5%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.fasting.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownSubRow}>
-            <Text style={styles.breakdownSubLabel}>• Charity (5%)</Text>
-            <Text style={styles.breakdownSubValue}>{scoreBreakdown.daily.charity.toFixed(1)}%</Text>
-          </View>
-          <View style={styles.breakdownRow}>
-            <Text style={styles.breakdownLabel}>Weekly Goals (15%)</Text>
-            <Text style={styles.breakdownValue}>{scoreBreakdown.weekly.toFixed(1)}%</Text>
-          </View>
+
           <View style={styles.breakdownDivider} />
           <View style={styles.breakdownRow}>
             <Text style={styles.breakdownTotalLabel}>Total Score</Text>
@@ -589,6 +604,9 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginBottom: spacing.md,
     textAlign: 'center',
+  },
+  breakdownSection: {
+    marginBottom: spacing.md,
   },
   breakdownRow: {
     flexDirection: 'row',

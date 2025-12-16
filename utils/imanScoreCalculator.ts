@@ -57,53 +57,38 @@ export interface WeeklyGoalsProgress {
   };
 }
 
-// Configuration constants
 const DECAY_CONFIG = {
-  // Base decay rate per hour when no activity
-  BASE_DECAY_RATE_PER_HOUR: 0.5, // 0.5% per hour
-  
-  // Maximum decay per day
-  MAX_DECAY_PER_DAY: 20, // Maximum 20% decay per day
-  
-  // Minimum score (never goes below this)
+  BASE_DECAY_RATE_PER_HOUR: 0.5,
+  MAX_DECAY_PER_DAY: 20,
   MIN_SCORE: 0,
-  
-  // Maximum score
   MAX_SCORE: 100,
   
-  // Decay multipliers based on activity
   DECAY_MULTIPLIERS: {
-    ALL_GOALS_MET: 0, // No decay
-    MOST_GOALS_MET: 0.3, // 30% of base decay
-    SOME_GOALS_MET: 0.6, // 60% of base decay
-    FEW_GOALS_MET: 1.0, // Full decay
-    NO_GOALS_MET: 1.5, // 150% decay (faster decline)
+    ALL_GOALS_MET: 0,
+    MOST_GOALS_MET: 0.3,
+    SOME_GOALS_MET: 0.6,
+    FEW_GOALS_MET: 1.0,
+    NO_GOALS_MET: 1.5,
   },
   
-  // Weight for each category in overall score
   WEIGHTS: {
-    PRAYER: 0.30, // 30% weight
-    QURAN: 0.25, // 25% weight
-    DHIKR: 0.20, // 20% weight
-    SUNNAH_PRAYERS: 0.10, // 10% weight
-    DAILY_DUAS: 0.05, // 5% weight
-    FASTING: 0.05, // 5% weight (daily)
-    CHARITY: 0.05, // 5% weight
+    PRAYER: 0.30,
+    QURAN: 0.25,
+    DHIKR: 0.20,
+    SUNNAH_PRAYERS: 0.10,
+    DAILY_DUAS: 0.05,
+    FASTING: 0.05,
+    CHARITY: 0.05,
   },
   
-  // Weekly goals contribution
-  WEEKLY_GOALS_WEIGHT: 0.15, // 15% of total score comes from weekly goals
-  DAILY_GOALS_WEIGHT: 0.85, // 85% of total score comes from daily goals
+  WEEKLY_GOALS_WEIGHT: 0.15,
+  DAILY_GOALS_WEIGHT: 0.85,
 };
 
-/**
- * Calculate the overall Iman score based on daily and weekly goals
- */
 export function calculateImanScore(
   dailyProgress: DailyGoalsProgress,
   weeklyProgress: WeeklyGoalsProgress
 ): number {
-  // Calculate daily goals score (0-100)
   const dailyScore = 
     (dailyProgress.prayer.progress * DECAY_CONFIG.WEIGHTS.PRAYER) +
     (dailyProgress.quran.progress * DECAY_CONFIG.WEIGHTS.QURAN) +
@@ -113,24 +98,17 @@ export function calculateImanScore(
     (dailyProgress.fasting.progress * DECAY_CONFIG.WEIGHTS.FASTING) +
     (dailyProgress.charity.progress * DECAY_CONFIG.WEIGHTS.CHARITY);
   
-  // Calculate weekly goals score (0-100)
-  // Weekly challenges contribute 60%, weekly fasting goal contributes 40%
   const weeklyScore = 
     (weeklyProgress.challenges.progress * 0.6) +
     (weeklyProgress.fasting.progress * 0.4);
   
-  // Combine daily and weekly scores with their respective weights
   const totalScore = 
     (dailyScore * DECAY_CONFIG.DAILY_GOALS_WEIGHT) +
     (weeklyScore * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT);
   
-  // Ensure score is between 0 and 100
   return Math.max(DECAY_CONFIG.MIN_SCORE, Math.min(DECAY_CONFIG.MAX_SCORE, totalScore * 100));
 }
 
-/**
- * Calculate decay multiplier based on overall progress
- */
 function getDecayMultiplier(overallProgress: number): number {
   if (overallProgress >= 0.9) return DECAY_CONFIG.DECAY_MULTIPLIERS.ALL_GOALS_MET;
   if (overallProgress >= 0.7) return DECAY_CONFIG.DECAY_MULTIPLIERS.MOST_GOALS_MET;
@@ -139,9 +117,6 @@ function getDecayMultiplier(overallProgress: number): number {
   return DECAY_CONFIG.DECAY_MULTIPLIERS.NO_GOALS_MET;
 }
 
-/**
- * Apply time-based decay to the score
- */
 export function applyDecay(
   currentScore: number,
   lastUpdated: string,
@@ -152,12 +127,10 @@ export function applyDecay(
   const lastUpdate = new Date(lastUpdated);
   const hoursSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
   
-  // If less than 1 hour, no decay
   if (hoursSinceUpdate < 1) {
     return currentScore;
   }
   
-  // Calculate overall progress to determine decay rate
   const dailyScore = 
     (dailyProgress.prayer.progress * DECAY_CONFIG.WEIGHTS.PRAYER) +
     (dailyProgress.quran.progress * DECAY_CONFIG.WEIGHTS.QURAN) +
@@ -175,33 +148,24 @@ export function applyDecay(
     (dailyScore * DECAY_CONFIG.DAILY_GOALS_WEIGHT) +
     (weeklyScore * DECAY_CONFIG.WEEKLY_GOALS_WEIGHT);
   
-  // Get decay multiplier based on progress
   const decayMultiplier = getDecayMultiplier(overallProgress);
   
-  // Calculate decay amount
   const decayPerHour = DECAY_CONFIG.BASE_DECAY_RATE_PER_HOUR * decayMultiplier;
   const totalDecay = Math.min(
     decayPerHour * hoursSinceUpdate,
     DECAY_CONFIG.MAX_DECAY_PER_DAY
   );
   
-  // Apply decay
   const newScore = currentScore - totalDecay;
   
-  // Ensure score doesn't go below minimum
   return Math.max(DECAY_CONFIG.MIN_SCORE, newScore);
 }
 
-/**
- * Load daily goals progress from AsyncStorage
- */
 export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
   try {
-    // Load prayer progress
     const prayerProgressStr = await AsyncStorage.getItem('prayerProgress');
     const prayerProgress = prayerProgressStr ? JSON.parse(prayerProgressStr) : { completed: 0, total: 5 };
     
-    // Load Quran progress
     const quranProgressStr = await AsyncStorage.getItem('quranProgress');
     const quranProgress = quranProgressStr ? JSON.parse(quranProgressStr) : {
       versesToMemorize: 5,
@@ -210,18 +174,16 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       pagesRead: 0,
     };
     
-    // Load Dhikr progress
     const dhikrProgressStr = await AsyncStorage.getItem('dhikrProgress');
     const dhikrProgress = dhikrProgressStr ? JSON.parse(dhikrProgressStr) : {
       dailyTarget: 100,
       currentCount: 0,
     };
     
-    // Load Sunnah prayers with custom goals
     const sunnahGoalsStr = await AsyncStorage.getItem('sunnahPrayerGoals');
     const sunnahGoals = sunnahGoalsStr ? JSON.parse(sunnahGoalsStr) : [];
     const enabledSunnahPrayers = sunnahGoals.filter((p: any) => p.enabled);
-    const sunnahTotal = enabledSunnahPrayers.length || 1; // Avoid division by zero
+    const sunnahTotal = enabledSunnahPrayers.length || 1;
     
     const sunnahPrayersStr = await AsyncStorage.getItem('sunnahPrayers');
     const sunnahPrayers = sunnahPrayersStr ? JSON.parse(sunnahPrayersStr) : [];
@@ -229,11 +191,10 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       enabledSunnahPrayers.some((p: any) => p.id === id)
     ).length;
     
-    // Load daily duas with custom goals
     const duaGoalsStr = await AsyncStorage.getItem('duaGoals');
     const duaGoals = duaGoalsStr ? JSON.parse(duaGoalsStr) : [];
     const enabledDuas = duaGoals.filter((d: any) => d.enabled);
-    const duasTotal = enabledDuas.length || 1; // Avoid division by zero
+    const duasTotal = enabledDuas.length || 1;
     
     const completedDuasStr = await AsyncStorage.getItem('completedDuas');
     const completedDuas = completedDuasStr ? JSON.parse(completedDuasStr) : [];
@@ -241,11 +202,9 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       enabledDuas.some((d: any) => d.id === id)
     ).length;
     
-    // Load fasting status (daily)
     const todayFasting = await AsyncStorage.getItem('todayFasting');
     const isFasting = todayFasting === 'true';
     
-    // Load charity status (check if donated today)
     const charityDataStr = await AsyncStorage.getItem('charityData');
     const charityData = charityDataStr ? JSON.parse(charityDataStr) : [];
     const today = new Date().toDateString();
@@ -253,9 +212,12 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
       new Date(entry.date).toDateString() === today
     );
     
-    // Calculate Quran progress
-    const quranMemorizeProgress = quranProgress.versesMemorized / quranProgress.versesToMemorize;
-    const quranReadProgress = quranProgress.pagesRead / quranProgress.pagesToRead;
+    const quranMemorizeProgress = quranProgress.versesToMemorize > 0 
+      ? quranProgress.versesMemorized / quranProgress.versesToMemorize 
+      : 0;
+    const quranReadProgress = quranProgress.pagesToRead > 0 
+      ? quranProgress.pagesRead / quranProgress.pagesToRead 
+      : 0;
     const quranOverallProgress = (quranMemorizeProgress + quranReadProgress) / 2;
     
     return {
@@ -307,12 +269,8 @@ export async function loadDailyGoalsProgress(): Promise<DailyGoalsProgress> {
   }
 }
 
-/**
- * Load weekly goals progress from AsyncStorage
- */
 export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
   try {
-    // Load weekly challenges with custom goals
     const challengeGoalsStr = await AsyncStorage.getItem('challengeGoals');
     const challengeGoals = challengeGoalsStr ? JSON.parse(challengeGoalsStr) : [];
     const enabledChallenges = challengeGoals.filter((c: any) => c.enabled);
@@ -323,9 +281,8 @@ export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
     const completedChallenges = challenges.filter((c: any) => 
       c.completed && enabledChallenges.some((ec: any) => ec.id === c.id)
     ).length;
-    const totalChallenges = enabledChallenges.length || 1; // Avoid division by zero
+    const totalChallenges = enabledChallenges.length || 1;
     
-    // Load weekly fasting goal
     const weeklyFastingGoalStr = await AsyncStorage.getItem('weeklyFastingGoal');
     const weeklyFastingGoal = weeklyFastingGoalStr ? parseInt(weeklyFastingGoalStr) : 2;
     
@@ -340,7 +297,7 @@ export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
       },
       fasting: {
         completed: weeklyFastingCount,
-        goal: weeklyFastingGoal || 1, // Avoid division by zero
+        goal: weeklyFastingGoal || 1,
         progress: weeklyFastingGoal > 0 ? Math.min(1, weeklyFastingCount / weeklyFastingGoal) : 0,
       },
     };
@@ -361,25 +318,19 @@ export async function loadWeeklyGoalsProgress(): Promise<WeeklyGoalsProgress> {
   }
 }
 
-/**
- * Get the current Iman score with decay applied
- */
 export async function getCurrentImanScore(): Promise<number> {
   try {
-    // Load stored score data
     const scoreDataStr = await AsyncStorage.getItem('imanScoreData');
     const scoreData: ImanScoreData = scoreDataStr ? JSON.parse(scoreDataStr) : {
-      score: 50, // Start at 50%
+      score: 50,
       lastUpdated: new Date().toISOString(),
       dailyGoalsCompleted: false,
       weeklyGoalsCompleted: false,
     };
     
-    // Load current progress
     const dailyProgress = await loadDailyGoalsProgress();
     const weeklyProgress = await loadWeeklyGoalsProgress();
     
-    // Apply decay based on time elapsed
     const decayedScore = applyDecay(
       scoreData.score,
       scoreData.lastUpdated,
@@ -387,27 +338,21 @@ export async function getCurrentImanScore(): Promise<number> {
       weeklyProgress
     );
     
-    // Calculate fresh score based on current progress
     const freshScore = calculateImanScore(dailyProgress, weeklyProgress);
     
-    // Use the higher of the two (so completing goals increases score)
     const finalScore = Math.max(decayedScore, freshScore);
     
     return finalScore;
   } catch (error) {
     console.log('Error getting current Iman score:', error);
-    return 50; // Default to 50%
+    return 50;
   }
 }
 
-/**
- * Update the Iman score and save to storage
- */
 export async function updateImanScore(): Promise<number> {
   try {
     const score = await getCurrentImanScore();
     
-    // Load progress to check if goals are completed
     const dailyProgress = await loadDailyGoalsProgress();
     const weeklyProgress = await loadWeeklyGoalsProgress();
     
@@ -416,13 +361,14 @@ export async function updateImanScore(): Promise<number> {
       dailyProgress.quran.progress === 1 &&
       dailyProgress.dhikr.progress === 1 &&
       dailyProgress.sunnahPrayers.progress === 1 &&
-      dailyProgress.dailyDuas.progress === 1;
+      dailyProgress.dailyDuas.progress === 1 &&
+      dailyProgress.fasting.progress === 1 &&
+      dailyProgress.charity.progress === 1;
     
     const weeklyGoalsCompleted = 
       weeklyProgress.challenges.progress === 1 &&
       weeklyProgress.fasting.progress === 1;
     
-    // Save updated score
     const scoreData: ImanScoreData = {
       score,
       lastUpdated: new Date().toISOString(),
@@ -439,9 +385,6 @@ export async function updateImanScore(): Promise<number> {
   }
 }
 
-/**
- * Get detailed breakdown of score components
- */
 export async function getScoreBreakdown() {
   const dailyProgress = await loadDailyGoalsProgress();
   const weeklyProgress = await loadWeeklyGoalsProgress();
@@ -478,16 +421,11 @@ export async function getScoreBreakdown() {
   };
 }
 
-/**
- * Reset daily goals (call this at the start of each new day)
- */
 export async function resetDailyGoals() {
   try {
     const today = new Date().toDateString();
     await AsyncStorage.setItem('lastImanDate', today);
     
-    // Don't reset the score, just mark that it's a new day
-    // The decay system will handle score changes
     console.log('Daily goals reset for new day');
   } catch (error) {
     console.log('Error resetting daily goals:', error);

@@ -1,11 +1,11 @@
 
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, TouchableOpacity } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, TouchableOpacity, TextInput, Keyboard } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import CategoryRow from '@/components/CategoryRow';
 import VideoPlayer from '@/components/VideoPlayer';
-import { fetchCategories, fetchVideosByCategory, incrementVideoViews, isSupabaseConfigured, Video, VideoCategory } from '@/lib/supabase';
+import { fetchCategories, fetchVideosByCategory, incrementVideoViews, isSupabaseConfigured, searchVideos, Video, VideoCategory } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 
 export default function LecturesScreen() {
@@ -14,12 +14,12 @@ export default function LecturesScreen() {
   const [loading, setLoading] = useState(true);
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [supabaseEnabled, setSupabaseEnabled] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Video[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     const configured = isSupabaseConfigured();
     setSupabaseEnabled(configured);
@@ -44,7 +44,32 @@ export default function LecturesScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  const performSearch = useCallback(async () => {
+    setIsSearching(true);
+    try {
+      const results = await searchVideos(searchQuery, 'lecture');
+      setSearchResults(results);
+    } catch (error) {
+      console.error('Error searching videos:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  useEffect(() => {
+    if (searchQuery.trim().length > 0) {
+      performSearch();
+    } else {
+      setSearchResults([]);
+      setIsSearching(false);
+    }
+  }, [searchQuery, performSearch]);
 
   const handleVideoPress = async (video: Video) => {
     setSelectedVideo(video);
@@ -53,6 +78,20 @@ export default function LecturesScreen() {
 
   const handleCloseVideo = () => {
     setSelectedVideo(null);
+  };
+
+  const handleSearchToggle = () => {
+    setShowSearch(!showSearch);
+    if (showSearch) {
+      setSearchQuery('');
+      setSearchResults([]);
+      Keyboard.dismiss();
+    }
+  };
+
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
   };
 
   if (selectedVideo) {
@@ -108,17 +147,15 @@ export default function LecturesScreen() {
           </LinearGradient>
 
           <View style={styles.infoCard}>
-            <Text style={styles.infoTitle}>Database Setup Required</Text>
+            <Text style={styles.infoTitle}>Database Setup Complete!</Text>
             <Text style={styles.infoText}>
-              You&apos;ll need to create the following tables in your Supabase project:
+              The database tables have been created automatically. You can now upload your lecture videos to Supabase Storage and add them to the videos table.
             </Text>
             <View style={styles.codeBlock}>
-              <Text style={styles.codeText}>• video_categories</Text>
-              <Text style={styles.codeText}>• videos</Text>
+              <Text style={styles.codeText}>✓ video_categories</Text>
+              <Text style={styles.codeText}>✓ videos</Text>
+              <Text style={styles.codeText}>✓ Sample categories added</Text>
             </View>
-            <Text style={styles.infoText}>
-              Upload your lecture videos to Supabase Storage and reference them in the videos table.
-            </Text>
           </View>
         </ScrollView>
       </View>
@@ -153,7 +190,7 @@ export default function LecturesScreen() {
             </View>
             <Text style={styles.emptyTitle}>No Lectures Yet</Text>
             <Text style={styles.emptyText}>
-              Add categories and videos to your Supabase database to see them here.
+              Add videos to your Supabase database to see them here. Sample categories have been created for you.
             </Text>
           </View>
         </ScrollView>
@@ -163,26 +200,147 @@ export default function LecturesScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.headerContainer}>
+        <View style={styles.headerTop}>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Islamic Lectures</Text>
+            <Text style={styles.headerSubtitle}>Learn from renowned scholars</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.searchButton}
+            onPress={handleSearchToggle}
+            activeOpacity={0.7}
+          >
+            <IconSymbol
+              ios_icon_name={showSearch ? 'xmark' : 'magnifyingglass'}
+              android_material_icon_name={showSearch ? 'close' : 'search'}
+              size={24}
+              color={colors.text}
+            />
+          </TouchableOpacity>
+        </View>
+
+        {showSearch && (
+          <View style={styles.searchContainer}>
+            <View style={styles.searchInputContainer}>
+              <IconSymbol
+                ios_icon_name="magnifyingglass"
+                android_material_icon_name="search"
+                size={20}
+                color={colors.textSecondary}
+              />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search lectures, scholars..."
+                placeholderTextColor={colors.textSecondary}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+                returnKeyType="search"
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity onPress={handleClearSearch} activeOpacity={0.7}>
+                  <IconSymbol
+                    ios_icon_name="xmark.circle.fill"
+                    android_material_icon_name="cancel"
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        )}
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>Islamic Lectures</Text>
-          <Text style={styles.headerSubtitle}>Learn from renowned scholars</Text>
-        </View>
-
-        {categories.map((category, index) => (
-          <React.Fragment key={index}>
-            <CategoryRow
-              category={category}
-              videos={videosByCategory[category.id] || []}
-              onVideoPress={handleVideoPress}
-              onSeeAllPress={() => console.log('See all:', category.name)}
-            />
+        {searchQuery.trim().length > 0 ? (
+          <View style={styles.searchResultsContainer}>
+            {isSearching ? (
+              <View style={styles.searchLoadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={styles.searchLoadingText}>Searching...</Text>
+              </View>
+            ) : searchResults.length > 0 ? (
+              <React.Fragment>
+                <Text style={styles.searchResultsTitle}>
+                  Found {searchResults.length} result{searchResults.length !== 1 ? 's' : ''}
+                </Text>
+                <View style={styles.searchResultsList}>
+                  {searchResults.map((video, index) => (
+                    <TouchableOpacity
+                      key={index}
+                      style={styles.searchResultItem}
+                      onPress={() => handleVideoPress(video)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.searchResultThumbnail}>
+                        <IconSymbol
+                          ios_icon_name="play.circle.fill"
+                          android_material_icon_name="play-circle"
+                          size={32}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultTitle} numberOfLines={2}>
+                          {video.title}
+                        </Text>
+                        {video.scholar_name && (
+                          <Text style={styles.searchResultScholar} numberOfLines={1}>
+                            {video.scholar_name}
+                          </Text>
+                        )}
+                        <View style={styles.searchResultMeta}>
+                          <IconSymbol
+                            ios_icon_name="eye.fill"
+                            android_material_icon_name="visibility"
+                            size={12}
+                            color={colors.textSecondary}
+                          />
+                          <Text style={styles.searchResultViews}>
+                            {video.views} views
+                          </Text>
+                        </View>
+                      </View>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </React.Fragment>
+            ) : (
+              <View style={styles.noResultsContainer}>
+                <IconSymbol
+                  ios_icon_name="magnifyingglass"
+                  android_material_icon_name="search"
+                  size={48}
+                  color={colors.textSecondary}
+                />
+                <Text style={styles.noResultsTitle}>No results found</Text>
+                <Text style={styles.noResultsText}>
+                  Try searching with different keywords
+                </Text>
+              </View>
+            )}
+          </View>
+        ) : (
+          <React.Fragment>
+            {categories.map((category, index) => (
+              <React.Fragment key={index}>
+                <CategoryRow
+                  category={category}
+                  videos={videosByCategory[category.id] || []}
+                  onVideoPress={handleVideoPress}
+                  onSeeAllPress={() => console.log('See all:', category.name)}
+                />
+              </React.Fragment>
+            ))}
           </React.Fragment>
-        ))}
+        )}
 
         <View style={styles.bottomPadding} />
       </ScrollView>
@@ -204,7 +362,7 @@ const styles = StyleSheet.create({
     paddingBottom: 120,
   },
   scrollContent: {
-    paddingTop: Platform.OS === 'android' ? 56 : 20,
+    paddingTop: spacing.md,
     paddingBottom: 120,
   },
   centerContent: {
@@ -216,18 +374,135 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     marginTop: spacing.lg,
   },
-  header: {
+  headerContainer: {
+    paddingTop: Platform.OS === 'android' ? 56 : 20,
     paddingHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
-    ...typography.h1,
+    ...typography.h2,
     color: colors.text,
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  searchButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  searchContainer: {
+    marginTop: spacing.md,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    ...shadows.small,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.body,
+    color: colors.text,
+    marginLeft: spacing.sm,
+    paddingVertical: spacing.xs,
+  },
+  searchResultsContainer: {
+    paddingHorizontal: spacing.xl,
+    paddingTop: spacing.lg,
+  },
+  searchLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xxl,
+  },
+  searchLoadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginLeft: spacing.md,
+  },
+  searchResultsTitle: {
+    ...typography.h4,
+    color: colors.text,
+    marginBottom: spacing.lg,
+  },
+  searchResultsList: {
+    gap: spacing.md,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.md,
+    ...shadows.small,
+  },
+  searchResultThumbnail: {
+    width: 80,
+    height: 80,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundAlt,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  searchResultInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  searchResultTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  searchResultScholar: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  searchResultMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  searchResultViews: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginLeft: spacing.xs,
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    paddingVertical: spacing.xxxl,
+  },
+  noResultsTitle: {
+    ...typography.h4,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
+  },
+  noResultsText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   setupBanner: {
     borderRadius: borderRadius.xl,

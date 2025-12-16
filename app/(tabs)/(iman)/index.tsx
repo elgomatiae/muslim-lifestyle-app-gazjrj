@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, TextInput, Modal, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -114,24 +114,7 @@ export default function ImanTrackerScreen() {
   const rotateAnim = useState(new Animated.Value(0))[0];
   const scaleAnim = useState(new Animated.Value(1))[0];
 
-  // Load data and check for daily reset
-  useEffect(() => {
-    loadData();
-    loadPrayerProgress();
-    loadStreakData();
-    loadSelectedPhrase();
-    startAnimations();
-  }, []);
-
-  // Reload prayer progress when screen is focused
-  useEffect(() => {
-    const interval = setInterval(() => {
-      loadPrayerProgress();
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const startAnimations = () => {
+  const startAnimations = useCallback(() => {
     // Pulse animation for center score
     Animated.loop(
       Animated.sequence([
@@ -172,7 +155,7 @@ export default function ImanTrackerScreen() {
         useNativeDriver: true,
       })
     ).start();
-  };
+  }, [pulseAnim, glowAnim, rotateAnim]);
 
   const celebrateCompletion = () => {
     Animated.sequence([
@@ -189,7 +172,7 @@ export default function ImanTrackerScreen() {
     ]).start();
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       const lastDate = await AsyncStorage.getItem('lastImanDate');
       const today = new Date().toDateString();
@@ -236,9 +219,9 @@ export default function ImanTrackerScreen() {
     } catch (error) {
       console.log('Error loading iman data:', error);
     }
-  };
+  }, [quranGoals, dhikrGoals]);
 
-  const loadPrayerProgress = async () => {
+  const loadPrayerProgress = useCallback(async () => {
     try {
       const savedPrayerProgress = await AsyncStorage.getItem('prayerProgress');
       if (savedPrayerProgress) {
@@ -255,9 +238,9 @@ export default function ImanTrackerScreen() {
     } catch (error) {
       console.log('Error loading prayer progress:', error);
     }
-  };
+  }, []);
 
-  const loadStreakData = async () => {
+  const loadStreakData = useCallback(async () => {
     try {
       const savedStreak = await AsyncStorage.getItem('imanStreak');
       if (savedStreak) {
@@ -266,9 +249,9 @@ export default function ImanTrackerScreen() {
     } catch (error) {
       console.log('Error loading streak data:', error);
     }
-  };
+  }, []);
 
-  const loadSelectedPhrase = async () => {
+  const loadSelectedPhrase = useCallback(async () => {
     try {
       const savedPhrase = await AsyncStorage.getItem('selectedDhikrPhrase');
       if (savedPhrase) {
@@ -280,7 +263,24 @@ export default function ImanTrackerScreen() {
     } catch (error) {
       console.log('Error loading selected phrase:', error);
     }
-  };
+  }, []);
+
+  // Load data and check for daily reset
+  useEffect(() => {
+    loadData();
+    loadPrayerProgress();
+    loadStreakData();
+    loadSelectedPhrase();
+    startAnimations();
+  }, [loadData, loadPrayerProgress, loadStreakData, loadSelectedPhrase, startAnimations]);
+
+  // Reload prayer progress when screen is focused
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadPrayerProgress();
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [loadPrayerProgress]);
 
   const updateStreakData = async (totalProgress: number) => {
     try {
@@ -434,37 +434,40 @@ export default function ImanTrackerScreen() {
     return { text: "Keep building momentum! 🌱", color: colors.textSecondary };
   };
 
+  // Calculate progress values
+  const prayerProgressValue = prayerProgress.completed / prayerProgress.total;
+  const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
+                        (quranGoals.pagesRead / quranGoals.pagesToRead)) / 2;
+  const dhikrProgressValue = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
+  const totalProgress = (prayerProgressValue + quranProgressValue + dhikrProgressValue) / 3;
+
+  // Update streak data when total progress changes
+  useEffect(() => {
+    updateStreakData(totalProgress);
+  }, [totalProgress]);
+
   const renderNestedRings = () => {
     const centerX = 170;
     const centerY = 170;
     
     const prayerRadius = 140;
     const prayerStroke = 20;
-    const prayerProgressValue = prayerProgress.completed / prayerProgress.total;
     const prayerCircumference = 2 * Math.PI * prayerRadius;
     const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
     
     const quranRadius = 100;
     const quranStroke = 18;
-    const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
-                          (quranGoals.pagesRead / quranGoals.pagesToRead)) / 2;
     const quranCircumference = 2 * Math.PI * quranRadius;
     const quranOffset = quranCircumference * (1 - quranProgressValue);
     
     const dhikrRadius = 60;
     const dhikrStroke = 16;
-    const dhikrProgressValue = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
     const dhikrCircumference = 2 * Math.PI * dhikrRadius;
     const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
 
-    const totalProgress = (prayerProgressValue + quranProgressValue + dhikrProgressValue) / 3;
     const totalPercentage = Math.round(totalProgress * 100);
     const badge = getAchievementBadge(totalPercentage);
     const insight = getDailyInsight(prayerProgressValue, quranProgressValue, dhikrProgressValue);
-
-    useEffect(() => {
-      updateStreakData(totalProgress);
-    }, [totalProgress]);
 
     const spin = rotateAnim.interpolate({
       inputRange: [0, 1],

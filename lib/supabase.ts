@@ -1,19 +1,8 @@
 
-import { createClient } from '@supabase/supabase-js';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase as supabaseClient } from '@/app/integrations/supabase/client';
 
-// These will be set by the user when they enable Supabase
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
-const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-});
+// Re-export the supabase client
+export const supabase = supabaseClient;
 
 // Database types
 export interface VideoCategory {
@@ -42,7 +31,15 @@ export interface Video {
 
 // Helper function to check if Supabase is configured
 export const isSupabaseConfigured = (): boolean => {
-  return SUPABASE_URL !== '' && SUPABASE_ANON_KEY !== '';
+  // Check if the supabase client is properly initialized
+  try {
+    const url = supabaseClient.supabaseUrl;
+    const key = supabaseClient.supabaseKey;
+    return url !== '' && key !== '' && url !== undefined && key !== undefined;
+  } catch (error) {
+    console.error('Error checking Supabase configuration:', error);
+    return false;
+  }
 };
 
 // Fetch categories by type
@@ -93,6 +90,64 @@ export const fetchVideosByCategory = async (categoryId: string): Promise<Video[]
     return data || [];
   } catch (error) {
     console.error('Error fetching videos:', error);
+    return [];
+  }
+};
+
+// Fetch all videos (for search)
+export const fetchAllVideos = async (type: 'lecture' | 'recitation'): Promise<Video[]> => {
+  if (!isSupabaseConfigured()) {
+    console.log('Supabase not configured');
+    return [];
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, video_categories!inner(type)')
+      .eq('video_categories.type', type)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching all videos:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error fetching all videos:', error);
+    return [];
+  }
+};
+
+// Search videos by title, description, or scholar name
+export const searchVideos = async (
+  query: string,
+  type: 'lecture' | 'recitation'
+): Promise<Video[]> => {
+  if (!isSupabaseConfigured() || !query.trim()) {
+    return [];
+  }
+
+  try {
+    const searchTerm = `%${query.toLowerCase()}%`;
+    
+    const { data, error } = await supabase
+      .from('videos')
+      .select('*, video_categories!inner(type)')
+      .eq('video_categories.type', type)
+      .or(`title.ilike.${searchTerm},description.ilike.${searchTerm},scholar_name.ilike.${searchTerm},reciter_name.ilike.${searchTerm}`)
+      .order('views', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      console.error('Error searching videos:', error);
+      return [];
+    }
+
+    return data || [];
+  } catch (error) {
+    console.error('Error searching videos:', error);
     return [];
   }
 };

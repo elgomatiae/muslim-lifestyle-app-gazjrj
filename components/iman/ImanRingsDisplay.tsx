@@ -5,8 +5,8 @@ import { colors, typography, spacing, borderRadius, shadows } from "@/styles/com
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
-import { getCurrentSectionScores, getOverallImanScore, type SectionScores } from "@/utils/imanScoreCalculator";
 import * as Haptics from 'expo-haptics';
+import { useImanTracker } from "@/contexts/ImanTrackerContext";
 
 interface ImanRingsDisplayProps {
   onRefresh?: () => void;
@@ -17,8 +17,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const glowAnim = useState(new Animated.Value(0))[0];
   const rotateAnim = useState(new Animated.Value(0))[0];
   
-  const [sectionScores, setSectionScores] = useState<SectionScores>({ prayer: 0, dhikr: 0, quran: 0 });
-  const [overallScore, setOverallScore] = useState(0);
+  const { sectionScores, overallScore } = useImanTracker();
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   useEffect(() => {
@@ -60,19 +59,6 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
       })
     ).start();
   }, []);
-
-  useEffect(() => {
-    loadScores();
-    const interval = setInterval(loadScores, 30000); // Update every 30 seconds
-    return () => clearInterval(interval);
-  }, []);
-
-  const loadScores = async () => {
-    const scores = await getCurrentSectionScores();
-    const overall = await getOverallImanScore();
-    setSectionScores(scores);
-    setOverallScore(overall);
-  };
 
   const getAchievementBadge = (percentage: number) => {
     if (percentage >= 100) return { icon: "star.fill", color: colors.accent, label: "Perfect" };

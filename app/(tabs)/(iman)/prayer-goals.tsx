@@ -7,38 +7,27 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { loadPrayerGoals, savePrayerGoals, type PrayerGoals } from "@/utils/imanScoreCalculator";
+import { useImanTracker } from '@/contexts/ImanTrackerContext';
+import type { PrayerGoals } from "@/utils/imanScoreCalculator";
 
 export default function PrayerGoalsScreen() {
-  const [goals, setGoals] = useState<PrayerGoals>({
-    fardPrayers: {
-      fajr: false,
-      dhuhr: false,
-      asr: false,
-      maghrib: false,
-      isha: false,
-    },
-    sunnahDailyGoal: 5,
-    sunnahCompleted: 0,
-    tahajjudWeeklyGoal: 2,
-    tahajjudCompleted: 0,
-  });
-
+  const { prayerGoals: contextGoals, updatePrayerGoals } = useImanTracker();
+  
+  const [goals, setGoals] = useState<PrayerGoals | null>(contextGoals);
   const [sunnahInput, setSunnahInput] = useState('5');
   const [tahajjudInput, setTahajjudInput] = useState('2');
 
   useEffect(() => {
-    loadGoals();
-  }, []);
-
-  const loadGoals = async () => {
-    const loaded = await loadPrayerGoals();
-    setGoals(loaded);
-    setSunnahInput(loaded.sunnahDailyGoal.toString());
-    setTahajjudInput(loaded.tahajjudWeeklyGoal.toString());
-  };
+    if (contextGoals) {
+      setGoals(contextGoals);
+      setSunnahInput(contextGoals.sunnahDailyGoal.toString());
+      setTahajjudInput(contextGoals.tahajjudWeeklyGoal.toString());
+    }
+  }, [contextGoals]);
 
   const handleSave = async () => {
+    if (!goals) return;
+
     const sunnahGoal = parseInt(sunnahInput) || 0;
     const tahajjudGoal = parseInt(tahajjudInput) || 0;
 
@@ -58,14 +47,16 @@ export default function PrayerGoalsScreen() {
       tahajjudWeeklyGoal: tahajjudGoal,
     };
 
-    await savePrayerGoals(updatedGoals);
+    await updatePrayerGoals(updatedGoals);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Success', 'Prayer goals saved!', [
+    Alert.alert('Success', 'Prayer goals saved! The Iman Tracker has been updated.', [
       { text: 'OK', onPress: () => router.back() }
     ]);
   };
 
   const toggleFardPrayer = async (prayer: keyof PrayerGoals['fardPrayers']) => {
+    if (!goals) return;
+
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedGoals = {
       ...goals,
@@ -75,27 +66,31 @@ export default function PrayerGoalsScreen() {
       },
     };
     setGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
+    await updatePrayerGoals(updatedGoals);
   };
 
   const incrementSunnah = async () => {
+    if (!goals) return;
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedGoals = {
       ...goals,
       sunnahCompleted: Math.min(goals.sunnahCompleted + 1, goals.sunnahDailyGoal),
     };
     setGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
+    await updatePrayerGoals(updatedGoals);
   };
 
   const incrementTahajjud = async () => {
+    if (!goals) return;
+    
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedGoals = {
       ...goals,
       tahajjudCompleted: Math.min(goals.tahajjudCompleted + 1, goals.tahajjudWeeklyGoal),
     };
     setGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
+    await updatePrayerGoals(updatedGoals);
   };
 
   const fardPrayers = [
@@ -105,6 +100,16 @@ export default function PrayerGoalsScreen() {
     { key: 'maghrib' as const, name: 'Maghrib', time: 'Sunset' },
     { key: 'isha' as const, name: 'Isha', time: 'Night' },
   ];
+
+  if (!goals) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const fardCompleted = Object.values(goals.fardPrayers).filter(Boolean).length;
 
@@ -149,7 +154,7 @@ export default function PrayerGoalsScreen() {
             color={colors.primary}
           />
           <Text style={styles.infoText}>
-            The five daily prayers are mandatory and always tracked. Set your goals for Sunnah prayers and Tahajjud.
+            The five daily prayers are mandatory and always tracked. Set your goals for Sunnah prayers and Tahajjud. Changes update immediately!
           </Text>
         </View>
 
@@ -382,6 +387,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   header: {
     flexDirection: 'row',

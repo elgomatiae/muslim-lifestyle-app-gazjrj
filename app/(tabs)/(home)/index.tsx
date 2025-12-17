@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, RefreshControl } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useImanTracker } from "@/contexts/ImanTrackerContext";
 
 interface PrayerTime {
   name: string;
@@ -14,19 +15,17 @@ interface PrayerTime {
   completed: boolean;
 }
 
-interface QuranGoals {
-  versesToMemorize: number;
-  versesMemorized: number;
-  pagesToRead: number;
-  pagesRead: number;
-}
-
-interface DhikrGoals {
-  dailyTarget: number;
-  currentCount: number;
-}
-
 export default function HomeScreen() {
+  const { 
+    prayerGoals, 
+    dhikrGoals, 
+    quranGoals, 
+    sectionScores, 
+    overallScore,
+    refreshData,
+    updatePrayerGoals,
+  } = useImanTracker();
+
   const [prayers, setPrayers] = useState<PrayerTime[]>([
     { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: false },
     { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: false },
@@ -35,87 +34,43 @@ export default function HomeScreen() {
     { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: false },
   ]);
 
-  const [quranGoals, setQuranGoals] = useState<QuranGoals>({
-    versesToMemorize: 5,
-    versesMemorized: 0,
-    pagesToRead: 2,
-    pagesRead: 0,
-  });
+  const [refreshing, setRefreshing] = useState(false);
 
-  const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals>({
-    dailyTarget: 100,
-    currentCount: 0,
-  });
-
-  // Load prayer data and check for daily reset
+  // Sync prayers with prayerGoals from context
   useEffect(() => {
-    loadPrayerData();
-    loadImanData();
-  }, []);
-
-  const loadPrayerData = async () => {
-    try {
-      const lastDate = await AsyncStorage.getItem('lastPrayerDate');
-      const today = new Date().toDateString();
-      
-      if (lastDate !== today) {
-        // Reset prayers for new day
-        await AsyncStorage.setItem('lastPrayerDate', today);
-        await AsyncStorage.removeItem('prayerData');
-        setPrayers([
-          { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: false },
-          { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: false },
-          { name: 'Asr', time: '4:15 PM', arabicName: 'العصر', completed: false },
-          { name: 'Maghrib', time: '6:30 PM', arabicName: 'المغرب', completed: false },
-          { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: false },
-        ]);
-      } else {
-        const savedData = await AsyncStorage.getItem('prayerData');
-        if (savedData) {
-          setPrayers(JSON.parse(savedData));
-        }
-      }
-    } catch (error) {
-      console.log('Error loading prayer data:', error);
+    if (prayerGoals) {
+      const updatedPrayers = [
+        { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: prayerGoals.fardPrayers.fajr },
+        { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: prayerGoals.fardPrayers.dhuhr },
+        { name: 'Asr', time: '4:15 PM', arabicName: 'العصر', completed: prayerGoals.fardPrayers.asr },
+        { name: 'Maghrib', time: '6:30 PM', arabicName: 'المغرب', completed: prayerGoals.fardPrayers.maghrib },
+        { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: prayerGoals.fardPrayers.isha },
+      ];
+      setPrayers(updatedPrayers);
     }
-  };
+  }, [prayerGoals]);
 
-  const loadImanData = async () => {
-    try {
-      const savedQuranProgress = await AsyncStorage.getItem('quranProgress');
-      const savedDhikrProgress = await AsyncStorage.getItem('dhikrProgress');
-      
-      if (savedQuranProgress) {
-        setQuranGoals(JSON.parse(savedQuranProgress));
-      }
-      if (savedDhikrProgress) {
-        setDhikrGoals(JSON.parse(savedDhikrProgress));
-      }
-    } catch (error) {
-      console.log('Error loading iman data:', error);
-    }
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await refreshData();
+    setRefreshing(false);
   };
 
   const togglePrayer = async (index: number) => {
-    const newPrayers = [...prayers];
-    newPrayers[index].completed = !newPrayers[index].completed;
-    setPrayers(newPrayers);
-    
-    try {
-      // Save prayer data
-      await AsyncStorage.setItem('prayerData', JSON.stringify(newPrayers));
-      
-      // Update prayer progress for Iman Tracker
-      const completedCount = newPrayers.filter(p => p.completed).length;
-      await AsyncStorage.setItem('prayerProgress', JSON.stringify({
-        completed: completedCount,
-        total: 5,
-      }));
-      
-      console.log('Prayer progress updated:', completedCount, '/ 5');
-    } catch (error) {
-      console.log('Error saving prayer data:', error);
-    }
+    if (!prayerGoals) return;
+
+    const prayerKeys: Array<keyof typeof prayerGoals.fardPrayers> = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const prayerKey = prayerKeys[index];
+
+    const updatedGoals = {
+      ...prayerGoals,
+      fardPrayers: {
+        ...prayerGoals.fardPrayers,
+        [prayerKey]: !prayerGoals.fardPrayers[prayerKey],
+      },
+    };
+
+    await updatePrayerGoals(updatedGoals);
   };
 
   const completedCount = prayers.filter(p => p.completed).length;
@@ -185,27 +140,23 @@ export default function HomeScreen() {
     // Prayer ring (outer) - Green
     const prayerRadius = 100;
     const prayerStroke = 14;
-    const prayerProgressValue = completedCount / prayers.length;
+    const prayerProgressValue = sectionScores.prayer / 100;
     const prayerCircumference = 2 * Math.PI * prayerRadius;
     const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
     
     // Quran ring (middle) - Amber
     const quranRadius = 72;
     const quranStroke = 12;
-    const quranProgressValue = ((quranGoals.versesMemorized / quranGoals.versesToMemorize) + 
-                          (quranGoals.pagesRead / quranGoals.pagesToRead)) / 2;
+    const quranProgressValue = sectionScores.quran / 100;
     const quranCircumference = 2 * Math.PI * quranRadius;
     const quranOffset = quranCircumference * (1 - quranProgressValue);
     
     // Dhikr ring (inner) - Blue
     const dhikrRadius = 44;
     const dhikrStroke = 10;
-    const dhikrProgressValue = dhikrGoals.currentCount / dhikrGoals.dailyTarget;
+    const dhikrProgressValue = sectionScores.dhikr / 100;
     const dhikrCircumference = 2 * Math.PI * dhikrRadius;
     const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
-
-    const totalProgress = (prayerProgressValue + quranProgressValue + dhikrProgressValue) / 3;
-    const totalPercentage = Math.round(totalProgress * 100);
 
     return (
       <View style={styles.imanRingsContainer}>
@@ -287,7 +238,7 @@ export default function HomeScreen() {
           {/* Center Content */}
           <View style={styles.ringsCenterContent}>
             <Text style={styles.ringsCenterTitle}>Iman</Text>
-            <Text style={styles.ringsCenterPercentage}>{totalPercentage}%</Text>
+            <Text style={styles.ringsCenterPercentage}>{overallScore}%</Text>
           </View>
         </View>
         
@@ -296,17 +247,17 @@ export default function HomeScreen() {
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.primary }]} />
             <Text style={styles.ringLabelText}>Prayer</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(prayerProgressValue * 100)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.prayer)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.accent }]} />
             <Text style={styles.ringLabelText}>Quran</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(quranProgressValue * 100)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.quran)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.info }]} />
             <Text style={styles.ringLabelText}>Dhikr</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(dhikrProgressValue * 100)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.dhikr)}%</Text>
           </View>
         </View>
       </View>
@@ -319,6 +270,9 @@ export default function HomeScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
+        }
       >
         {/* Header with Gradient */}
         <LinearGradient

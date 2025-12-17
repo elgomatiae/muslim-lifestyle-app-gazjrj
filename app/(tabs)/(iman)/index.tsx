@@ -1,117 +1,39 @@
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
+import { useImanTracker } from '@/contexts/ImanTrackerContext';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
-import { 
-  checkAndHandleResets,
-  updateSectionScores,
-  loadPrayerGoals,
-  loadDhikrGoals,
-  loadQuranGoals,
-  savePrayerGoals,
-  saveDhikrGoals,
-  saveQuranGoals,
-  type PrayerGoals,
-  type DhikrGoals,
-  type QuranGoals,
-} from "@/utils/imanScoreCalculator";
-import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from "@/utils/imanSupabaseSync";
 
 export default function ImanTrackerScreen() {
   const { user } = useAuth();
-  const [refreshing, setRefreshing] = useState(false);
-  const [prayerGoals, setPrayerGoals] = useState<PrayerGoals | null>(null);
-  const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals | null>(null);
-  const [quranGoals, setQuranGoals] = useState<QuranGoals | null>(null);
-  const [syncing, setSyncing] = useState(false);
-  const [ringsKey, setRingsKey] = useState(0); // Force rings to re-render
+  const {
+    prayerGoals,
+    dhikrGoals,
+    quranGoals,
+    refreshData,
+    updatePrayerGoals,
+    updateDhikrGoals,
+    updateQuranGoals,
+    loading,
+  } = useImanTracker();
 
-  const loadData = useCallback(async () => {
-    try {
-      // Check for time-based resets first
-      await checkAndHandleResets();
-
-      // If user is logged in, sync with Supabase first
-      if (user && !syncing) {
-        setSyncing(true);
-        await syncSupabaseToLocal(user.id);
-        setSyncing(false);
-      }
-      
-      // Update scores
-      await updateSectionScores();
-      
-      // Load goals
-      const prayer = await loadPrayerGoals();
-      const dhikr = await loadDhikrGoals();
-      const quran = await loadQuranGoals();
-      
-      setPrayerGoals(prayer);
-      setDhikrGoals(dhikr);
-      setQuranGoals(quran);
-      
-      // Force rings to update
-      setRingsKey(prev => prev + 1);
-    } catch (error) {
-      console.log('Error loading iman data:', error);
-    }
-  }, [user, syncing]);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadData();
+    await refreshData();
     setRefreshing(false);
-  }, [loadData]);
+  }, [refreshData]);
 
-  useEffect(() => {
-    if (user) {
-      initializeImanTrackerForUser(user.id).then(() => {
-        loadData();
-      });
-    } else {
-      loadData();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    // Check for resets every minute
-    const resetInterval = setInterval(async () => {
-      await checkAndHandleResets();
-    }, 60000);
-    
-    // Update scores every 30 seconds for decay
-    const scoreInterval = setInterval(async () => {
-      await updateSectionScores();
-      setRingsKey(prev => prev + 1);
-    }, 30000);
-    
-    return () => {
-      clearInterval(resetInterval);
-      clearInterval(scoreInterval);
-    };
-  }, []);
-
-  const syncToSupabase = useCallback(async () => {
-    if (user) {
-      await syncLocalToSupabase(user.id);
-    }
-  }, [user]);
-
-  const updateScoresAndRings = useCallback(async () => {
-    await updateSectionScores();
-    setRingsKey(prev => prev + 1);
-  }, []);
-
-  const toggleFardPrayer = async (prayer: keyof PrayerGoals['fardPrayers']) => {
+  const toggleFardPrayer = async (prayer: keyof typeof prayerGoals.fardPrayers) => {
     if (!prayerGoals) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -122,10 +44,7 @@ export default function ImanTrackerScreen() {
         [prayer]: !prayerGoals.fardPrayers[prayer],
       },
     };
-    setPrayerGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updatePrayerGoals(updatedGoals);
   };
 
   const incrementSunnah = async () => {
@@ -136,10 +55,7 @@ export default function ImanTrackerScreen() {
       ...prayerGoals,
       sunnahCompleted: Math.min(prayerGoals.sunnahCompleted + 1, prayerGoals.sunnahDailyGoal),
     };
-    setPrayerGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updatePrayerGoals(updatedGoals);
   };
 
   const incrementTahajjud = async () => {
@@ -150,10 +66,7 @@ export default function ImanTrackerScreen() {
       ...prayerGoals,
       tahajjudCompleted: Math.min(prayerGoals.tahajjudCompleted + 1, prayerGoals.tahajjudWeeklyGoal),
     };
-    setPrayerGoals(updatedGoals);
-    await savePrayerGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updatePrayerGoals(updatedGoals);
   };
 
   const incrementDhikr = async (amount: number) => {
@@ -165,10 +78,7 @@ export default function ImanTrackerScreen() {
       dailyCompleted: dhikrGoals.dailyCompleted + amount,
       weeklyCompleted: dhikrGoals.weeklyCompleted + amount,
     };
-    setDhikrGoals(updatedGoals);
-    await saveDhikrGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updateDhikrGoals(updatedGoals);
   };
 
   const incrementQuranPages = async (amount: number) => {
@@ -179,10 +89,7 @@ export default function ImanTrackerScreen() {
       ...quranGoals,
       dailyPagesCompleted: Math.min(quranGoals.dailyPagesCompleted + amount, quranGoals.dailyPagesGoal),
     };
-    setQuranGoals(updatedGoals);
-    await saveQuranGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updateQuranGoals(updatedGoals);
   };
 
   const incrementQuranVerses = async (amount: number) => {
@@ -193,10 +100,7 @@ export default function ImanTrackerScreen() {
       ...quranGoals,
       dailyVersesCompleted: Math.min(quranGoals.dailyVersesCompleted + amount, quranGoals.dailyVersesGoal),
     };
-    setQuranGoals(updatedGoals);
-    await saveQuranGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updateQuranGoals(updatedGoals);
   };
 
   const incrementQuranMemorization = async (amount: number) => {
@@ -207,10 +111,7 @@ export default function ImanTrackerScreen() {
       ...quranGoals,
       weeklyMemorizationCompleted: Math.min(quranGoals.weeklyMemorizationCompleted + amount, quranGoals.weeklyMemorizationGoal),
     };
-    setQuranGoals(updatedGoals);
-    await saveQuranGoals(updatedGoals);
-    await updateScoresAndRings();
-    await syncToSupabase();
+    await updateQuranGoals(updatedGoals);
   };
 
   const fardPrayers = [
@@ -222,6 +123,16 @@ export default function ImanTrackerScreen() {
   ];
 
   const fardCompleted = prayerGoals ? Object.values(prayerGoals.fardPrayers).filter(Boolean).length : 0;
+
+  if (loading || !prayerGoals || !dhikrGoals || !quranGoals) {
+    return (
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <Text style={styles.loadingText}>Loading...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -240,7 +151,7 @@ export default function ImanTrackerScreen() {
           </View>
         </View>
 
-        <ImanRingsDisplay key={ringsKey} onRefresh={onRefresh} />
+        <ImanRingsDisplay onRefresh={onRefresh} />
 
         {/* PRAYER SECTION */}
         <View style={styles.section}>
@@ -271,121 +182,119 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
-          {prayerGoals && (
-            <View style={styles.goalsContainer}>
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>Five Daily Prayers ({fardCompleted}/5)</Text>
-                <View style={styles.prayersGrid}>
-                  {fardPrayers.map((prayer, index) => (
-                    <React.Fragment key={index}>
-                      <TouchableOpacity
-                        style={[
-                          styles.prayerCard,
-                          prayerGoals.fardPrayers[prayer.key] && styles.prayerCardCompleted
-                        ]}
-                        onPress={() => toggleFardPrayer(prayer.key)}
-                        activeOpacity={0.7}
-                      >
-                        <View style={[
-                          styles.checkCircle,
-                          prayerGoals.fardPrayers[prayer.key] && styles.checkCircleCompleted
-                        ]}>
-                          {prayerGoals.fardPrayers[prayer.key] && (
-                            <IconSymbol
-                              ios_icon_name="checkmark"
-                              android_material_icon_name="check"
-                              size={16}
-                              color={colors.card}
-                            />
-                          )}
-                        </View>
-                        <Text style={[
-                          styles.prayerName,
-                          prayerGoals.fardPrayers[prayer.key] && styles.prayerNameCompleted
-                        ]}>
-                          {prayer.name}
-                        </Text>
-                      </TouchableOpacity>
-                    </React.Fragment>
-                  ))}
-                </View>
-              </View>
-
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Sunnah Prayers ({prayerGoals.sunnahCompleted}/{prayerGoals.sunnahDailyGoal} today)
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${prayerGoals.sunnahDailyGoal > 0 ? (prayerGoals.sunnahCompleted / prayerGoals.sunnahDailyGoal) * 100 : 0}%`,
-                        backgroundColor: colors.primary,
-                      }
-                    ]} 
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.incrementButton}
-                  onPress={incrementSunnah}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={[colors.primary, colors.primaryDark]}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.incrementButtonGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name="plus"
-                      android_material_icon_name="add"
-                      size={16}
-                      color={colors.card}
-                    />
-                    <Text style={styles.incrementButtonText}>Mark Sunnah</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Tahajjud ({prayerGoals.tahajjudCompleted}/{prayerGoals.tahajjudWeeklyGoal} this week)
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${prayerGoals.tahajjudWeeklyGoal > 0 ? (prayerGoals.tahajjudCompleted / prayerGoals.tahajjudWeeklyGoal) * 100 : 0}%`,
-                        backgroundColor: colors.primary,
-                      }
-                    ]} 
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.incrementButton}
-                  onPress={incrementTahajjud}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={colors.gradientPurple}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.incrementButtonGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name="plus"
-                      android_material_icon_name="add"
-                      size={16}
-                      color={colors.card}
-                    />
-                    <Text style={styles.incrementButtonText}>Mark Tahajjud</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+          <View style={styles.goalsContainer}>
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>Five Daily Prayers ({fardCompleted}/5)</Text>
+              <View style={styles.prayersGrid}>
+                {fardPrayers.map((prayer, index) => (
+                  <React.Fragment key={index}>
+                    <TouchableOpacity
+                      style={[
+                        styles.prayerCard,
+                        prayerGoals.fardPrayers[prayer.key] && styles.prayerCardCompleted
+                      ]}
+                      onPress={() => toggleFardPrayer(prayer.key)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={[
+                        styles.checkCircle,
+                        prayerGoals.fardPrayers[prayer.key] && styles.checkCircleCompleted
+                      ]}>
+                        {prayerGoals.fardPrayers[prayer.key] && (
+                          <IconSymbol
+                            ios_icon_name="checkmark"
+                            android_material_icon_name="check"
+                            size={16}
+                            color={colors.card}
+                          />
+                        )}
+                      </View>
+                      <Text style={[
+                        styles.prayerName,
+                        prayerGoals.fardPrayers[prayer.key] && styles.prayerNameCompleted
+                      ]}>
+                        {prayer.name}
+                      </Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                ))}
               </View>
             </View>
-          )}
+
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Sunnah Prayers ({prayerGoals.sunnahCompleted}/{prayerGoals.sunnahDailyGoal} today)
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${prayerGoals.sunnahDailyGoal > 0 ? (prayerGoals.sunnahCompleted / prayerGoals.sunnahDailyGoal) * 100 : 0}%`,
+                      backgroundColor: colors.primary,
+                    }
+                  ]} 
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.incrementButton}
+                onPress={incrementSunnah}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={[colors.primary, colors.primaryDark]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.incrementButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={16}
+                    color={colors.card}
+                  />
+                  <Text style={styles.incrementButtonText}>Mark Sunnah</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Tahajjud ({prayerGoals.tahajjudCompleted}/{prayerGoals.tahajjudWeeklyGoal} this week)
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${prayerGoals.tahajjudWeeklyGoal > 0 ? (prayerGoals.tahajjudCompleted / prayerGoals.tahajjudWeeklyGoal) * 100 : 0}%`,
+                      backgroundColor: colors.primary,
+                    }
+                  ]} 
+                />
+              </View>
+              <TouchableOpacity
+                style={styles.incrementButton}
+                onPress={incrementTahajjud}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={colors.gradientPurple}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.incrementButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={16}
+                    color={colors.card}
+                  />
+                  <Text style={styles.incrementButtonText}>Mark Tahajjud</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* QURAN SECTION */}
@@ -417,178 +326,176 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
-          {quranGoals && (
-            <View style={styles.goalsContainer}>
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Daily Pages ({quranGoals.dailyPagesCompleted}/{quranGoals.dailyPagesGoal})
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${quranGoals.dailyPagesGoal > 0 ? (quranGoals.dailyPagesCompleted / quranGoals.dailyPagesGoal) * 100 : 0}%`,
-                        backgroundColor: colors.accent,
-                      }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.counterGrid}>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranPages(1)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+1</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranPages(5)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+5</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+          <View style={styles.goalsContainer}>
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Daily Pages ({quranGoals.dailyPagesCompleted}/{quranGoals.dailyPagesGoal})
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${quranGoals.dailyPagesGoal > 0 ? (quranGoals.dailyPagesCompleted / quranGoals.dailyPagesGoal) * 100 : 0}%`,
+                      backgroundColor: colors.accent,
+                    }
+                  ]} 
+                />
               </View>
-
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Daily Verses ({quranGoals.dailyVersesCompleted}/{quranGoals.dailyVersesGoal})
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${quranGoals.dailyVersesGoal > 0 ? (quranGoals.dailyVersesCompleted / quranGoals.dailyVersesGoal) * 100 : 0}%`,
-                        backgroundColor: colors.accent,
-                      }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.counterGrid}>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranVerses(1)}
-                    activeOpacity={0.7}
+              <View style={styles.counterGrid}>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranPages(1)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
                   >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+1</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranVerses(5)}
-                    activeOpacity={0.7}
+                    <Text style={styles.counterButtonText}>+1</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranPages(5)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
                   >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+5</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranVerses(10)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+10</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Weekly Memorization ({quranGoals.weeklyMemorizationCompleted}/{quranGoals.weeklyMemorizationGoal} verses)
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${quranGoals.weeklyMemorizationGoal > 0 ? (quranGoals.weeklyMemorizationCompleted / quranGoals.weeklyMemorizationGoal) * 100 : 0}%`,
-                        backgroundColor: colors.accent,
-                      }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.counterGrid}>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranMemorization(1)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+1</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranMemorization(3)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+3</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementQuranMemorization(5)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={[colors.accent, colors.accentDark]}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+5</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+                    <Text style={styles.counterButtonText}>+5</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
             </View>
-          )}
+
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Daily Verses ({quranGoals.dailyVersesCompleted}/{quranGoals.dailyVersesGoal})
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${quranGoals.dailyVersesGoal > 0 ? (quranGoals.dailyVersesCompleted / quranGoals.dailyVersesGoal) * 100 : 0}%`,
+                      backgroundColor: colors.accent,
+                    }
+                  ]} 
+                />
+              </View>
+              <View style={styles.counterGrid}>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranVerses(1)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+1</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranVerses(5)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+5</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranVerses(10)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+10</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Weekly Memorization ({quranGoals.weeklyMemorizationCompleted}/{quranGoals.weeklyMemorizationGoal} verses)
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${quranGoals.weeklyMemorizationGoal > 0 ? (quranGoals.weeklyMemorizationCompleted / quranGoals.weeklyMemorizationGoal) * 100 : 0}%`,
+                      backgroundColor: colors.accent,
+                    }
+                  ]} 
+                />
+              </View>
+              <View style={styles.counterGrid}>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranMemorization(1)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+1</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranMemorization(3)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+3</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementQuranMemorization(5)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={[colors.accent, colors.accentDark]}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+5</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
         </View>
 
         {/* DHIKR SECTION */}
@@ -620,101 +527,99 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
-          {dhikrGoals && (
-            <View style={styles.goalsContainer}>
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Daily Dhikr ({dhikrGoals.dailyCompleted}/{dhikrGoals.dailyGoal})
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${dhikrGoals.dailyGoal > 0 ? Math.min(100, (dhikrGoals.dailyCompleted / dhikrGoals.dailyGoal) * 100) : 0}%`,
-                        backgroundColor: colors.info,
-                      }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.counterGrid}>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementDhikr(1)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={colors.gradientInfo}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+1</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementDhikr(10)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={colors.gradientInfo}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+10</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementDhikr(33)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={colors.gradientInfo}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+33</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={styles.counterButton}
-                    onPress={() => incrementDhikr(100)}
-                    activeOpacity={0.7}
-                  >
-                    <LinearGradient
-                      colors={colors.gradientInfo}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.counterButtonGradient}
-                    >
-                      <Text style={styles.counterButtonText}>+100</Text>
-                    </LinearGradient>
-                  </TouchableOpacity>
-                </View>
+          <View style={styles.goalsContainer}>
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Daily Dhikr ({dhikrGoals.dailyCompleted}/{dhikrGoals.dailyGoal})
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${dhikrGoals.dailyGoal > 0 ? Math.min(100, (dhikrGoals.dailyCompleted / dhikrGoals.dailyGoal) * 100) : 0}%`,
+                      backgroundColor: colors.info,
+                    }
+                  ]} 
+                />
               </View>
-
-              <View style={styles.goalSubsection}>
-                <Text style={styles.goalSubsectionTitle}>
-                  Weekly Dhikr ({dhikrGoals.weeklyCompleted}/{dhikrGoals.weeklyGoal})
-                </Text>
-                <View style={styles.progressBarBackground}>
-                  <View 
-                    style={[
-                      styles.progressBarFill,
-                      { 
-                        width: `${dhikrGoals.weeklyGoal > 0 ? Math.min(100, (dhikrGoals.weeklyCompleted / dhikrGoals.weeklyGoal) * 100) : 0}%`,
-                        backgroundColor: colors.info,
-                      }
-                    ]} 
-                  />
-                </View>
+              <View style={styles.counterGrid}>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementDhikr(1)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={colors.gradientInfo}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+1</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementDhikr(10)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={colors.gradientInfo}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+10</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementDhikr(33)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={colors.gradientInfo}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+33</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.counterButton}
+                  onPress={() => incrementDhikr(100)}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={colors.gradientInfo}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 0 }}
+                    style={styles.counterButtonGradient}
+                  >
+                    <Text style={styles.counterButtonText}>+100</Text>
+                  </LinearGradient>
+                </TouchableOpacity>
               </View>
             </View>
-          )}
+
+            <View style={styles.goalSubsection}>
+              <Text style={styles.goalSubsectionTitle}>
+                Weekly Dhikr ({dhikrGoals.weeklyCompleted}/{dhikrGoals.weeklyGoal})
+              </Text>
+              <View style={styles.progressBarBackground}>
+                <View 
+                  style={[
+                    styles.progressBarFill,
+                    { 
+                      width: `${dhikrGoals.weeklyGoal > 0 ? Math.min(100, (dhikrGoals.weeklyCompleted / dhikrGoals.weeklyGoal) * 100) : 0}%`,
+                      backgroundColor: colors.info,
+                    }
+                  ]} 
+                />
+              </View>
+            </View>
+          </View>
         </View>
 
         <View style={styles.infoSection}>
@@ -751,6 +656,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.background,
+  },
+  loadingContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
   },
   scrollView: {
     flex: 1,

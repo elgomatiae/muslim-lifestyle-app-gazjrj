@@ -482,7 +482,10 @@ export default function MentalHealthHubScreen() {
                   <TouchableOpacity
                     style={styles.storyCard}
                     activeOpacity={0.8}
-                    onPress={() => router.push('/prophet-stories' as any)}
+                    onPress={() => router.push({
+                      pathname: '/prophet-stories' as any,
+                      params: { storyId: story.id }
+                    })}
                   >
                     <LinearGradient
                       colors={colors.gradientSunset}
@@ -543,7 +546,10 @@ export default function MentalHealthHubScreen() {
                   <TouchableOpacity
                     style={styles.duaCard}
                     activeOpacity={0.8}
-                    onPress={() => router.push('/mental-duas' as any)}
+                    onPress={() => router.push({
+                      pathname: '/mental-duas' as any,
+                      params: { duaId: dua.id }
+                    })}
                   >
                     <LinearGradient
                       colors={colors.gradientPurple}

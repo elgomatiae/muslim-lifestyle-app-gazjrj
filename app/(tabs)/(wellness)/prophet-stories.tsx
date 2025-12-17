@@ -6,6 +6,7 @@ import { colors, typography, spacing, borderRadius, shadows } from "@/styles/com
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/lib/supabase";
+import { useLocalSearchParams } from "expo-router";
 
 interface ProphetStory {
   id: string;
@@ -19,6 +20,9 @@ interface ProphetStory {
 }
 
 export default function ProphetStoriesScreen() {
+  const params = useLocalSearchParams();
+  const storyId = params.storyId as string | undefined;
+
   const [stories, setStories] = useState<ProphetStory[]>([]);
   const [selectedStory, setSelectedStory] = useState<ProphetStory | null>(null);
   const [loading, setLoading] = useState(true);
@@ -26,6 +30,16 @@ export default function ProphetStoriesScreen() {
   useEffect(() => {
     loadStories();
   }, []);
+
+  useEffect(() => {
+    // Auto-open story if storyId is provided
+    if (storyId && stories.length > 0) {
+      const story = stories.find(s => s.id === storyId);
+      if (story) {
+        setSelectedStory(story);
+      }
+    }
+  }, [storyId, stories]);
 
   const loadStories = async () => {
     try {

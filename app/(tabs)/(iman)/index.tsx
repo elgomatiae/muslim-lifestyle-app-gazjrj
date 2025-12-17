@@ -587,7 +587,7 @@ export default function ImanTrackerScreen() {
                 color={colors.card}
               />
             </LinearGradient>
-            <Text style={styles.sectionTitle}>Dhikr</Text>
+            <Text style={styles.sectionTitle}>Dhikr & Meditation</Text>
             <TouchableOpacity
               style={styles.setGoalsButton}
               onPress={() => {
@@ -600,36 +600,56 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Quick Access Button for Challenges */}
-          <TouchableOpacity
-            style={styles.challengesButton}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              router.push('/(tabs)/(iman)/dhikr-challenges');
-            }}
-            activeOpacity={0.7}
-          >
-            <LinearGradient
-              colors={colors.gradientInfo}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.challengesButtonGradient}
+          {/* Quick Access Buttons */}
+          <View style={styles.quickAccessGrid}>
+            <TouchableOpacity
+              style={styles.quickAccessButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/(iman)/dhikr-challenges');
+              }}
+              activeOpacity={0.7}
             >
-              <IconSymbol
-                ios_icon_name="star.fill"
-                android_material_icon_name="star"
-                size={20}
-                color={colors.card}
-              />
-              <Text style={styles.challengesButtonText}>Dhikr Challenges & Custom Phrases</Text>
-              <IconSymbol
-                ios_icon_name="chevron.right"
-                android_material_icon_name="chevron-right"
-                size={20}
-                color={colors.card}
-              />
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={colors.gradientInfo}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickAccessGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="star.fill"
+                  android_material_icon_name="star"
+                  size={20}
+                  color={colors.card}
+                />
+                <Text style={styles.quickAccessText}>Challenges</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickAccessButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/(wellness)/meditation' as any);
+              }}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={colors.gradientSecondary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickAccessGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="leaf.fill"
+                  android_material_icon_name="spa"
+                  size={20}
+                  color={colors.card}
+                />
+                <Text style={styles.quickAccessText}>Meditation</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.goalsContainer}>
             <View style={styles.goalSubsection}>
@@ -677,6 +697,7 @@ export default function ImanTrackerScreen() {
                 - Each ring represents: Prayer, Quran, and Dhikr{'\n'}
                 - Track progress directly on this screen{'\n'}
                 - Rings update INSTANTLY when you track goals{'\n'}
+                - Meditation sessions count toward your Dhikr goals{'\n'}
                 - Scores slowly decay over time if inactive{'\n'}
                 - Unmet daily goals deplete score at midnight{'\n'}
                 - Unmet weekly goals deplete score Sunday 12 AM{'\n'}
@@ -807,26 +828,6 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.card,
     fontWeight: '600',
-  },
-  challengesButton: {
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    marginBottom: spacing.md,
-    ...shadows.medium,
-  },
-  challengesButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.lg,
-  },
-  challengesButtonText: {
-    ...typography.body,
-    color: colors.card,
-    fontWeight: '600',
-    flex: 1,
-    marginLeft: spacing.sm,
   },
   goalsContainer: {
     backgroundColor: colors.card,

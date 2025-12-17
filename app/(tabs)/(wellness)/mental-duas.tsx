@@ -6,6 +6,7 @@ import { colors, typography, spacing, borderRadius, shadows } from "@/styles/com
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import { supabase } from "@/lib/supabase";
+import { useLocalSearchParams } from "expo-router";
 
 interface MentalHealthDua {
   id: string;
@@ -30,6 +31,9 @@ const EMOTION_CATEGORIES = [
 ];
 
 export default function MentalDuasScreen() {
+  const params = useLocalSearchParams();
+  const duaId = params.duaId as string | undefined;
+
   const [duas, setDuas] = useState<MentalHealthDua[]>([]);
   const [filteredDuas, setFilteredDuas] = useState<MentalHealthDua[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
@@ -43,6 +47,16 @@ export default function MentalDuasScreen() {
   useEffect(() => {
     filterDuas();
   }, [selectedCategory, duas]);
+
+  useEffect(() => {
+    // Auto-open dua if duaId is provided
+    if (duaId && duas.length > 0) {
+      const dua = duas.find(d => d.id === duaId);
+      if (dua) {
+        setSelectedDua(dua);
+      }
+    }
+  }, [duaId, duas]);
 
   const loadDuas = async () => {
     try {

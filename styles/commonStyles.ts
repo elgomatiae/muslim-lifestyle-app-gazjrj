@@ -23,8 +23,10 @@ export const colors = {
   cardAlt: '#FAFAFA',           // Off-white
   highlight: '#DCEDC8',         // Very Light Green
   success: '#4CAF50',           // Success Green
+  successDark: '#388E3C',       // Darker Success Green
   error: '#F44336',             // Error Red
   warning: '#FF9800',           // Warning Orange
+  warningDark: '#F57C00',       // Darker Warning Orange
   info: '#2196F3',              // Info Blue
   border: '#E0E0E0',            // Light Border
   borderDark: '#BDBDBD',        // Darker Border

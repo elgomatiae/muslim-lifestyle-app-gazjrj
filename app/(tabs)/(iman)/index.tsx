@@ -182,6 +182,57 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Quick Access Buttons */}
+          <View style={styles.quickAccessGrid}>
+            <TouchableOpacity
+              style={styles.quickAccessButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/(iman)/qada-tracker');
+              }}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={[colors.accent, colors.accentDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickAccessGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="clock.arrow.circlepath"
+                  android_material_icon_name="history"
+                  size={24}
+                  color={colors.card}
+                />
+                <Text style={styles.quickAccessText}>Qada Tracker</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.quickAccessButton}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                router.push('/(tabs)/(iman)/prayer-streak');
+              }}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={[colors.warning, colors.warningDark]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.quickAccessGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="flame.fill"
+                  android_material_icon_name="local-fire-department"
+                  size={24}
+                  color={colors.card}
+                />
+                <Text style={styles.quickAccessText}>Prayer Streak</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
           <View style={styles.goalsContainer}>
             <View style={styles.goalSubsection}>
               <Text style={styles.goalSubsectionTitle}>Five Daily Prayers ({fardCompleted}/5)</Text>
@@ -527,6 +578,37 @@ export default function ImanTrackerScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Quick Access Button for Challenges */}
+          <TouchableOpacity
+            style={styles.challengesButton}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              router.push('/(tabs)/(iman)/dhikr-challenges');
+            }}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={colors.gradientInfo}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.challengesButtonGradient}
+            >
+              <IconSymbol
+                ios_icon_name="star.fill"
+                android_material_icon_name="star"
+                size={20}
+                color={colors.card}
+              />
+              <Text style={styles.challengesButtonText}>Dhikr Challenges & Custom Phrases</Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="chevron-right"
+                size={20}
+                color={colors.card}
+              />
+            </LinearGradient>
+          </TouchableOpacity>
+
           <View style={styles.goalsContainer}>
             <View style={styles.goalSubsection}>
               <Text style={styles.goalSubsectionTitle}>
@@ -656,6 +738,50 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.card,
     fontWeight: '600',
+  },
+  quickAccessGrid: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  quickAccessButton: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  quickAccessGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+  },
+  quickAccessText: {
+    ...typography.small,
+    color: colors.card,
+    fontWeight: '600',
+  },
+  challengesButton: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    ...shadows.medium,
+  },
+  challengesButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  challengesButtonText: {
+    ...typography.body,
+    color: colors.card,
+    fontWeight: '600',
+    flex: 1,
+    marginLeft: spacing.sm,
   },
   goalsContainer: {
     backgroundColor: colors.card,

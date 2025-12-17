@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Dimensions, Animated } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -10,32 +10,52 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = (SCREEN_WIDTH - spacing.xl * 3) / 2;
+const CARD_WIDTH = (SCREEN_WIDTH - spacing.xl * 2 - spacing.md) / 2;
 
-interface ContentItem {
+interface JournalEntry {
   id: string;
   title: string;
-  preview?: string;
-  category?: string;
-  created_at?: string;
+  content: string;
+  created_at: string;
 }
 
-interface QuickStat {
-  label: string;
-  value: string;
-  icon: string;
-  androidIcon: string;
-  color: string[];
+interface ProphetStory {
+  id: string;
+  title: string;
+  mental_health_connection: string;
+  category: string;
 }
 
-export default function MentalHealthScreen() {
+interface Dua {
+  id: string;
+  title: string;
+  arabic_text: string;
+  translation: string;
+  emotion_category: string;
+}
+
+interface JournalPrompt {
+  id: string;
+  prompt_text: string;
+  category: string;
+}
+
+interface MoodEntry {
+  id: string;
+  mood: string;
+  date: string;
+}
+
+export default function MentalHealthHubScreen() {
   const { user } = useAuth();
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [prophetStories, setProphetStories] = useState<ProphetStory[]>([]);
+  const [duas, setDuas] = useState<Dua[]>([]);
+  const [prompts, setPrompts] = useState<JournalPrompt[]>([]);
+  const [moodEntries, setMoodEntries] = useState<MoodEntry[]>([]);
   const [journalCount, setJournalCount] = useState(0);
   const [moodStreak, setMoodStreak] = useState(0);
-  const [recentJournal, setRecentJournal] = useState<ContentItem | null>(null);
-  const [featuredStory, setFeaturedStory] = useState<ContentItem | null>(null);
-  const [dailyPrompt, setDailyPrompt] = useState<ContentItem | null>(null);
-  const [featuredDua, setFeaturedDua] = useState<ContentItem | null>(null);
+  const [quickJournalText, setQuickJournalText] = useState('');
   const [loading, setLoading] = useState(true);
   
   // Animation values
@@ -43,7 +63,7 @@ export default function MentalHealthScreen() {
   const slideAnim = new Animated.Value(50);
 
   useEffect(() => {
-    loadAllData();
+    loadAllContent();
     
     // Entrance animations
     Animated.parallel([
@@ -60,47 +80,99 @@ export default function MentalHealthScreen() {
     ]).start();
   }, []);
 
-  const loadAllData = async () => {
+  const loadAllContent = async () => {
     setLoading(true);
     try {
       await Promise.all([
-        loadJournalStats(),
-        loadMoodStats(),
-        loadRecentJournal(),
-        loadFeaturedStory(),
-        loadDailyPrompt(),
-        loadFeaturedDua(),
+        loadJournalEntries(),
+        loadProphetStories(),
+        loadDuas(),
+        loadPrompts(),
+        loadMoodData(),
+        loadStats(),
       ]);
     } catch (error) {
-      console.error('Error loading data:', error);
+      console.error('Error loading content:', error);
     } finally {
       setLoading(false);
     }
   };
 
-  const loadJournalStats = async () => {
+  const loadJournalEntries = async () => {
     if (!user) return;
-    const { count } = await supabase
+    const { data } = await supabase
+      .from('journal_entries')
+      .select('id, title, content, created_at')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(3);
+    if (data) setJournalEntries(data);
+  };
+
+  const loadProphetStories = async () => {
+    const { data } = await supabase
+      .from('prophet_stories')
+      .select('id, title, mental_health_connection, category')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+      .limit(4);
+    if (data) setProphetStories(data);
+  };
+
+  const loadDuas = async () => {
+    const { data } = await supabase
+      .from('mental_health_duas')
+      .select('id, title, arabic_text, translation, emotion_category')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+      .limit(4);
+    if (data) setDuas(data);
+  };
+
+  const loadPrompts = async () => {
+    const { data } = await supabase
+      .from('journal_prompts')
+      .select('id, prompt_text, category')
+      .eq('is_active', true)
+      .order('order_index', { ascending: true })
+      .limit(3);
+    if (data) setPrompts(data);
+  };
+
+  const loadMoodData = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('mood_tracking')
+      .select('id, mood, date')
+      .eq('user_id', user.id)
+      .order('date', { ascending: false })
+      .limit(7);
+    if (data) setMoodEntries(data);
+  };
+
+  const loadStats = async () => {
+    if (!user) return;
+    
+    // Journal count
+    const { count: jCount } = await supabase
       .from('journal_entries')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id);
-    setJournalCount(count || 0);
-  };
+    setJournalCount(jCount || 0);
 
-  const loadMoodStats = async () => {
-    if (!user) return;
-    const { data } = await supabase
+    // Mood streak
+    const { data: moodData } = await supabase
       .from('mood_tracking')
       .select('date')
       .eq('user_id', user.id)
       .order('date', { ascending: false })
       .limit(30);
     
-    if (data && data.length > 0) {
+    if (moodData && moodData.length > 0) {
       let streak = 0;
       const today = new Date();
-      for (let i = 0; i < data.length; i++) {
-        const entryDate = new Date(data[i].date);
+      for (let i = 0; i < moodData.length; i++) {
+        const entryDate = new Date(moodData[i].date);
         const daysDiff = Math.floor((today.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
         if (daysDiff === i) {
           streak++;
@@ -112,101 +184,23 @@ export default function MentalHealthScreen() {
     }
   };
 
-  const loadRecentJournal = async () => {
-    if (!user) return;
-    const { data } = await supabase
+  const handleQuickJournal = async () => {
+    if (!user || !quickJournalText.trim()) return;
+    
+    const { error } = await supabase
       .from('journal_entries')
-      .select('id, title, content, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-    if (data) {
-      setRecentJournal({
-        id: data.id,
-        title: data.title,
-        preview: data.content.substring(0, 100),
-        created_at: data.created_at,
+      .insert({
+        user_id: user.id,
+        title: 'Quick Entry',
+        content: quickJournalText,
       });
+
+    if (!error) {
+      setQuickJournalText('');
+      loadJournalEntries();
+      loadStats();
     }
   };
-
-  const loadFeaturedStory = async () => {
-    const { data } = await supabase
-      .from('prophet_stories')
-      .select('id, title, mental_health_connection, category')
-      .eq('is_active', true)
-      .order('order_index', { ascending: true })
-      .limit(1)
-      .single();
-    if (data) {
-      setFeaturedStory({
-        id: data.id,
-        title: data.title,
-        preview: data.mental_health_connection,
-        category: data.category,
-      });
-    }
-  };
-
-  const loadDailyPrompt = async () => {
-    const { data } = await supabase
-      .from('journal_prompts')
-      .select('id, prompt_text, category')
-      .eq('is_active', true)
-      .order('order_index', { ascending: true })
-      .limit(1)
-      .single();
-    if (data) {
-      setDailyPrompt({
-        id: data.id,
-        title: data.prompt_text,
-        category: data.category,
-      });
-    }
-  };
-
-  const loadFeaturedDua = async () => {
-    const { data } = await supabase
-      .from('mental_health_duas')
-      .select('id, title, translation, emotion_category')
-      .eq('is_active', true)
-      .order('order_index', { ascending: true })
-      .limit(1)
-      .single();
-    if (data) {
-      setFeaturedDua({
-        id: data.id,
-        title: data.title,
-        preview: data.translation,
-        category: data.emotion_category,
-      });
-    }
-  };
-
-  const quickStats: QuickStat[] = [
-    {
-      label: 'Journal Entries',
-      value: journalCount.toString(),
-      icon: 'book.fill',
-      androidIcon: 'menu-book',
-      color: colors.gradientPrimary,
-    },
-    {
-      label: 'Day Streak',
-      value: moodStreak.toString(),
-      icon: 'flame.fill',
-      androidIcon: 'local-fire-department',
-      color: colors.gradientAccent,
-    },
-    {
-      label: 'Mindful Minutes',
-      value: '0',
-      icon: 'leaf.fill',
-      androidIcon: 'spa',
-      color: colors.gradientSecondary,
-    },
-  ];
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -216,6 +210,20 @@ export default function MentalHealthScreen() {
     });
   };
 
+  const getMoodEmoji = (mood: string) => {
+    const moodMap: { [key: string]: string } = {
+      'very_happy': '😄',
+      'happy': '😊',
+      'neutral': '😐',
+      'sad': '😔',
+      'very_sad': '😢',
+      'anxious': '😰',
+      'peaceful': '😌',
+      'grateful': '🙏',
+    };
+    return moodMap[mood] || '😊';
+  };
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <ScrollView
@@ -223,7 +231,7 @@ export default function MentalHealthScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Hero Section */}
+        {/* Hero Section with Stats */}
         <Animated.View 
           style={[
             styles.heroSection,
@@ -239,232 +247,108 @@ export default function MentalHealthScreen() {
             end={{ x: 1, y: 1 }}
             style={styles.heroGradient}
           >
-            <View style={styles.heroContent}>
+            <View style={styles.heroHeader}>
               <IconSymbol
                 ios_icon_name="brain.head.profile"
                 android_material_icon_name="psychology"
-                size={56}
+                size={48}
                 color={colors.card}
               />
               <Text style={styles.heroTitle}>Mental Wellness Hub</Text>
               <Text style={styles.heroSubtitle}>
-                Your journey to inner peace and emotional balance
+                Your journey to inner peace
               </Text>
+            </View>
+            
+            <View style={styles.statsRow}>
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{journalCount}</Text>
+                <Text style={styles.statLabel}>Entries</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{moodStreak}</Text>
+                <Text style={styles.statLabel}>Day Streak</Text>
+              </View>
+              <View style={styles.statDivider} />
+              <View style={styles.statItem}>
+                <Text style={styles.statValue}>{prophetStories.length}</Text>
+                <Text style={styles.statLabel}>Stories</Text>
+              </View>
             </View>
           </LinearGradient>
         </Animated.View>
 
-        {/* Quick Stats */}
-        <View style={styles.statsSection}>
-          <Text style={styles.sectionTitle}>Your Progress</Text>
-          <View style={styles.statsGrid}>
-            {quickStats.map((stat, index) => (
-              <React.Fragment key={index}>
-                <View style={styles.statCard}>
-                  <LinearGradient
-                    colors={stat.color}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.statGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name={stat.icon}
-                      android_material_icon_name={stat.androidIcon}
-                      size={32}
-                      color={colors.card}
-                    />
-                    <Text style={styles.statValue}>{stat.value}</Text>
-                    <Text style={styles.statLabel}>{stat.label}</Text>
-                  </LinearGradient>
-                </View>
-              </React.Fragment>
-            ))}
+        {/* Quick Journal Entry */}
+        <View style={styles.quickJournalSection}>
+          <View style={styles.sectionHeader}>
+            <IconSymbol
+              ios_icon_name="pencil.circle.fill"
+              android_material_icon_name="edit"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.sectionTitle}>Quick Journal</Text>
           </View>
-        </View>
-
-        {/* Daily Prompt Feature */}
-        {dailyPrompt && (
-          <TouchableOpacity
-            style={styles.featureCard}
-            activeOpacity={0.8}
-            onPress={() => router.push('/journal-prompts' as any)}
-          >
-            <LinearGradient
-              colors={colors.gradientInfo}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.featureGradient}
-            >
-              <View style={styles.featureBadge}>
-                <IconSymbol
-                  ios_icon_name="sparkles"
-                  android_material_icon_name="auto-awesome"
-                  size={16}
-                  color={colors.card}
-                />
-                <Text style={styles.featureBadgeText}>TODAY&apos;S PROMPT</Text>
-              </View>
-              <Text style={styles.featureTitle}>{dailyPrompt.title}</Text>
-              <View style={styles.featureAction}>
-                <Text style={styles.featureActionText}>Start Writing</Text>
-                <IconSymbol
-                  ios_icon_name="arrow.right"
-                  android_material_icon_name="arrow-forward"
-                  size={20}
-                  color={colors.card}
-                />
-              </View>
-            </LinearGradient>
-          </TouchableOpacity>
-        )}
-
-        {/* Content Grid */}
-        <View style={styles.gridSection}>
-          <Text style={styles.sectionTitle}>Explore & Discover</Text>
-          
-          <View style={styles.gridRow}>
-            {/* Journal Card */}
+          <View style={styles.quickJournalCard}>
+            <TextInput
+              style={styles.quickJournalInput}
+              placeholder="How are you feeling today?"
+              placeholderTextColor={colors.textSecondary}
+              value={quickJournalText}
+              onChangeText={setQuickJournalText}
+              multiline
+              numberOfLines={3}
+            />
             <TouchableOpacity
-              style={styles.gridCard}
+              style={styles.quickJournalButton}
+              onPress={handleQuickJournal}
               activeOpacity={0.8}
-              onPress={() => router.push('/journal' as any)}
             >
               <LinearGradient
                 colors={colors.gradientPrimary}
                 start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gridGradient}
+                end={{ x: 1, y: 0 }}
+                style={styles.quickJournalGradient}
               >
                 <IconSymbol
-                  ios_icon_name="book.fill"
-                  android_material_icon_name="menu-book"
-                  size={40}
+                  ios_icon_name="arrow.up.circle.fill"
+                  android_material_icon_name="send"
+                  size={24}
                   color={colors.card}
                 />
-                <Text style={styles.gridTitle}>Journal</Text>
-                <Text style={styles.gridSubtitle}>Write your thoughts</Text>
-                {recentJournal && (
-                  <View style={styles.gridBadge}>
-                    <Text style={styles.gridBadgeText}>
-                      {formatDate(recentJournal.created_at!)}
-                    </Text>
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Mood Tracker Card */}
-            <TouchableOpacity
-              style={styles.gridCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/mood-tracker' as any)}
-            >
-              <LinearGradient
-                colors={colors.gradientTeal}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gridGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="chart.line.uptrend.xyaxis"
-                  android_material_icon_name="insights"
-                  size={40}
-                  color={colors.card}
-                />
-                <Text style={styles.gridTitle}>Mood</Text>
-                <Text style={styles.gridSubtitle}>Track emotions</Text>
-                {moodStreak > 0 && (
-                  <View style={styles.gridBadge}>
-                    <Text style={styles.gridBadgeText}>{moodStreak} day streak</Text>
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.gridRow}>
-            {/* Duas Card */}
-            <TouchableOpacity
-              style={styles.gridCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/mental-duas' as any)}
-            >
-              <LinearGradient
-                colors={colors.gradientPurple}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gridGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="hands.sparkles.fill"
-                  android_material_icon_name="self-improvement"
-                  size={40}
-                  color={colors.card}
-                />
-                <Text style={styles.gridTitle}>Duas</Text>
-                <Text style={styles.gridSubtitle}>Healing prayers</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            {/* Meditation Card */}
-            <TouchableOpacity
-              style={styles.gridCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/meditation' as any)}
-            >
-              <LinearGradient
-                colors={colors.gradientSecondary}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={styles.gridGradient}
-              >
-                <IconSymbol
-                  ios_icon_name="leaf.fill"
-                  android_material_icon_name="spa"
-                  size={40}
-                  color={colors.card}
-                />
-                <Text style={styles.gridTitle}>Meditate</Text>
-                <Text style={styles.gridSubtitle}>Find peace</Text>
+                <Text style={styles.quickJournalButtonText}>Save</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
-        {/* Featured Story */}
-        {featuredStory && (
-          <View style={styles.featuredSection}>
-            <Text style={styles.sectionTitle}>Featured Story</Text>
+        {/* Today's Prompt */}
+        {prompts.length > 0 && (
+          <View style={styles.promptSection}>
             <TouchableOpacity
-              style={styles.storyCard}
+              style={styles.promptCard}
               activeOpacity={0.8}
-              onPress={() => router.push('/prophet-stories' as any)}
+              onPress={() => router.push('/journal-prompts' as any)}
             >
               <LinearGradient
-                colors={colors.gradientSunset}
+                colors={colors.gradientInfo}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
-                style={styles.storyGradient}
+                style={styles.promptGradient}
               >
-                <View style={styles.storyHeader}>
-                  <View style={styles.storyIconContainer}>
-                    <IconSymbol
-                      ios_icon_name="book.closed.fill"
-                      android_material_icon_name="auto-stories"
-                      size={28}
-                      color={colors.card}
-                    />
-                  </View>
-                  <View style={styles.storyHeaderText}>
-                    <Text style={styles.storyCategory}>{featuredStory.category?.toUpperCase()}</Text>
-                    <Text style={styles.storyTitle}>{featuredStory.title}</Text>
-                  </View>
+                <View style={styles.promptBadge}>
+                  <IconSymbol
+                    ios_icon_name="sparkles"
+                    android_material_icon_name="auto-awesome"
+                    size={16}
+                    color={colors.card}
+                  />
+                  <Text style={styles.promptBadgeText}>TODAY&apos;S PROMPT</Text>
                 </View>
-                <Text style={styles.storyPreview} numberOfLines={3}>
-                  {featuredStory.preview}
-                </Text>
-                <View style={styles.storyAction}>
-                  <Text style={styles.storyActionText}>Read More</Text>
+                <Text style={styles.promptText}>{prompts[0].prompt_text}</Text>
+                <View style={styles.promptAction}>
+                  <Text style={styles.promptActionText}>Start Writing</Text>
                   <IconSymbol
                     ios_icon_name="arrow.right"
                     android_material_icon_name="arrow-forward"
@@ -477,81 +361,312 @@ export default function MentalHealthScreen() {
           </View>
         )}
 
-        {/* Quick Actions */}
-        <View style={styles.actionsSection}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <View style={styles.actionsGrid}>
-            <TouchableOpacity
-              style={styles.actionCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/journal-prompts' as any)}
-            >
-              <View style={styles.actionIconContainer}>
+        {/* Recent Journal Entries */}
+        {journalEntries.length > 0 && (
+          <View style={styles.journalSection}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="book.fill"
+                android_material_icon_name="menu-book"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.sectionTitle}>Recent Entries</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/journal' as any)}
+                style={styles.seeAllButton}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
                 <IconSymbol
-                  ios_icon_name="lightbulb.fill"
-                  android_material_icon_name="lightbulb"
-                  size={28}
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={18}
                   color={colors.primary}
                 />
-              </View>
-              <Text style={styles.actionTitle}>Prompts</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/prophet-stories' as any)}
+              </TouchableOpacity>
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.horizontalScroll}
             >
-              <View style={styles.actionIconContainer}>
+              {journalEntries.map((entry, index) => (
+                <React.Fragment key={index}>
+                  <TouchableOpacity
+                    style={styles.journalCard}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/journal' as any)}
+                  >
+                    <View style={styles.journalCardHeader}>
+                      <Text style={styles.journalCardTitle} numberOfLines={1}>
+                        {entry.title}
+                      </Text>
+                      <Text style={styles.journalCardDate}>
+                        {formatDate(entry.created_at)}
+                      </Text>
+                    </View>
+                    <Text style={styles.journalCardContent} numberOfLines={4}>
+                      {entry.content}
+                    </Text>
+                  </TouchableOpacity>
+                </React.Fragment>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Mood Tracker */}
+        {moodEntries.length > 0 && (
+          <View style={styles.moodSection}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="chart.line.uptrend.xyaxis"
+                android_material_icon_name="insights"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.sectionTitle}>Mood This Week</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/mood-tracker' as any)}
+                style={styles.seeAllButton}
+              >
+                <Text style={styles.seeAllText}>Track</Text>
                 <IconSymbol
-                  ios_icon_name="book.closed.fill"
-                  android_material_icon_name="auto-stories"
-                  size={28}
-                  color={colors.secondary}
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={18}
+                  color={colors.primary}
                 />
-              </View>
-              <Text style={styles.actionTitle}>Stories</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.moodGrid}>
+              {moodEntries.map((entry, index) => (
+                <React.Fragment key={index}>
+                  <View style={styles.moodItem}>
+                    <Text style={styles.moodEmoji}>{getMoodEmoji(entry.mood)}</Text>
+                    <Text style={styles.moodDate}>{formatDate(entry.date)}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Prophet Stories */}
+        {prophetStories.length > 0 && (
+          <View style={styles.storiesSection}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="book.closed.fill"
+                android_material_icon_name="auto-stories"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.sectionTitle}>Prophet Stories</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/prophet-stories' as any)}
+                style={styles.seeAllButton}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={18}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.storiesGrid}>
+              {prophetStories.map((story, index) => (
+                <React.Fragment key={index}>
+                  <TouchableOpacity
+                    style={styles.storyCard}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/prophet-stories' as any)}
+                  >
+                    <LinearGradient
+                      colors={colors.gradientSunset}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.storyGradient}
+                    >
+                      <View style={styles.storyIconContainer}>
+                        <IconSymbol
+                          ios_icon_name="book.closed.fill"
+                          android_material_icon_name="auto-stories"
+                          size={32}
+                          color={colors.card}
+                        />
+                      </View>
+                      <Text style={styles.storyCategory}>{story.category}</Text>
+                      <Text style={styles.storyTitle} numberOfLines={2}>
+                        {story.title}
+                      </Text>
+                      <Text style={styles.storyPreview} numberOfLines={3}>
+                        {story.mental_health_connection}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Healing Duas */}
+        {duas.length > 0 && (
+          <View style={styles.duasSection}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="hands.sparkles.fill"
+                android_material_icon_name="self-improvement"
+                size={28}
+                color={colors.primary}
+              />
+              <Text style={styles.sectionTitle}>Healing Duas</Text>
+              <TouchableOpacity
+                onPress={() => router.push('/mental-duas' as any)}
+                style={styles.seeAllButton}
+              >
+                <Text style={styles.seeAllText}>See All</Text>
+                <IconSymbol
+                  ios_icon_name="chevron.right"
+                  android_material_icon_name="chevron-right"
+                  size={18}
+                  color={colors.primary}
+                />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.duasGrid}>
+              {duas.map((dua, index) => (
+                <React.Fragment key={index}>
+                  <TouchableOpacity
+                    style={styles.duaCard}
+                    activeOpacity={0.8}
+                    onPress={() => router.push('/mental-duas' as any)}
+                  >
+                    <LinearGradient
+                      colors={colors.gradientPurple}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={styles.duaGradient}
+                    >
+                      <View style={styles.duaHeader}>
+                        <IconSymbol
+                          ios_icon_name="hands.sparkles.fill"
+                          android_material_icon_name="self-improvement"
+                          size={24}
+                          color={colors.card}
+                        />
+                        <Text style={styles.duaCategory}>{dua.emotion_category}</Text>
+                      </View>
+                      <Text style={styles.duaTitle} numberOfLines={2}>
+                        {dua.title}
+                      </Text>
+                      <Text style={styles.duaTranslation} numberOfLines={3}>
+                        {dua.translation}
+                      </Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+        )}
+
+        {/* Wellness Tools */}
+        <View style={styles.toolsSection}>
+          <View style={styles.sectionHeader}>
+            <IconSymbol
+              ios_icon_name="wrench.and.screwdriver.fill"
+              android_material_icon_name="build"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.sectionTitle}>Wellness Tools</Text>
+          </View>
+          <View style={styles.toolsGrid}>
+            <TouchableOpacity
+              style={styles.toolCard}
+              activeOpacity={0.8}
+              onPress={() => router.push('/meditation' as any)}
+            >
+              <LinearGradient
+                colors={colors.gradientSecondary}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.toolGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="leaf.fill"
+                  android_material_icon_name="spa"
+                  size={36}
+                  color={colors.card}
+                />
+                <Text style={styles.toolTitle}>Meditation</Text>
+              </LinearGradient>
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={styles.actionCard}
+              style={styles.toolCard}
               activeOpacity={0.8}
               onPress={() => router.push('/emotional-support' as any)}
             >
-              <View style={styles.actionIconContainer}>
+              <LinearGradient
+                colors={colors.gradientAccent}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.toolGradient}
+              >
                 <IconSymbol
                   ios_icon_name="heart.fill"
                   android_material_icon_name="favorite"
-                  size={28}
-                  color={colors.accent}
+                  size={36}
+                  color={colors.card}
                 />
-              </View>
-              <Text style={styles.actionTitle}>Support</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.actionCard}
-              activeOpacity={0.8}
-              onPress={() => router.push('/crisis-support' as any)}
-            >
-              <View style={styles.actionIconContainer}>
-                <IconSymbol
-                  ios_icon_name="exclamationmark.triangle.fill"
-                  android_material_icon_name="warning"
-                  size={28}
-                  color={colors.error}
-                />
-              </View>
-              <Text style={styles.actionTitle}>Crisis</Text>
+                <Text style={styles.toolTitle}>Support</Text>
+              </LinearGradient>
             </TouchableOpacity>
           </View>
         </View>
 
+        {/* Crisis Support Banner */}
+        <TouchableOpacity
+          style={styles.crisisCard}
+          activeOpacity={0.8}
+          onPress={() => router.push('/crisis-support' as any)}
+        >
+          <LinearGradient
+            colors={['#FF6B6B', '#EE5A6F']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.crisisGradient}
+          >
+            <View style={styles.crisisContent}>
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="warning"
+                size={32}
+                color={colors.card}
+              />
+              <View style={styles.crisisText}>
+                <Text style={styles.crisisTitle}>Need Immediate Help?</Text>
+                <Text style={styles.crisisSubtitle}>Crisis support resources available 24/7</Text>
+              </View>
+            </View>
+            <IconSymbol
+              ios_icon_name="arrow.right.circle.fill"
+              android_material_icon_name="arrow-forward"
+              size={28}
+              color={colors.card}
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+
         {/* Inspirational Quote */}
         <View style={styles.quoteSection}>
           <LinearGradient
-            colors={colors.gradientPurple}
+            colors={colors.gradientTeal}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 1 }}
             style={styles.quoteGradient}
@@ -607,16 +722,17 @@ const styles = StyleSheet.create({
     ...shadows.large,
   },
   heroGradient: {
-    padding: spacing.xxxl,
+    padding: spacing.xxl,
   },
-  heroContent: {
+  heroHeader: {
     alignItems: 'center',
+    marginBottom: spacing.xl,
   },
   heroTitle: {
     ...typography.h1,
     color: colors.card,
-    marginTop: spacing.lg,
-    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+    marginBottom: spacing.xs,
     textAlign: 'center',
   },
   heroSubtitle: {
@@ -625,52 +741,100 @@ const styles = StyleSheet.create({
     opacity: 0.95,
     textAlign: 'center',
   },
-  statsSection: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.lg,
-  },
-  statsGrid: {
+  statsRow: {
     flexDirection: 'row',
-    gap: spacing.md,
-  },
-  statCard: {
-    flex: 1,
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: borderRadius.lg,
-    overflow: 'hidden',
-    ...shadows.medium,
-  },
-  statGradient: {
     padding: spacing.lg,
+  },
+  statItem: {
     alignItems: 'center',
   },
   statValue: {
     ...typography.h1,
     color: colors.card,
-    marginTop: spacing.sm,
     marginBottom: spacing.xs,
   },
   statLabel: {
-    ...typography.small,
+    ...typography.caption,
     color: colors.card,
     opacity: 0.9,
-    textAlign: 'center',
   },
-  featureCard: {
+  statDivider: {
+    width: 1,
+    height: 40,
+    backgroundColor: colors.card,
+    opacity: 0.3,
+  },
+  quickJournalSection: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.xxl,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.lg,
+    gap: spacing.sm,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text,
+    flex: 1,
+  },
+  seeAllButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  seeAllText: {
+    ...typography.bodyBold,
+    color: colors.primary,
+  },
+  quickJournalCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.medium,
+  },
+  quickJournalInput: {
+    ...typography.body,
+    color: colors.text,
+    minHeight: 80,
+    marginBottom: spacing.md,
+    textAlignVertical: 'top',
+  },
+  quickJournalButton: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+  },
+  quickJournalGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  quickJournalButtonText: {
+    ...typography.bodyBold,
+    color: colors.card,
+  },
+  promptSection: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xxl,
+  },
+  promptCard: {
     borderRadius: borderRadius.xl,
     overflow: 'hidden',
     ...shadows.large,
   },
-  featureGradient: {
-    padding: spacing.xxl,
+  promptGradient: {
+    padding: spacing.xl,
   },
-  featureBadge: {
+  promptBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -681,85 +845,107 @@ const styles = StyleSheet.create({
     borderRadius: borderRadius.md,
     marginBottom: spacing.md,
   },
-  featureBadgeText: {
+  promptBadgeText: {
     ...typography.smallBold,
     color: colors.card,
   },
-  featureTitle: {
+  promptText: {
     ...typography.h3,
     color: colors.card,
     marginBottom: spacing.lg,
     lineHeight: 32,
   },
-  featureAction: {
+  promptAction: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
   },
-  featureActionText: {
+  promptActionText: {
     ...typography.bodyBold,
     color: colors.card,
   },
-  gridSection: {
+  journalSection: {
+    marginBottom: spacing.xxl,
+  },
+  horizontalScroll: {
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  journalCard: {
+    width: SCREEN_WIDTH * 0.7,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.medium,
+  },
+  journalCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  journalCardTitle: {
+    ...typography.h4,
+    color: colors.text,
+    flex: 1,
+    marginRight: spacing.sm,
+  },
+  journalCardDate: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  journalCardContent: {
+    ...typography.body,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  moodSection: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.xxl,
   },
-  gridRow: {
+  moodGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: spacing.md,
-    marginBottom: spacing.md,
   },
-  gridCard: {
+  moodItem: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    ...shadows.small,
+    width: (SCREEN_WIDTH - spacing.xl * 2 - spacing.md * 6) / 7,
+  },
+  moodEmoji: {
+    fontSize: 32,
+    marginBottom: spacing.xs,
+  },
+  moodDate: {
+    ...typography.small,
+    color: colors.textSecondary,
+  },
+  storiesSection: {
+    marginBottom: spacing.xxl,
+  },
+  storiesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  storyCard: {
     width: CARD_WIDTH,
     borderRadius: borderRadius.lg,
     overflow: 'hidden',
     ...shadows.medium,
   },
-  gridGradient: {
-    padding: spacing.lg,
-    minHeight: 160,
-    justifyContent: 'space-between',
-  },
-  gridTitle: {
-    ...typography.h3,
-    color: colors.card,
-    marginTop: spacing.md,
-    marginBottom: spacing.xs,
-  },
-  gridSubtitle: {
-    ...typography.caption,
-    color: colors.card,
-    opacity: 0.9,
-  },
-  gridBadge: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.md,
-    alignSelf: 'flex-start',
-    marginTop: spacing.sm,
-  },
-  gridBadgeText: {
-    ...typography.small,
-    color: colors.card,
-  },
-  featuredSection: {
-    marginHorizontal: spacing.xl,
-    marginBottom: spacing.xxl,
-  },
-  storyCard: {
-    borderRadius: borderRadius.xl,
-    overflow: 'hidden',
-    ...shadows.large,
-  },
   storyGradient: {
-    padding: spacing.xl,
-  },
-  storyHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    minHeight: 200,
   },
   storyIconContainer: {
     width: 56,
@@ -768,68 +954,124 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  storyHeaderText: {
-    flex: 1,
+    marginBottom: spacing.md,
   },
   storyCategory: {
     ...typography.smallBold,
     color: colors.card,
     opacity: 0.8,
     marginBottom: spacing.xs,
+    textTransform: 'uppercase',
   },
   storyTitle: {
-    ...typography.h3,
+    ...typography.h4,
     color: colors.card,
+    marginBottom: spacing.sm,
   },
   storyPreview: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.card,
-    opacity: 0.95,
-    lineHeight: 24,
-    marginBottom: spacing.lg,
+    opacity: 0.9,
+    lineHeight: 20,
   },
-  storyAction: {
+  duasSection: {
+    marginBottom: spacing.xxl,
+  },
+  duasGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: spacing.xl,
+    gap: spacing.md,
+  },
+  duaCard: {
+    width: CARD_WIDTH,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  duaGradient: {
+    padding: spacing.lg,
+    minHeight: 180,
+  },
+  duaHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    marginBottom: spacing.md,
   },
-  storyActionText: {
-    ...typography.bodyBold,
+  duaCategory: {
+    ...typography.smallBold,
     color: colors.card,
+    opacity: 0.9,
+    textTransform: 'uppercase',
   },
-  actionsSection: {
+  duaTitle: {
+    ...typography.h4,
+    color: colors.card,
+    marginBottom: spacing.sm,
+  },
+  duaTranslation: {
+    ...typography.caption,
+    color: colors.card,
+    opacity: 0.9,
+    lineHeight: 20,
+  },
+  toolsSection: {
     marginHorizontal: spacing.xl,
     marginBottom: spacing.xxl,
   },
-  actionsGrid: {
+  toolsGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: spacing.md,
   },
-  actionCard: {
-    width: (SCREEN_WIDTH - spacing.xl * 2 - spacing.md * 3) / 4,
-    backgroundColor: colors.card,
+  toolCard: {
+    flex: 1,
     borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.small,
+    overflow: 'hidden',
+    ...shadows.medium,
   },
-  actionIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: colors.highlight,
+  toolGradient: {
+    padding: spacing.xl,
     alignItems: 'center',
+    minHeight: 140,
     justifyContent: 'center',
-    marginBottom: spacing.sm,
   },
-  actionTitle: {
+  toolTitle: {
+    ...typography.h4,
+    color: colors.card,
+    marginTop: spacing.md,
+  },
+  crisisCard: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.xxl,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.large,
+  },
+  crisisGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: spacing.lg,
+  },
+  crisisContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    flex: 1,
+  },
+  crisisText: {
+    flex: 1,
+  },
+  crisisTitle: {
+    ...typography.h4,
+    color: colors.card,
+    marginBottom: spacing.xs,
+  },
+  crisisSubtitle: {
     ...typography.caption,
-    color: colors.text,
-    textAlign: 'center',
+    color: colors.card,
+    opacity: 0.9,
   },
   quoteSection: {
     marginHorizontal: spacing.xl,

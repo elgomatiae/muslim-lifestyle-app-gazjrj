@@ -41,10 +41,54 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   
   // Initialize all hooks at the top level
   const animatedValue = useSharedValue(0);
-  const scaleValues = React.useMemo(() => 
-    tabs.map(() => useSharedValue(1)), 
-    [tabs.length]
-  );
+  
+  // Create scale values for each tab - MUST be at top level, not in useMemo
+  // We need to create a fixed number of shared values based on tabs length
+  const scaleValue0 = useSharedValue(1);
+  const scaleValue1 = useSharedValue(1);
+  const scaleValue2 = useSharedValue(1);
+  const scaleValue3 = useSharedValue(1);
+  const scaleValue4 = useSharedValue(1);
+  const scaleValue5 = useSharedValue(1);
+  
+  // Store them in an array for easier access
+  const scaleValues = React.useMemo(() => [
+    scaleValue0,
+    scaleValue1,
+    scaleValue2,
+    scaleValue3,
+    scaleValue4,
+    scaleValue5,
+  ].slice(0, tabs.length), [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4, scaleValue5, tabs.length]);
+
+  // Create animated styles for each tab at the component level - MUST be at top level
+  const animatedTabStyle0 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue0.value }],
+  }));
+  const animatedTabStyle1 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue1.value }],
+  }));
+  const animatedTabStyle2 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue2.value }],
+  }));
+  const animatedTabStyle3 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue3.value }],
+  }));
+  const animatedTabStyle4 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue4.value }],
+  }));
+  const animatedTabStyle5 = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue5.value }],
+  }));
+  
+  const animatedTabStyles = React.useMemo(() => [
+    animatedTabStyle0,
+    animatedTabStyle1,
+    animatedTabStyle2,
+    animatedTabStyle3,
+    animatedTabStyle4,
+    animatedTabStyle5,
+  ].slice(0, tabs.length), [animatedTabStyle0, animatedTabStyle1, animatedTabStyle2, animatedTabStyle3, animatedTabStyle4, animatedTabStyle5, tabs.length]);
 
   // Find the center tab index (should be Iman)
   const centerTabIndex = Math.floor(tabs.length / 2);
@@ -149,11 +193,8 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
               const isActive = activeTabIndex === index;
               const isCenterTab = index === centerTabIndex;
 
-              const animatedTabStyle = useAnimatedStyle(() => {
-                return {
-                  transform: [{ scale: scaleValues[index].value }],
-                };
-              });
+              // Use pre-created animated style
+              const animatedTabStyle = animatedTabStyles[index];
 
               // Center tab (Iman) gets special treatment - BIGGER and ELEVATED
               if (isCenterTab) {

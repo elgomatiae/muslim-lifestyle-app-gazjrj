@@ -1,23 +1,10 @@
 
 import { supabase } from '@/lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  PrayerGoals,
-  DhikrGoals,
-  QuranGoals,
-  loadPrayerGoals,
-  loadDhikrGoals,
-  loadQuranGoals,
-  savePrayerGoals,
-  saveDhikrGoals,
-  saveQuranGoals,
-} from './imanScoreCalculator';
+import { PrayerGoals, DhikrGoals, QuranGoals } from './imanScoreCalculator';
 
-export interface ImanTrackerData {
-  id?: string;
+interface ImanTrackerData {
   user_id: string;
-  
-  // Prayer goals
   fard_fajr: boolean;
   fard_dhuhr: boolean;
   fard_asr: boolean;
@@ -27,100 +14,52 @@ export interface ImanTrackerData {
   sunnah_completed: number;
   tahajjud_weekly_goal: number;
   tahajjud_completed: number;
-  
-  // Quran goals
   quran_daily_pages_goal: number;
   quran_daily_pages_completed: number;
   quran_daily_verses_goal: number;
   quran_daily_verses_completed: number;
   quran_weekly_memorization_goal: number;
   quran_weekly_memorization_completed: number;
-  
-  // Dhikr goals
   dhikr_daily_goal: number;
   dhikr_daily_completed: number;
   dhikr_weekly_goal: number;
   dhikr_weekly_completed: number;
-  
-  // Scores
   prayer_score: number;
   quran_score: number;
   dhikr_score: number;
-  
-  // Tracking dates
-  last_updated?: string;
-  last_daily_reset?: string;
-  last_weekly_reset?: string;
+  last_updated: string;
+  last_daily_reset: string;
+  last_weekly_reset: string;
 }
 
-// Load Iman Tracker data from Supabase
-export async function loadImanTrackerFromSupabase(userId: string): Promise<ImanTrackerData | null> {
+/**
+ * Sync local Iman Tracker data to Supabase
+ */
+export async function syncLocalToSupabase(userId: string): Promise<void> {
   try {
-    const { data, error } = await supabase
-      .from('iman_tracker_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') {
-        console.log('No iman tracker data found for user');
-        return null;
-      }
-      console.error('Error loading iman tracker from Supabase:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('Error loading iman tracker from Supabase:', error);
-    return null;
-  }
-}
-
-// Save Iman Tracker data to Supabase
-export async function saveImanTrackerToSupabase(userId: string, data: Partial<ImanTrackerData>): Promise<boolean> {
-  try {
-    const { error } = await supabase
-      .from('iman_tracker_goals')
-      .upsert({
-        user_id: userId,
-        ...data,
-        last_updated: new Date().toISOString(),
-      }, {
-        onConflict: 'user_id',
-      });
-
-    if (error) {
-      console.error('Error saving iman tracker to Supabase:', error);
-      return false;
-    }
-
-    console.log('Iman tracker data saved to Supabase');
-    return true;
-  } catch (error) {
-    console.error('Error saving iman tracker to Supabase:', error);
-    return false;
-  }
-}
-
-// Sync local AsyncStorage data to Supabase
-export async function syncLocalToSupabase(userId: string): Promise<boolean> {
-  try {
-    console.log('Syncing local data to Supabase for user:', userId);
+    console.log('Syncing Iman Tracker data to Supabase...');
     
     // Load local data
-    const prayerGoals = await loadPrayerGoals();
-    const dhikrGoals = await loadDhikrGoals();
-    const quranGoals = await loadQuranGoals();
-    
-    // Get last reset dates
-    const lastDailyReset = await AsyncStorage.getItem('lastImanDate');
-    const lastWeeklyReset = await AsyncStorage.getItem('lastImanWeek');
-    
+    const prayerGoalsStr = await AsyncStorage.getItem('prayerGoals');
+    const dhikrGoalsStr = await AsyncStorage.getItem('dhikrGoals');
+    const quranGoalsStr = await AsyncStorage.getItem('quranGoals');
+    const scoresStr = await AsyncStorage.getItem('sectionScores');
+    const lastResetStr = await AsyncStorage.getItem('lastResetCheck');
+
+    if (!prayerGoalsStr || !dhikrGoalsStr || !quranGoalsStr) {
+      console.log('No local data to sync');
+      return;
+    }
+
+    const prayerGoals: PrayerGoals = JSON.parse(prayerGoalsStr);
+    const dhikrGoals: DhikrGoals = JSON.parse(dhikrGoalsStr);
+    const quranGoals: QuranGoals = JSON.parse(quranGoalsStr);
+    const scores = scoresStr ? JSON.parse(scoresStr) : { prayer: 0, dhikr: 0, quran: 0 };
+    const lastReset = lastResetStr ? JSON.parse(lastResetStr) : { daily: new Date().toISOString(), weekly: new Date().toISOString() };
+
     // Prepare data for Supabase
-    const imanData: Partial<ImanTrackerData> = {
-      // Prayer
+    const data: Partial<ImanTrackerData> = {
+      user_id: userId,
       fard_fajr: prayerGoals.fardPrayers.fajr,
       fard_dhuhr: prayerGoals.fardPrayers.dhuhr,
       fard_asr: prayerGoals.fardPrayers.asr,
@@ -130,51 +69,65 @@ export async function syncLocalToSupabase(userId: string): Promise<boolean> {
       sunnah_completed: prayerGoals.sunnahCompleted,
       tahajjud_weekly_goal: prayerGoals.tahajjudWeeklyGoal,
       tahajjud_completed: prayerGoals.tahajjudCompleted,
-      
-      // Quran
       quran_daily_pages_goal: quranGoals.dailyPagesGoal,
       quran_daily_pages_completed: quranGoals.dailyPagesCompleted,
       quran_daily_verses_goal: quranGoals.dailyVersesGoal,
       quran_daily_verses_completed: quranGoals.dailyVersesCompleted,
       quran_weekly_memorization_goal: quranGoals.weeklyMemorizationGoal,
       quran_weekly_memorization_completed: quranGoals.weeklyMemorizationCompleted,
-      
-      // Dhikr
       dhikr_daily_goal: dhikrGoals.dailyGoal,
       dhikr_daily_completed: dhikrGoals.dailyCompleted,
       dhikr_weekly_goal: dhikrGoals.weeklyGoal,
       dhikr_weekly_completed: dhikrGoals.weeklyCompleted,
-      
-      // Scores
-      prayer_score: prayerGoals.score || 0,
-      quran_score: quranGoals.score || 0,
-      dhikr_score: dhikrGoals.score || 0,
-      
-      // Dates
-      last_daily_reset: lastDailyReset || new Date().toDateString(),
-      last_weekly_reset: lastWeeklyReset || new Date().toDateString(),
+      prayer_score: scores.prayer,
+      quran_score: scores.quran,
+      dhikr_score: scores.dhikr,
+      last_updated: new Date().toISOString(),
+      last_daily_reset: lastReset.daily,
+      last_weekly_reset: lastReset.weekly,
     };
-    
-    return await saveImanTrackerToSupabase(userId, imanData);
+
+    // Upsert to Supabase
+    const { error } = await supabase
+      .from('iman_tracker_goals')
+      .upsert(data, { onConflict: 'user_id' });
+
+    if (error) {
+      console.log('Error syncing to Supabase:', error);
+      return;
+    }
+
+    console.log('Iman Tracker data synced to Supabase successfully');
   } catch (error) {
-    console.error('Error syncing local to Supabase:', error);
-    return false;
+    console.log('Error in syncLocalToSupabase:', error);
   }
 }
 
-// Sync Supabase data to local AsyncStorage
-export async function syncSupabaseToLocal(userId: string): Promise<boolean> {
+/**
+ * Sync Supabase Iman Tracker data to local storage
+ */
+export async function syncSupabaseToLocal(userId: string): Promise<void> {
   try {
-    console.log('Syncing Supabase data to local for user:', userId);
+    console.log('Syncing Iman Tracker data from Supabase...');
     
-    const data = await loadImanTrackerFromSupabase(userId);
-    
-    if (!data) {
-      console.log('No data to sync from Supabase');
-      return false;
+    // Fetch data from Supabase
+    const { data, error } = await supabase
+      .from('iman_tracker_goals')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error) {
+      console.log('Error fetching from Supabase:', error);
+      return;
     }
-    
-    // Update local storage with Supabase data
+
+    if (!data) {
+      console.log('No data found in Supabase');
+      return;
+    }
+
+    // Convert to local format
     const prayerGoals: PrayerGoals = {
       fardPrayers: {
         fajr: data.fard_fajr,
@@ -187,9 +140,15 @@ export async function syncSupabaseToLocal(userId: string): Promise<boolean> {
       sunnahCompleted: data.sunnah_completed,
       tahajjudWeeklyGoal: data.tahajjud_weekly_goal,
       tahajjudCompleted: data.tahajjud_completed,
-      score: data.prayer_score,
     };
-    
+
+    const dhikrGoals: DhikrGoals = {
+      dailyGoal: data.dhikr_daily_goal,
+      dailyCompleted: data.dhikr_daily_completed,
+      weeklyGoal: data.dhikr_weekly_goal,
+      weeklyCompleted: data.dhikr_weekly_completed,
+    };
+
     const quranGoals: QuranGoals = {
       dailyPagesGoal: data.quran_daily_pages_goal,
       dailyPagesCompleted: data.quran_daily_pages_completed,
@@ -197,62 +156,55 @@ export async function syncSupabaseToLocal(userId: string): Promise<boolean> {
       dailyVersesCompleted: data.quran_daily_verses_completed,
       weeklyMemorizationGoal: data.quran_weekly_memorization_goal,
       weeklyMemorizationCompleted: data.quran_weekly_memorization_completed,
-      score: data.quran_score,
     };
-    
-    const dhikrGoals: DhikrGoals = {
-      dailyGoal: data.dhikr_daily_goal,
-      dailyCompleted: data.dhikr_daily_completed,
-      weeklyGoal: data.dhikr_weekly_goal,
-      weeklyCompleted: data.dhikr_weekly_completed,
-      score: data.dhikr_score,
+
+    const scores = {
+      prayer: data.prayer_score,
+      quran: data.quran_score,
+      dhikr: data.dhikr_score,
     };
-    
-    await savePrayerGoals(prayerGoals);
-    await saveQuranGoals(quranGoals);
-    await saveDhikrGoals(dhikrGoals);
-    
-    if (data.last_daily_reset) {
-      await AsyncStorage.setItem('lastImanDate', data.last_daily_reset);
-    }
-    
-    if (data.last_weekly_reset) {
-      await AsyncStorage.setItem('lastImanWeek', data.last_weekly_reset);
-    }
-    
-    console.log('Supabase data synced to local');
-    return true;
+
+    const lastReset = {
+      daily: data.last_daily_reset,
+      weekly: data.last_weekly_reset,
+    };
+
+    // Save to local storage
+    await AsyncStorage.setItem('prayerGoals', JSON.stringify(prayerGoals));
+    await AsyncStorage.setItem('dhikrGoals', JSON.stringify(dhikrGoals));
+    await AsyncStorage.setItem('quranGoals', JSON.stringify(quranGoals));
+    await AsyncStorage.setItem('sectionScores', JSON.stringify(scores));
+    await AsyncStorage.setItem('lastResetCheck', JSON.stringify(lastReset));
+
+    console.log('Iman Tracker data synced from Supabase successfully');
   } catch (error) {
-    console.error('Error syncing Supabase to local:', error);
-    return false;
+    console.log('Error in syncSupabaseToLocal:', error);
   }
 }
 
-// Initialize Iman Tracker for a new user
-export async function initializeImanTrackerForUser(userId: string): Promise<boolean> {
+/**
+ * Initialize Iman Tracker data for a new user
+ */
+export async function initializeImanTrackerForUser(userId: string): Promise<void> {
   try {
     console.log('Initializing Iman Tracker for user:', userId);
     
-    // Check if user already has data
-    const existingData = await loadImanTrackerFromSupabase(userId);
-    
+    // Check if data already exists
+    const { data: existingData } = await supabase
+      .from('iman_tracker_goals')
+      .select('id')
+      .eq('user_id', userId)
+      .single();
+
     if (existingData) {
-      console.log('User already has Iman Tracker data, syncing to local');
-      return await syncSupabaseToLocal(userId);
+      console.log('Iman Tracker data already exists, syncing to local...');
+      await syncSupabaseToLocal(userId);
+      return;
     }
-    
-    // Check if there's local data to migrate
-    const localPrayerGoals = await loadPrayerGoals();
-    const hasLocalData = localPrayerGoals.sunnahDailyGoal > 0 || 
-                         Object.values(localPrayerGoals.fardPrayers).some(v => v);
-    
-    if (hasLocalData) {
-      console.log('Found local data, migrating to Supabase');
-      return await syncLocalToSupabase(userId);
-    }
-    
-    // Create default data for new user
+
+    // Create default data
     const defaultData: Partial<ImanTrackerData> = {
+      user_id: userId,
       fard_fajr: false,
       fard_dhuhr: false,
       fard_asr: false,
@@ -275,13 +227,26 @@ export async function initializeImanTrackerForUser(userId: string): Promise<bool
       prayer_score: 0,
       quran_score: 0,
       dhikr_score: 0,
-      last_daily_reset: new Date().toDateString(),
-      last_weekly_reset: new Date().toDateString(),
+      last_updated: new Date().toISOString(),
+      last_daily_reset: new Date().toISOString(),
+      last_weekly_reset: new Date().toISOString(),
     };
-    
-    return await saveImanTrackerToSupabase(userId, defaultData);
+
+    // Insert to Supabase
+    const { error } = await supabase
+      .from('iman_tracker_goals')
+      .insert(defaultData);
+
+    if (error) {
+      console.log('Error initializing Iman Tracker:', error);
+      return;
+    }
+
+    // Sync to local
+    await syncSupabaseToLocal(userId);
+
+    console.log('Iman Tracker initialized successfully');
   } catch (error) {
-    console.error('Error initializing Iman Tracker for user:', error);
-    return false;
+    console.log('Error in initializeImanTrackerForUser:', error);
   }
 }

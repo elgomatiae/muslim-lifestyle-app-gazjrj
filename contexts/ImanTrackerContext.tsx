@@ -18,7 +18,7 @@ import {
   checkAndHandleResets,
 } from '@/utils/imanScoreCalculator';
 import { useAuth } from './AuthContext';
-import { syncLocalToSupabase, syncSupabaseToLocal } from '@/utils/imanSupabaseSync';
+import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from '@/utils/imanSupabaseSync';
 
 interface ImanTrackerContextType {
   prayerGoals: PrayerGoals | null;
@@ -53,8 +53,9 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       // Check for time-based resets first
       await checkAndHandleResets();
 
-      // If user is logged in, sync with Supabase first
+      // If user is logged in, initialize and sync with Supabase
       if (user) {
+        await initializeImanTrackerForUser(user.id);
         await syncSupabaseToLocal(user.id);
       }
       
@@ -181,6 +182,17 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     return () => clearInterval(scoreInterval);
   }, []);
+
+  // Sync to Supabase periodically if user is logged in
+  useEffect(() => {
+    if (!user) return;
+
+    const syncInterval = setInterval(async () => {
+      await syncLocalToSupabase(user.id);
+    }, 300000); // Sync every 5 minutes
+    
+    return () => clearInterval(syncInterval);
+  }, [user]);
 
   const value: ImanTrackerContextType = {
     prayerGoals,

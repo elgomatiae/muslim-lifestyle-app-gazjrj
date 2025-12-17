@@ -7,6 +7,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from 'expo-haptics';
 import { useAuth } from "@/contexts/AuthContext";
+import { syncProfileToSupabase, syncProfileFromSupabase, updateUserProfile } from "@/utils/profileSupabaseSync";
 
 interface ProfileOption {
   title: string;
@@ -36,8 +37,8 @@ export default function ProfileScreen() {
   const [profile, setProfile] = useState<UserProfile>({
     name: user?.user_metadata?.username || "User",
     email: user?.email || "user@example.com",
-    phone: "+1 (555) 123-4567",
-    location: "New York, USA",
+    phone: "",
+    location: "",
   });
 
   const [editModalVisible, setEditModalVisible] = useState(false);
@@ -55,6 +56,11 @@ export default function ProfileScreen() {
 
   const loadProfile = async () => {
     try {
+      if (user) {
+        // Sync from Supabase first
+        await syncProfileFromSupabase(user.id);
+      }
+
       const savedProfile = await AsyncStorage.getItem('userProfile');
       if (savedProfile) {
         const parsedProfile = JSON.parse(savedProfile);
@@ -62,13 +68,14 @@ export default function ProfileScreen() {
         setTempProfile(parsedProfile);
       } else if (user) {
         const userProfile = {
-          name: user.user_metadata?.username || "User",
+          name: user.user_metadata?.username || user.email?.split('@')[0] || "User",
           email: user.email || "user@example.com",
-          phone: "+1 (555) 123-4567",
-          location: "New York, USA",
+          phone: "",
+          location: "",
         };
         setProfile(userProfile);
         setTempProfile(userProfile);
+        await AsyncStorage.setItem('userProfile', JSON.stringify(userProfile));
       }
     } catch (error) {
       console.log('Error loading profile:', error);
@@ -110,8 +117,20 @@ export default function ProfileScreen() {
       if (Platform.OS !== 'web') {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       }
+      
+      // Save to local storage
       await AsyncStorage.setItem('userProfile', JSON.stringify(tempProfile));
       setProfile(tempProfile);
+      
+      // Sync to Supabase
+      if (user) {
+        await updateUserProfile(user.id, {
+          display_name: tempProfile.name,
+          phone: tempProfile.phone,
+          location: tempProfile.location,
+        });
+      }
+      
       setEditModalVisible(false);
       Alert.alert('Success', 'Profile updated successfully!');
     } catch (error) {
@@ -288,35 +307,41 @@ export default function ProfileScreen() {
               </View>
             </View>
             
-            <View style={styles.divider} />
+            {profile.phone && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <IconSymbol
+                    ios_icon_name="phone.fill"
+                    android_material_icon_name="phone"
+                    size={22}
+                    color={colors.accent}
+                  />
+                  <View style={styles.infoTextContainer}>
+                    <Text style={styles.infoLabel}>Phone</Text>
+                    <Text style={styles.infoText}>{profile.phone}</Text>
+                  </View>
+                </View>
+              </>
+            )}
             
-            <View style={styles.infoRow}>
-              <IconSymbol
-                ios_icon_name="phone.fill"
-                android_material_icon_name="phone"
-                size={22}
-                color={colors.accent}
-              />
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Phone</Text>
-                <Text style={styles.infoText}>{profile.phone}</Text>
-              </View>
-            </View>
-            
-            <View style={styles.divider} />
-            
-            <View style={styles.infoRow}>
-              <IconSymbol
-                ios_icon_name="location.fill"
-                android_material_icon_name="location-on"
-                size={22}
-                color={colors.info}
-              />
-              <View style={styles.infoTextContainer}>
-                <Text style={styles.infoLabel}>Location</Text>
-                <Text style={styles.infoText}>{profile.location}</Text>
-              </View>
-            </View>
+            {profile.location && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.infoRow}>
+                  <IconSymbol
+                    ios_icon_name="location.fill"
+                    android_material_icon_name="location-on"
+                    size={22}
+                    color={colors.info}
+                  />
+                  <View style={styles.infoTextContainer}>
+                    <Text style={styles.infoLabel}>Location</Text>
+                    <Text style={styles.infoText}>{profile.location}</Text>
+                  </View>
+                </View>
+              </>
+            )}
           </View>
         </View>
 
@@ -413,15 +438,15 @@ export default function ProfileScreen() {
               <View style={styles.inputContainer}>
                 <Text style={styles.inputLabel}>Email</Text>
                 <TextInput
-                  style={styles.input}
+                  style={[styles.input, styles.inputDisabled]}
                   value={tempProfile.email}
-                  onChangeText={(text) => setTempProfile({...tempProfile, email: text})}
                   placeholder="Enter your email"
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
                   editable={false}
                 />
+                <Text style={styles.inputHint}>Email cannot be changed</Text>
               </View>
 
               <View style={styles.inputContainer}>
@@ -696,6 +721,16 @@ const styles = StyleSheet.create({
     color: colors.text,
     borderWidth: 1,
     borderColor: colors.border,
+  },
+  inputDisabled: {
+    opacity: 0.6,
+    backgroundColor: colors.border,
+  },
+  inputHint: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+    fontStyle: 'italic',
   },
   saveButton: {
     backgroundColor: colors.primary,

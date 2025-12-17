@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { loadDhikrGoals, saveDhikrGoals, type DhikrGoals } from "@/utils/imanScoreCalculator";
+import DhikrCircularCounter from "@/components/iman/DhikrCircularCounter";
 
 export default function DhikrGoalsScreen() {
   const [goals, setGoals] = useState<DhikrGoals>({
@@ -59,7 +60,6 @@ export default function DhikrGoalsScreen() {
   };
 
   const incrementDhikr = async (amount: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedGoals = {
       ...goals,
       dailyCompleted: goals.dailyCompleted + amount,
@@ -154,79 +154,12 @@ export default function DhikrGoalsScreen() {
                 {goals.dailyCompleted}/{goals.dailyGoal}
               </Text>
             </View>
-            <View style={styles.progressBarBackground}>
-              <View 
-                style={[
-                  styles.progressBarFill,
-                  { 
-                    width: `${goals.dailyGoal > 0 ? Math.min(100, (goals.dailyCompleted / goals.dailyGoal) * 100) : 0}%`,
-                    backgroundColor: colors.info,
-                  }
-                ]} 
-              />
-            </View>
 
-            <View style={styles.counterGrid}>
-              <TouchableOpacity
-                style={styles.counterButton}
-                onPress={() => incrementDhikr(1)}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={colors.gradientInfo}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.counterButtonGradient}
-                >
-                  <Text style={styles.counterButtonText}>+1</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.counterButton}
-                onPress={() => incrementDhikr(10)}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={colors.gradientInfo}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.counterButtonGradient}
-                >
-                  <Text style={styles.counterButtonText}>+10</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.counterButton}
-                onPress={() => incrementDhikr(33)}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={colors.gradientInfo}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.counterButtonGradient}
-                >
-                  <Text style={styles.counterButtonText}>+33</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.counterButton}
-                onPress={() => incrementDhikr(100)}
-                activeOpacity={0.7}
-              >
-                <LinearGradient
-                  colors={colors.gradientInfo}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 0 }}
-                  style={styles.counterButtonGradient}
-                >
-                  <Text style={styles.counterButtonText}>+100</Text>
-                </LinearGradient>
-              </TouchableOpacity>
-            </View>
+            <DhikrCircularCounter
+              count={goals.dailyCompleted}
+              onIncrement={incrementDhikr}
+              dailyGoal={goals.dailyGoal}
+            />
           </View>
         </View>
 
@@ -448,28 +381,6 @@ const styles = StyleSheet.create({
   progressBarFill: {
     height: '100%',
     borderRadius: borderRadius.sm,
-  },
-  counterGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: spacing.sm,
-  },
-  counterButton: {
-    flex: 1,
-    minWidth: '22%',
-    borderRadius: borderRadius.md,
-    overflow: 'hidden',
-    ...shadows.medium,
-  },
-  counterButtonGradient: {
-    padding: spacing.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  counterButtonText: {
-    ...typography.bodyBold,
-    color: colors.card,
-    fontSize: 18,
   },
   recommendationBox: {
     flexDirection: 'row',

@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
+import DhikrCircularCounter from "@/components/iman/DhikrCircularCounter";
 
 export default function ImanTrackerScreen() {
   const { user } = useAuth();
@@ -72,7 +73,6 @@ export default function ImanTrackerScreen() {
   const incrementDhikr = async (amount: number) => {
     if (!dhikrGoals) return;
     
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const updatedGoals = {
       ...dhikrGoals,
       dailyCompleted: dhikrGoals.dailyCompleted + amount,
@@ -532,75 +532,12 @@ export default function ImanTrackerScreen() {
               <Text style={styles.goalSubsectionTitle}>
                 Daily Dhikr ({dhikrGoals.dailyCompleted}/{dhikrGoals.dailyGoal})
               </Text>
-              <View style={styles.progressBarBackground}>
-                <View 
-                  style={[
-                    styles.progressBarFill,
-                    { 
-                      width: `${dhikrGoals.dailyGoal > 0 ? Math.min(100, (dhikrGoals.dailyCompleted / dhikrGoals.dailyGoal) * 100) : 0}%`,
-                      backgroundColor: colors.info,
-                    }
-                  ]} 
-                />
-              </View>
-              <View style={styles.counterGrid}>
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={() => incrementDhikr(1)}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={colors.gradientInfo}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.counterButtonGradient}
-                  >
-                    <Text style={styles.counterButtonText}>+1</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={() => incrementDhikr(10)}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={colors.gradientInfo}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.counterButtonGradient}
-                  >
-                    <Text style={styles.counterButtonText}>+10</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={() => incrementDhikr(33)}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={colors.gradientInfo}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.counterButtonGradient}
-                  >
-                    <Text style={styles.counterButtonText}>+33</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.counterButton}
-                  onPress={() => incrementDhikr(100)}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={colors.gradientInfo}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.counterButtonGradient}
-                  >
-                    <Text style={styles.counterButtonText}>+100</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
+              
+              <DhikrCircularCounter
+                count={dhikrGoals.dailyCompleted}
+                onIncrement={incrementDhikr}
+                dailyGoal={dhikrGoals.dailyGoal}
+              />
             </View>
 
             <View style={styles.goalSubsection}>

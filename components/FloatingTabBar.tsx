@@ -42,10 +42,17 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   // Initialize animation value at the top level
   const animatedValue = useSharedValue(0);
   
-  // Create scale values for each tab using useMemo to ensure they're created once
+  // Create scale values for each tab - moved outside useMemo
+  const scaleValue0 = useSharedValue(1);
+  const scaleValue1 = useSharedValue(1);
+  const scaleValue2 = useSharedValue(1);
+  const scaleValue3 = useSharedValue(1);
+  const scaleValue4 = useSharedValue(1);
+  
+  // Store scale values in an array using useMemo (without calling hooks inside)
   const scaleValues = React.useMemo(() => {
-    return tabs.map(() => useSharedValue(1));
-  }, [tabs.length]);
+    return [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4].slice(0, tabs.length);
+  }, [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4, tabs]);
 
   // Find the center tab index (should be Iman)
   const centerTabIndex = Math.floor(tabs.length / 2);

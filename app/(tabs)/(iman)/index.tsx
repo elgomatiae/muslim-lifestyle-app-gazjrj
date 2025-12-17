@@ -8,6 +8,7 @@ import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
+import { useAuth } from '@/contexts/AuthContext';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
 import { 
@@ -24,38 +25,43 @@ import {
   type DhikrGoals,
   type QuranGoals,
 } from "@/utils/imanScoreCalculator";
+import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from "@/utils/imanSupabaseSync";
 
 export default function ImanTrackerScreen() {
+  const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [prayerGoals, setPrayerGoals] = useState<PrayerGoals | null>(null);
   const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals | null>(null);
   const [quranGoals, setQuranGoals] = useState<QuranGoals | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   const loadData = useCallback(async () => {
     try {
+      // If user is logged in, sync with Supabase first
+      if (user && !syncing) {
+        setSyncing(true);
+        await syncSupabaseToLocal(user.id);
+        setSyncing(false);
+      }
+
       const lastDate = await AsyncStorage.getItem('lastImanDate');
       const today = new Date().toDateString();
       
       if (lastDate !== today) {
-        // New day - reset daily goals
         await resetDailyGoals();
         await AsyncStorage.setItem('lastImanDate', today);
       }
       
-      // Check if it's a new week
       const currentWeek = getWeekNumber(new Date());
       const lastWeek = await AsyncStorage.getItem('lastImanWeek');
       
       if (lastWeek !== currentWeek.toString()) {
-        // New week - reset weekly goals
         await resetWeeklyGoals();
         await AsyncStorage.setItem('lastImanWeek', currentWeek.toString());
       }
       
-      // Update scores with decay
       await updateSectionScores();
       
-      // Load all goals
       const prayer = await loadPrayerGoals();
       const dhikr = await loadDhikrGoals();
       const quran = await loadQuranGoals();
@@ -66,7 +72,7 @@ export default function ImanTrackerScreen() {
     } catch (error) {
       console.log('Error loading iman data:', error);
     }
-  }, []);
+  }, [user, syncing]);
 
   const getWeekNumber = (date: Date): number => {
     const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
@@ -81,17 +87,28 @@ export default function ImanTrackerScreen() {
   }, [loadData]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (user) {
+      initializeImanTrackerForUser(user.id).then(() => {
+        loadData();
+      });
+    } else {
+      loadData();
+    }
+  }, [user]);
 
   useEffect(() => {
-    // Update scores every minute to apply decay
     const scoreInterval = setInterval(async () => {
       await updateSectionScores();
-    }, 60000); // Every minute
+    }, 60000);
     
     return () => clearInterval(scoreInterval);
   }, []);
+
+  const syncToSupabase = useCallback(async () => {
+    if (user) {
+      await syncLocalToSupabase(user.id);
+    }
+  }, [user]);
 
   const toggleFardPrayer = async (prayer: keyof PrayerGoals['fardPrayers']) => {
     if (!prayerGoals) return;
@@ -106,6 +123,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementSunnah = async () => {
@@ -118,6 +136,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementTahajjud = async () => {
@@ -130,6 +149,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementDhikr = async (amount: number) => {
@@ -143,6 +163,7 @@ export default function ImanTrackerScreen() {
     };
     setDhikrGoals(updatedGoals);
     await saveDhikrGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementQuranPages = async (amount: number) => {
@@ -155,6 +176,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementQuranVerses = async (amount: number) => {
@@ -167,6 +189,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const incrementQuranMemorization = async (amount: number) => {
@@ -179,6 +202,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await syncToSupabase();
   };
 
   const fardPrayers = [
@@ -241,7 +265,6 @@ export default function ImanTrackerScreen() {
 
           {prayerGoals && (
             <View style={styles.goalsContainer}>
-              {/* Five Daily Prayers */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>Five Daily Prayers ({fardCompleted}/5)</Text>
                 <View style={styles.prayersGrid}>
@@ -280,7 +303,6 @@ export default function ImanTrackerScreen() {
                 </View>
               </View>
 
-              {/* Sunnah Prayers */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Sunnah Prayers ({prayerGoals.sunnahCompleted}/{prayerGoals.sunnahDailyGoal} today)
@@ -318,7 +340,6 @@ export default function ImanTrackerScreen() {
                 </TouchableOpacity>
               </View>
 
-              {/* Tahajjud */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Tahajjud ({prayerGoals.tahajjudCompleted}/{prayerGoals.tahajjudWeeklyGoal} this week)
@@ -390,7 +411,6 @@ export default function ImanTrackerScreen() {
 
           {quranGoals && (
             <View style={styles.goalsContainer}>
-              {/* Daily Pages */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Daily Pages ({quranGoals.dailyPagesCompleted}/{quranGoals.dailyPagesGoal})
@@ -438,7 +458,6 @@ export default function ImanTrackerScreen() {
                 </View>
               </View>
 
-              {/* Daily Verses */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Daily Verses ({quranGoals.dailyVersesCompleted}/{quranGoals.dailyVersesGoal})
@@ -500,7 +519,6 @@ export default function ImanTrackerScreen() {
                 </View>
               </View>
 
-              {/* Weekly Memorization */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Weekly Memorization ({quranGoals.weeklyMemorizationCompleted}/{quranGoals.weeklyMemorizationGoal} verses)
@@ -596,7 +614,6 @@ export default function ImanTrackerScreen() {
 
           {dhikrGoals && (
             <View style={styles.goalsContainer}>
-              {/* Daily Dhikr */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Daily Dhikr ({dhikrGoals.dailyCompleted}/{dhikrGoals.dailyGoal})
@@ -672,7 +689,6 @@ export default function ImanTrackerScreen() {
                 </View>
               </View>
 
-              {/* Weekly Dhikr */}
               <View style={styles.goalSubsection}>
                 <Text style={styles.goalSubsectionTitle}>
                   Weekly Dhikr ({dhikrGoals.weeklyCompleted}/{dhikrGoals.weeklyGoal})
@@ -709,7 +725,8 @@ export default function ImanTrackerScreen() {
                 - Use "Set Goals" to customize your targets{'\n'}
                 - Rings reach 100% when all daily and weekly goals are met{'\n'}
                 - Scores decay if goals aren&apos;t completed{'\n'}
-                - Stay consistent to maintain high scores!
+                - Stay consistent to maintain high scores!{'\n'}
+                {user && '- Your progress is automatically saved to your account'}
               </Text>
             </View>
           </View>

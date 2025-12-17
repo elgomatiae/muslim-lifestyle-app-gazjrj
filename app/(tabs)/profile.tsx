@@ -6,6 +6,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Haptics from 'expo-haptics';
+import { useAuth } from "@/contexts/AuthContext";
 
 interface ProfileOption {
   title: string;
@@ -31,9 +32,10 @@ interface UserProfile {
 }
 
 export default function ProfileScreen() {
+  const { user, signOut } = useAuth();
   const [profile, setProfile] = useState<UserProfile>({
-    name: "Abdullah Rahman",
-    email: "abdullah@example.com",
+    name: user?.user_metadata?.username || "User",
+    email: user?.email || "user@example.com",
     phone: "+1 (555) 123-4567",
     location: "New York, USA",
   });
@@ -49,7 +51,7 @@ export default function ProfileScreen() {
   useEffect(() => {
     loadProfile();
     loadStats();
-  }, []);
+  }, [user]);
 
   const loadProfile = async () => {
     try {
@@ -58,6 +60,15 @@ export default function ProfileScreen() {
         const parsedProfile = JSON.parse(savedProfile);
         setProfile(parsedProfile);
         setTempProfile(parsedProfile);
+      } else if (user) {
+        const userProfile = {
+          name: user.user_metadata?.username || "User",
+          email: user.email || "user@example.com",
+          phone: "+1 (555) 123-4567",
+          location: "New York, USA",
+        };
+        setProfile(userProfile);
+        setTempProfile(userProfile);
       }
     } catch (error) {
       console.log('Error loading profile:', error);
@@ -154,9 +165,8 @@ export default function ProfileScreen() {
         { 
           text: 'Logout', 
           style: 'destructive',
-          onPress: () => {
-            console.log('User logged out');
-            Alert.alert('Logged Out', 'You have been logged out successfully');
+          onPress: async () => {
+            await signOut();
           }
         }
       ]
@@ -201,7 +211,6 @@ export default function ProfileScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profile Header */}
         <LinearGradient
           colors={colors.gradientPrimary}
           start={{ x: 0, y: 0 }}
@@ -233,7 +242,6 @@ export default function ProfileScreen() {
           </TouchableOpacity>
         </LinearGradient>
 
-        {/* Stats Cards */}
         <View style={styles.statsContainer}>
           {stats.map((stat, index) => (
             <React.Fragment key={index}>
@@ -253,7 +261,6 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Contact Information */}
         <View style={styles.infoContainer}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
@@ -313,7 +320,6 @@ export default function ProfileScreen() {
           </View>
         </View>
 
-        {/* Options List */}
         <View style={styles.optionsContainer}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
@@ -355,7 +361,6 @@ export default function ProfileScreen() {
           ))}
         </View>
 
-        {/* Logout Button */}
         <TouchableOpacity 
           style={styles.logoutButton} 
           activeOpacity={0.7}
@@ -373,7 +378,6 @@ export default function ProfileScreen() {
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Edit Profile Modal */}
       <Modal
         visible={editModalVisible}
         animationType="slide"
@@ -416,6 +420,7 @@ export default function ProfileScreen() {
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={false}
                 />
               </View>
 

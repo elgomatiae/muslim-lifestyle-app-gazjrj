@@ -39,56 +39,13 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   
-  // Initialize all hooks at the top level
+  // Initialize animation value at the top level
   const animatedValue = useSharedValue(0);
   
-  // Create scale values for each tab - MUST be at top level, not in useMemo
-  // We need to create a fixed number of shared values based on tabs length
-  const scaleValue0 = useSharedValue(1);
-  const scaleValue1 = useSharedValue(1);
-  const scaleValue2 = useSharedValue(1);
-  const scaleValue3 = useSharedValue(1);
-  const scaleValue4 = useSharedValue(1);
-  const scaleValue5 = useSharedValue(1);
-  
-  // Store them in an array for easier access
-  const scaleValues = React.useMemo(() => [
-    scaleValue0,
-    scaleValue1,
-    scaleValue2,
-    scaleValue3,
-    scaleValue4,
-    scaleValue5,
-  ].slice(0, tabs.length), [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4, scaleValue5, tabs.length]);
-
-  // Create animated styles for each tab at the component level - MUST be at top level
-  const animatedTabStyle0 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue0.value }],
-  }));
-  const animatedTabStyle1 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue1.value }],
-  }));
-  const animatedTabStyle2 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue2.value }],
-  }));
-  const animatedTabStyle3 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue3.value }],
-  }));
-  const animatedTabStyle4 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue4.value }],
-  }));
-  const animatedTabStyle5 = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue5.value }],
-  }));
-  
-  const animatedTabStyles = React.useMemo(() => [
-    animatedTabStyle0,
-    animatedTabStyle1,
-    animatedTabStyle2,
-    animatedTabStyle3,
-    animatedTabStyle4,
-    animatedTabStyle5,
-  ].slice(0, tabs.length), [animatedTabStyle0, animatedTabStyle1, animatedTabStyle2, animatedTabStyle3, animatedTabStyle4, animatedTabStyle5, tabs.length]);
+  // Create scale values for each tab using useMemo to ensure they're created once
+  const scaleValues = React.useMemo(() => {
+    return tabs.map(() => useSharedValue(1));
+  }, [tabs.length]);
 
   // Find the center tab index (should be Iman)
   const centerTabIndex = Math.floor(tabs.length / 2);
@@ -193,9 +150,6 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
               const isActive = activeTabIndex === index;
               const isCenterTab = index === centerTabIndex;
 
-              // Use pre-created animated style
-              const animatedTabStyle = animatedTabStyles[index];
-
               // Center tab (Iman) gets special treatment - BIGGER and ELEVATED
               if (isCenterTab) {
                 return (
@@ -205,23 +159,11 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
                       onPress={() => handleTabPress(tab.route, index)}
                       activeOpacity={0.8}
                     >
-                      <Animated.View style={[styles.centerTab, animatedTabStyle]}>
-                        <LinearGradient
-                          colors={isActive ? colors.gradientOcean : colors.gradientPrimary}
-                          start={{ x: 0, y: 0 }}
-                          end={{ x: 1, y: 1 }}
-                          style={styles.centerTabGradient}
-                        >
-                          <View style={styles.centerIconContainer}>
-                            <IconSymbol
-                              android_material_icon_name={tab.icon}
-                              ios_icon_name={tab.iosIcon || tab.icon}
-                              size={40}
-                              color="#FFFFFF"
-                            />
-                          </View>
-                        </LinearGradient>
-                      </Animated.View>
+                      <AnimatedCenterTab
+                        scaleValue={scaleValues[index]}
+                        isActive={isActive}
+                        tab={tab}
+                      />
                       <Text
                         style={[
                           styles.centerTabLabel,
@@ -244,25 +186,11 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
                     onPress={() => handleTabPress(tab.route, index)}
                     activeOpacity={0.7}
                   >
-                    <Animated.View style={[styles.tabContent, animatedTabStyle]}>
-                      <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
-                        <IconSymbol
-                          android_material_icon_name={tab.icon}
-                          ios_icon_name={tab.iosIcon || tab.icon}
-                          size={24}
-                          color={isActive ? colors.primary : colors.textSecondary}
-                        />
-                      </View>
-                      <Text
-                        style={[
-                          styles.tabLabel,
-                          isActive && styles.tabLabelActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {tab.label}
-                      </Text>
-                    </Animated.View>
+                    <AnimatedRegularTab
+                      scaleValue={scaleValues[index]}
+                      isActive={isActive}
+                      tab={tab}
+                    />
                   </TouchableOpacity>
                 </React.Fragment>
               );
@@ -271,6 +199,78 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
         </View>
       </BlurView>
     </SafeAreaView>
+  );
+}
+
+// Separate component for animated center tab to avoid hooks in callbacks
+function AnimatedCenterTab({ 
+  scaleValue, 
+  isActive, 
+  tab 
+}: { 
+  scaleValue: Animated.SharedValue<number>; 
+  isActive: boolean; 
+  tab: TabBarItem;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.centerTab, animatedStyle]}>
+      <LinearGradient
+        colors={isActive ? colors.gradientOcean : colors.gradientPrimary}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.centerTabGradient}
+      >
+        <View style={styles.centerIconContainer}>
+          <IconSymbol
+            android_material_icon_name={tab.icon}
+            ios_icon_name={tab.iosIcon || tab.icon}
+            size={40}
+            color="#FFFFFF"
+          />
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+// Separate component for animated regular tab to avoid hooks in callbacks
+function AnimatedRegularTab({ 
+  scaleValue, 
+  isActive, 
+  tab 
+}: { 
+  scaleValue: Animated.SharedValue<number>; 
+  isActive: boolean; 
+  tab: TabBarItem;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.tabContent, animatedStyle]}>
+      <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+        <IconSymbol
+          android_material_icon_name={tab.icon}
+          ios_icon_name={tab.iosIcon || tab.icon}
+          size={24}
+          color={isActive ? colors.primary : colors.textSecondary}
+        />
+      </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          isActive && styles.tabLabelActive,
+        ]}
+        numberOfLines={1}
+      >
+        {tab.label}
+      </Text>
+    </Animated.View>
   );
 }
 

@@ -12,8 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
 import { 
-  resetDailyGoals, 
-  resetWeeklyGoals, 
+  checkAndHandleResets,
   updateSectionScores,
   loadPrayerGoals,
   loadDhikrGoals,
@@ -34,34 +33,24 @@ export default function ImanTrackerScreen() {
   const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals | null>(null);
   const [quranGoals, setQuranGoals] = useState<QuranGoals | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [ringsKey, setRingsKey] = useState(0); // Force rings to re-render
 
   const loadData = useCallback(async () => {
     try {
+      // Check for time-based resets first
+      await checkAndHandleResets();
+
       // If user is logged in, sync with Supabase first
       if (user && !syncing) {
         setSyncing(true);
         await syncSupabaseToLocal(user.id);
         setSyncing(false);
       }
-
-      const lastDate = await AsyncStorage.getItem('lastImanDate');
-      const today = new Date().toDateString();
       
-      if (lastDate !== today) {
-        await resetDailyGoals();
-        await AsyncStorage.setItem('lastImanDate', today);
-      }
-      
-      const currentWeek = getWeekNumber(new Date());
-      const lastWeek = await AsyncStorage.getItem('lastImanWeek');
-      
-      if (lastWeek !== currentWeek.toString()) {
-        await resetWeeklyGoals();
-        await AsyncStorage.setItem('lastImanWeek', currentWeek.toString());
-      }
-      
+      // Update scores
       await updateSectionScores();
       
+      // Load goals
       const prayer = await loadPrayerGoals();
       const dhikr = await loadDhikrGoals();
       const quran = await loadQuranGoals();
@@ -69,16 +58,13 @@ export default function ImanTrackerScreen() {
       setPrayerGoals(prayer);
       setDhikrGoals(dhikr);
       setQuranGoals(quran);
+      
+      // Force rings to update
+      setRingsKey(prev => prev + 1);
     } catch (error) {
       console.log('Error loading iman data:', error);
     }
   }, [user, syncing]);
-
-  const getWeekNumber = (date: Date): number => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  };
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -97,11 +83,21 @@ export default function ImanTrackerScreen() {
   }, [user]);
 
   useEffect(() => {
-    const scoreInterval = setInterval(async () => {
-      await updateSectionScores();
+    // Check for resets every minute
+    const resetInterval = setInterval(async () => {
+      await checkAndHandleResets();
     }, 60000);
     
-    return () => clearInterval(scoreInterval);
+    // Update scores every 30 seconds for decay
+    const scoreInterval = setInterval(async () => {
+      await updateSectionScores();
+      setRingsKey(prev => prev + 1);
+    }, 30000);
+    
+    return () => {
+      clearInterval(resetInterval);
+      clearInterval(scoreInterval);
+    };
   }, []);
 
   const syncToSupabase = useCallback(async () => {
@@ -109,6 +105,11 @@ export default function ImanTrackerScreen() {
       await syncLocalToSupabase(user.id);
     }
   }, [user]);
+
+  const updateScoresAndRings = useCallback(async () => {
+    await updateSectionScores();
+    setRingsKey(prev => prev + 1);
+  }, []);
 
   const toggleFardPrayer = async (prayer: keyof PrayerGoals['fardPrayers']) => {
     if (!prayerGoals) return;
@@ -123,6 +124,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -136,6 +138,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -149,6 +152,7 @@ export default function ImanTrackerScreen() {
     };
     setPrayerGoals(updatedGoals);
     await savePrayerGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -163,6 +167,7 @@ export default function ImanTrackerScreen() {
     };
     setDhikrGoals(updatedGoals);
     await saveDhikrGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -176,6 +181,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -189,6 +195,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -202,6 +209,7 @@ export default function ImanTrackerScreen() {
     };
     setQuranGoals(updatedGoals);
     await saveQuranGoals(updatedGoals);
+    await updateScoresAndRings();
     await syncToSupabase();
   };
 
@@ -232,7 +240,7 @@ export default function ImanTrackerScreen() {
           </View>
         </View>
 
-        <ImanRingsDisplay onRefresh={onRefresh} />
+        <ImanRingsDisplay key={ringsKey} onRefresh={onRefresh} />
 
         {/* PRAYER SECTION */}
         <View style={styles.section}>
@@ -720,13 +728,14 @@ export default function ImanTrackerScreen() {
             <View style={styles.infoContent}>
               <Text style={styles.infoTitle}>How It Works</Text>
               <Text style={styles.infoText}>
-                - Each ring represents a section: Prayer, Quran, and Dhikr{'\n'}
-                - Track your progress directly on this screen{'\n'}
-                - Use "Set Goals" to customize your targets{'\n'}
-                - Rings reach 100% when all daily and weekly goals are met{'\n'}
-                - Scores decay if goals aren&apos;t completed{'\n'}
+                - Each ring represents: Prayer, Quran, and Dhikr{'\n'}
+                - Track progress directly on this screen{'\n'}
+                - Rings update INSTANTLY when you track goals{'\n'}
+                - Scores slowly decay over time if inactive{'\n'}
+                - Unmet daily goals deplete score at midnight{'\n'}
+                - Unmet weekly goals deplete score Sunday 12 AM{'\n'}
                 - Stay consistent to maintain high scores!{'\n'}
-                {user && '- Your progress is automatically saved to your account'}
+                {user && '- Progress auto-saves to your account'}
               </Text>
             </View>
           </View>

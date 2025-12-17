@@ -17,6 +17,7 @@ export interface PrayerGoals {
   // Tahajjud (user-defined weekly goal)
   tahajjudWeeklyGoal: number; // How many times per week
   tahajjudCompleted: number;
+  score?: number; // Current score for this section
 }
 
 // Dhikr Goals Interface
@@ -25,6 +26,7 @@ export interface DhikrGoals {
   dailyCompleted: number;
   weeklyGoal: number;
   weeklyCompleted: number;
+  score?: number; // Current score for this section
 }
 
 // Quran Goals Interface
@@ -35,6 +37,7 @@ export interface QuranGoals {
   dailyVersesCompleted: number;
   weeklyMemorizationGoal: number; // verses to memorize per week
   weeklyMemorizationCompleted: number;
+  score?: number; // Current score for this section
 }
 
 // Individual section scores
@@ -46,8 +49,10 @@ export interface SectionScores {
 
 // Decay configuration
 const DECAY_CONFIG = {
-  BASE_DECAY_RATE_PER_HOUR: 0.8, // Increased decay rate
-  MAX_DECAY_PER_DAY: 25,
+  BASE_DECAY_RATE_PER_HOUR: 1.2, // Slow continuous decay
+  DAILY_GOAL_PENALTY: 15, // Penalty for each unmet daily goal
+  WEEKLY_GOAL_PENALTY: 25, // Penalty for each unmet weekly goal
+  MAX_DECAY_PER_DAY: 30,
   MIN_SCORE: 0,
   MAX_SCORE: 100,
   
@@ -57,7 +62,7 @@ const DECAY_CONFIG = {
     MOST_GOALS_MET: 0.3,
     SOME_GOALS_MET: 0.7,
     FEW_GOALS_MET: 1.2,
-    NO_GOALS_MET: 1.8,
+    NO_GOALS_MET: 2.0,
   },
 };
 
@@ -147,7 +152,7 @@ export function applyDecayToSection(
   const lastUpdate = new Date(lastUpdated);
   const hoursSinceUpdate = (now.getTime() - lastUpdate.getTime()) / (1000 * 60 * 60);
   
-  if (hoursSinceUpdate < 1) {
+  if (hoursSinceUpdate < 0.1) {
     return currentScore;
   }
   
@@ -159,6 +164,26 @@ export function applyDecayToSection(
   );
   
   const newScore = currentScore - totalDecay;
+  return Math.max(DECAY_CONFIG.MIN_SCORE, newScore);
+}
+
+// Apply penalty for unmet daily goals
+export function applyDailyGoalPenalty(currentScore: number, goalsMet: boolean): number {
+  if (goalsMet) {
+    return currentScore;
+  }
+  
+  const newScore = currentScore - DECAY_CONFIG.DAILY_GOAL_PENALTY;
+  return Math.max(DECAY_CONFIG.MIN_SCORE, newScore);
+}
+
+// Apply penalty for unmet weekly goals
+export function applyWeeklyGoalPenalty(currentScore: number, goalsMet: boolean): number {
+  if (goalsMet) {
+    return currentScore;
+  }
+  
+  const newScore = currentScore - DECAY_CONFIG.WEEKLY_GOAL_PENALTY;
   return Math.max(DECAY_CONFIG.MIN_SCORE, newScore);
 }
 
@@ -183,6 +208,7 @@ export async function loadPrayerGoals(): Promise<PrayerGoals> {
       sunnahCompleted: 0,
       tahajjudWeeklyGoal: 2, // Default: 2 tahajjud per week
       tahajjudCompleted: 0,
+      score: 0,
     };
   } catch (error) {
     console.log('Error loading prayer goals:', error);
@@ -198,6 +224,7 @@ export async function loadPrayerGoals(): Promise<PrayerGoals> {
       sunnahCompleted: 0,
       tahajjudWeeklyGoal: 2,
       tahajjudCompleted: 0,
+      score: 0,
     };
   }
 }
@@ -216,6 +243,7 @@ export async function loadDhikrGoals(): Promise<DhikrGoals> {
       dailyCompleted: 0,
       weeklyGoal: 1000,
       weeklyCompleted: 0,
+      score: 0,
     };
   } catch (error) {
     console.log('Error loading dhikr goals:', error);
@@ -224,6 +252,7 @@ export async function loadDhikrGoals(): Promise<DhikrGoals> {
       dailyCompleted: 0,
       weeklyGoal: 1000,
       weeklyCompleted: 0,
+      score: 0,
     };
   }
 }
@@ -244,6 +273,7 @@ export async function loadQuranGoals(): Promise<QuranGoals> {
       dailyVersesCompleted: 0,
       weeklyMemorizationGoal: 5,
       weeklyMemorizationCompleted: 0,
+      score: 0,
     };
   } catch (error) {
     console.log('Error loading quran goals:', error);
@@ -254,6 +284,7 @@ export async function loadQuranGoals(): Promise<QuranGoals> {
       dailyVersesCompleted: 0,
       weeklyMemorizationGoal: 5,
       weeklyMemorizationCompleted: 0,
+      score: 0,
     };
   }
 }
@@ -261,14 +292,20 @@ export async function loadQuranGoals(): Promise<QuranGoals> {
 // Save goals
 export async function savePrayerGoals(goals: PrayerGoals): Promise<void> {
   await AsyncStorage.setItem('prayerGoals', JSON.stringify(goals));
+  // Immediately update scores after saving
+  await updateSectionScores();
 }
 
 export async function saveDhikrGoals(goals: DhikrGoals): Promise<void> {
   await AsyncStorage.setItem('dhikrGoals', JSON.stringify(goals));
+  // Immediately update scores after saving
+  await updateSectionScores();
 }
 
 export async function saveQuranGoals(goals: QuranGoals): Promise<void> {
   await AsyncStorage.setItem('quranGoals', JSON.stringify(goals));
+  // Immediately update scores after saving
+  await updateSectionScores();
 }
 
 // Get current section scores with decay applied
@@ -278,7 +315,7 @@ export async function getCurrentSectionScores(): Promise<SectionScores> {
     const dhikrGoals = await loadDhikrGoals();
     const quranGoals = await loadQuranGoals();
     
-    // Calculate fresh scores
+    // Calculate fresh scores based on current progress
     const freshScores = calculateAllSectionScores(prayerGoals, dhikrGoals, quranGoals);
     
     // Load last updated times and stored scores
@@ -319,14 +356,68 @@ export async function getCurrentSectionScores(): Promise<SectionScores> {
   }
 }
 
-// Update section scores (call this periodically)
+// Update section scores (call this periodically and after every action)
 export async function updateSectionScores(): Promise<SectionScores> {
   return await getCurrentSectionScores();
 }
 
-// Reset daily goals (call at start of new day)
+// Check if it's Sunday at midnight (for weekly reset)
+function isSundayMidnight(): boolean {
+  const now = new Date();
+  return now.getDay() === 0 && now.getHours() === 0 && now.getMinutes() < 5;
+}
+
+// Check if daily goals were met yesterday
+async function checkDailyGoalsMet(): Promise<{ prayer: boolean; dhikr: boolean; quran: boolean }> {
+  const prayerGoals = await loadPrayerGoals();
+  const dhikrGoals = await loadDhikrGoals();
+  const quranGoals = await loadQuranGoals();
+  
+  const prayerMet = Object.values(prayerGoals.fardPrayers).every(Boolean) && 
+                    prayerGoals.sunnahCompleted >= prayerGoals.sunnahDailyGoal;
+  
+  const dhikrMet = dhikrGoals.dailyCompleted >= dhikrGoals.dailyGoal;
+  
+  const quranMet = quranGoals.dailyPagesCompleted >= quranGoals.dailyPagesGoal &&
+                   quranGoals.dailyVersesCompleted >= quranGoals.dailyVersesGoal;
+  
+  return { prayer: prayerMet, dhikr: dhikrMet, quran: quranMet };
+}
+
+// Check if weekly goals were met
+async function checkWeeklyGoalsMet(): Promise<{ prayer: boolean; dhikr: boolean; quran: boolean }> {
+  const prayerGoals = await loadPrayerGoals();
+  const dhikrGoals = await loadDhikrGoals();
+  const quranGoals = await loadQuranGoals();
+  
+  const prayerMet = prayerGoals.tahajjudCompleted >= prayerGoals.tahajjudWeeklyGoal;
+  const dhikrMet = dhikrGoals.weeklyCompleted >= dhikrGoals.weeklyGoal;
+  const quranMet = quranGoals.weeklyMemorizationCompleted >= quranGoals.weeklyMemorizationGoal;
+  
+  return { prayer: prayerMet, dhikr: dhikrMet, quran: quranMet };
+}
+
+// Reset daily goals (call at start of new day - midnight)
 export async function resetDailyGoals(): Promise<void> {
   try {
+    console.log('Resetting daily goals...');
+    
+    // Check if yesterday's goals were met before resetting
+    const goalsMet = await checkDailyGoalsMet();
+    
+    // Apply penalties for unmet goals
+    const currentScores = await getCurrentSectionScores();
+    const penalizedScores: SectionScores = {
+      prayer: applyDailyGoalPenalty(currentScores.prayer, goalsMet.prayer),
+      dhikr: applyDailyGoalPenalty(currentScores.dhikr, goalsMet.dhikr),
+      quran: applyDailyGoalPenalty(currentScores.quran, goalsMet.quran),
+    };
+    
+    // Save penalized scores
+    await AsyncStorage.setItem('sectionScores', JSON.stringify(penalizedScores));
+    await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
+    
+    // Now reset the daily counters
     const prayerGoals = await loadPrayerGoals();
     const dhikrGoals = await loadDhikrGoals();
     const quranGoals = await loadQuranGoals();
@@ -346,19 +437,41 @@ export async function resetDailyGoals(): Promise<void> {
     quranGoals.dailyPagesCompleted = 0;
     quranGoals.dailyVersesCompleted = 0;
     
-    await savePrayerGoals(prayerGoals);
-    await saveDhikrGoals(dhikrGoals);
-    await saveQuranGoals(quranGoals);
+    await AsyncStorage.setItem('prayerGoals', JSON.stringify(prayerGoals));
+    await AsyncStorage.setItem('dhikrGoals', JSON.stringify(dhikrGoals));
+    await AsyncStorage.setItem('quranGoals', JSON.stringify(quranGoals));
     
-    console.log('Daily goals reset for new day');
+    console.log('Daily goals reset. Penalties applied:', {
+      prayer: !goalsMet.prayer ? `${DECAY_CONFIG.DAILY_GOAL_PENALTY}%` : 'None',
+      dhikr: !goalsMet.dhikr ? `${DECAY_CONFIG.DAILY_GOAL_PENALTY}%` : 'None',
+      quran: !goalsMet.quran ? `${DECAY_CONFIG.DAILY_GOAL_PENALTY}%` : 'None',
+    });
   } catch (error) {
     console.log('Error resetting daily goals:', error);
   }
 }
 
-// Reset weekly goals (call at start of new week)
+// Reset weekly goals (call at start of new week - Sunday midnight)
 export async function resetWeeklyGoals(): Promise<void> {
   try {
+    console.log('Resetting weekly goals...');
+    
+    // Check if last week's goals were met before resetting
+    const goalsMet = await checkWeeklyGoalsMet();
+    
+    // Apply penalties for unmet weekly goals
+    const currentScores = await getCurrentSectionScores();
+    const penalizedScores: SectionScores = {
+      prayer: applyWeeklyGoalPenalty(currentScores.prayer, goalsMet.prayer),
+      dhikr: applyWeeklyGoalPenalty(currentScores.dhikr, goalsMet.dhikr),
+      quran: applyWeeklyGoalPenalty(currentScores.quran, goalsMet.quran),
+    };
+    
+    // Save penalized scores
+    await AsyncStorage.setItem('sectionScores', JSON.stringify(penalizedScores));
+    await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
+    
+    // Now reset the weekly counters
     const prayerGoals = await loadPrayerGoals();
     const dhikrGoals = await loadDhikrGoals();
     const quranGoals = await loadQuranGoals();
@@ -367,11 +480,15 @@ export async function resetWeeklyGoals(): Promise<void> {
     dhikrGoals.weeklyCompleted = 0;
     quranGoals.weeklyMemorizationCompleted = 0;
     
-    await savePrayerGoals(prayerGoals);
-    await saveDhikrGoals(dhikrGoals);
-    await saveQuranGoals(quranGoals);
+    await AsyncStorage.setItem('prayerGoals', JSON.stringify(prayerGoals));
+    await AsyncStorage.setItem('dhikrGoals', JSON.stringify(dhikrGoals));
+    await AsyncStorage.setItem('quranGoals', JSON.stringify(quranGoals));
     
-    console.log('Weekly goals reset for new week');
+    console.log('Weekly goals reset. Penalties applied:', {
+      prayer: !goalsMet.prayer ? `${DECAY_CONFIG.WEEKLY_GOAL_PENALTY}%` : 'None',
+      dhikr: !goalsMet.dhikr ? `${DECAY_CONFIG.WEEKLY_GOAL_PENALTY}%` : 'None',
+      quran: !goalsMet.quran ? `${DECAY_CONFIG.WEEKLY_GOAL_PENALTY}%` : 'None',
+    });
   } catch (error) {
     console.log('Error resetting weekly goals:', error);
   }
@@ -412,4 +529,32 @@ export async function checkGoalsCompletion() {
       score: quranScore,
     },
   };
+}
+
+// Check and handle time-based resets
+export async function checkAndHandleResets(): Promise<void> {
+  try {
+    const now = new Date();
+    const lastDate = await AsyncStorage.getItem('lastImanDate');
+    const today = now.toDateString();
+    
+    // Check for daily reset (midnight)
+    if (lastDate !== today) {
+      console.log('New day detected, applying daily reset...');
+      await resetDailyGoals();
+      await AsyncStorage.setItem('lastImanDate', today);
+    }
+    
+    // Check for weekly reset (Sunday midnight)
+    const lastWeeklyReset = await AsyncStorage.getItem('lastWeeklyResetDate');
+    const isSunday = now.getDay() === 0;
+    
+    if (isSunday && lastWeeklyReset !== today) {
+      console.log('Sunday detected, applying weekly reset...');
+      await resetWeeklyGoals();
+      await AsyncStorage.setItem('lastWeeklyResetDate', today);
+    }
+  } catch (error) {
+    console.log('Error checking and handling resets:', error);
+  }
 }

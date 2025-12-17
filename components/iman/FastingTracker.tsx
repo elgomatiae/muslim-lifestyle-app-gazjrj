@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -13,11 +13,13 @@ export default function FastingTracker() {
   const [weeklyFastingCount, setWeeklyFastingCount] = useState(0);
   const [weeklyGoal, setWeeklyGoal] = useState(2);
 
-  useEffect(() => {
-    loadFastingData();
+  const getWeekNumber = useCallback((date: Date): number => {
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
   }, []);
 
-  const loadFastingData = async () => {
+  const loadFastingData = useCallback(async () => {
     try {
       const today = new Date().toDateString();
       const lastDate = await AsyncStorage.getItem('fastingDate');
@@ -54,13 +56,11 @@ export default function FastingTracker() {
     } catch (error) {
       console.log('Error loading fasting data:', error);
     }
-  };
+  }, [getWeekNumber]);
 
-  const getWeekNumber = (date: Date): number => {
-    const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
-    const pastDaysOfYear = (date.getTime() - firstDayOfYear.getTime()) / 86400000;
-    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
-  };
+  useEffect(() => {
+    loadFastingData();
+  }, [loadFastingData]);
 
   const toggleFasting = async () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);

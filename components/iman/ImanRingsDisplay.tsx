@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, Animated, TouchableOpacity } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -13,9 +13,10 @@ interface ImanRingsDisplayProps {
 }
 
 export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
-  const pulseAnim = useState(new Animated.Value(1))[0];
-  const glowAnim = useState(new Animated.Value(0))[0];
-  const rotateAnim = useState(new Animated.Value(0))[0];
+  // Initialize all Animated.Value instances at the top level
+  const pulseAnim = useMemo(() => new Animated.Value(1), []);
+  const glowAnim = useMemo(() => new Animated.Value(0), []);
+  const rotateAnim = useMemo(() => new Animated.Value(0), []);
   
   const { sectionScores, overallScore } = useImanTracker();
   const [showBreakdown, setShowBreakdown] = useState(false);
@@ -58,7 +59,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
         useNativeDriver: true,
       })
     ).start();
-  }, []);
+  }, [pulseAnim, glowAnim, rotateAnim]);
 
   const getAchievementBadge = (percentage: number) => {
     if (percentage >= 100) return { icon: "star.fill", color: colors.accent, label: "Perfect" };

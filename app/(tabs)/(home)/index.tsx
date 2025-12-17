@@ -59,7 +59,7 @@ export default function HomeScreen() {
   const togglePrayer = async (index: number) => {
     if (!prayerGoals) return;
 
-    const prayerKeys: Array<keyof typeof prayerGoals.fardPrayers> = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
+    const prayerKeys: (keyof typeof prayerGoals.fardPrayers)[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
     const prayerKey = prayerKeys[index];
 
     const updatedGoals = {

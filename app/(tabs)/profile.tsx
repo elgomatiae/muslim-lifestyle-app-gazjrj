@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, TextInput, Modal, Alert } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -49,12 +49,7 @@ export default function ProfileScreen() {
     { value: '0', label: 'Day Streak', iosIcon: 'flame.fill', androidIcon: 'local-fire-department', color: colors.error },
   ]);
 
-  useEffect(() => {
-    loadProfile();
-    loadStats();
-  }, [user]);
-
-  const loadProfile = async () => {
+  const loadProfile = useCallback(async () => {
     try {
       if (user) {
         // Sync from Supabase first
@@ -80,9 +75,9 @@ export default function ProfileScreen() {
     } catch (error) {
       console.log('Error loading profile:', error);
     }
-  };
+  }, [user]);
 
-  const loadStats = async () => {
+  const loadStats = useCallback(async () => {
     try {
       const prayerData = await AsyncStorage.getItem('prayerData');
       const imanData = await AsyncStorage.getItem('imanTrackerData');
@@ -110,7 +105,12 @@ export default function ProfileScreen() {
     } catch (error) {
       console.log('Error loading stats:', error);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadProfile();
+    loadStats();
+  }, [loadProfile, loadStats]);
 
   const saveProfile = async () => {
     try {

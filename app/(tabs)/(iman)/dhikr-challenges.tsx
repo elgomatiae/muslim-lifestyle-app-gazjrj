@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -43,38 +43,7 @@ export default function DhikrChallengesScreen() {
     translation: '',
   });
 
-  useEffect(() => {
-    loadChallenges();
-    loadCustomPhrases();
-  }, []);
-
-  const loadChallenges = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('dhikrChallenges');
-      if (saved) {
-        setChallenges(JSON.parse(saved));
-      } else {
-        const defaultChallenges = getDefaultChallenges();
-        setChallenges(defaultChallenges);
-        await AsyncStorage.setItem('dhikrChallenges', JSON.stringify(defaultChallenges));
-      }
-    } catch (error) {
-      console.log('Error loading challenges:', error);
-    }
-  };
-
-  const loadCustomPhrases = async () => {
-    try {
-      const saved = await AsyncStorage.getItem('customDhikrPhrases');
-      if (saved) {
-        setCustomPhrases(JSON.parse(saved));
-      }
-    } catch (error) {
-      console.log('Error loading custom phrases:', error);
-    }
-  };
-
-  const getDefaultChallenges = (): DhikrChallenge[] => {
+  const getDefaultChallenges = useCallback((): DhikrChallenge[] => {
     const today = new Date();
     const weekFromNow = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000);
 
@@ -136,7 +105,38 @@ export default function DhikrChallengesScreen() {
         phrases: ['Evening Adhkar', 'Ayat al-Kursi', 'Al-Mu\'awwidhatayn'],
       },
     ];
-  };
+  }, []);
+
+  const loadChallenges = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('dhikrChallenges');
+      if (saved) {
+        setChallenges(JSON.parse(saved));
+      } else {
+        const defaultChallenges = getDefaultChallenges();
+        setChallenges(defaultChallenges);
+        await AsyncStorage.setItem('dhikrChallenges', JSON.stringify(defaultChallenges));
+      }
+    } catch (error) {
+      console.log('Error loading challenges:', error);
+    }
+  }, [getDefaultChallenges]);
+
+  const loadCustomPhrases = useCallback(async () => {
+    try {
+      const saved = await AsyncStorage.getItem('customDhikrPhrases');
+      if (saved) {
+        setCustomPhrases(JSON.parse(saved));
+      }
+    } catch (error) {
+      console.log('Error loading custom phrases:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadChallenges();
+    loadCustomPhrases();
+  }, [loadChallenges, loadCustomPhrases]);
 
   const saveChallenges = async (updatedChallenges: DhikrChallenge[]) => {
     try {

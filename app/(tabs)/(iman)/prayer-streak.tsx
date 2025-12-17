@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -28,17 +28,7 @@ export default function PrayerStreakScreen() {
     weeklyHistory: [false, false, false, false, false, false, false],
   });
 
-  useEffect(() => {
-    loadStreakData();
-  }, []);
-
-  useEffect(() => {
-    if (prayerGoals) {
-      checkAndUpdateStreak();
-    }
-  }, [prayerGoals]);
-
-  const loadStreakData = async () => {
+  const loadStreakData = useCallback(async () => {
     try {
       const saved = await AsyncStorage.getItem('prayerStreakData');
       if (saved) {
@@ -47,18 +37,18 @@ export default function PrayerStreakScreen() {
     } catch (error) {
       console.log('Error loading streak data:', error);
     }
-  };
+  }, []);
 
-  const saveStreakData = async (data: StreakData) => {
+  const saveStreakData = useCallback(async (data: StreakData) => {
     try {
       await AsyncStorage.setItem('prayerStreakData', JSON.stringify(data));
       setStreakData(data);
     } catch (error) {
       console.log('Error saving streak data:', error);
     }
-  };
+  }, []);
 
-  const checkAndUpdateStreak = async () => {
+  const checkAndUpdateStreak = useCallback(async () => {
     if (!prayerGoals) return;
 
     const allPrayersCompleted = Object.values(prayerGoals.fardPrayers).every(Boolean);
@@ -92,7 +82,17 @@ export default function PrayerStreakScreen() {
 
       await saveStreakData(updatedData);
     }
-  };
+  }, [prayerGoals, streakData, saveStreakData]);
+
+  useEffect(() => {
+    loadStreakData();
+  }, [loadStreakData]);
+
+  useEffect(() => {
+    if (prayerGoals) {
+      checkAndUpdateStreak();
+    }
+  }, [prayerGoals, checkAndUpdateStreak]);
 
   const getStreakMessage = () => {
     if (streakData.currentStreak === 0) {

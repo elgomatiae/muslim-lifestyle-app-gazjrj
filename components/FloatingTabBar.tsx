@@ -38,8 +38,13 @@ interface FloatingTabBarProps {
 export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  
+  // Initialize all hooks at the top level
   const animatedValue = useSharedValue(0);
-  const scaleValues = tabs.map(() => useSharedValue(1));
+  const scaleValues = React.useMemo(() => 
+    tabs.map(() => useSharedValue(1)), 
+    [tabs.length]
+  );
 
   // Find the center tab index (should be Iman)
   const centerTabIndex = Math.floor(tabs.length / 2);

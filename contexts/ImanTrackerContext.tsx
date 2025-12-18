@@ -2,35 +2,60 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
+  IbadahGoals,
+  IlmGoals,
+  AmanahGoals,
+  SectionScores,
+  loadIbadahGoals,
+  loadIlmGoals,
+  loadAmanahGoals,
+  saveIbadahGoals,
+  saveIlmGoals,
+  saveAmanahGoals,
+  getCurrentSectionScores,
+  getOverallImanScore,
+  updateSectionScores,
+  checkAndHandleResets,
+  // Legacy support
   PrayerGoals,
   DhikrGoals,
   QuranGoals,
-  SectionScores,
   loadPrayerGoals,
   loadDhikrGoals,
   loadQuranGoals,
   savePrayerGoals,
   saveDhikrGoals,
   saveQuranGoals,
-  getCurrentSectionScores,
-  getOverallImanScore,
-  updateSectionScores,
-  checkAndHandleResets,
 } from '@/utils/imanScoreCalculator';
 import { useAuth } from './AuthContext';
 import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from '@/utils/imanSupabaseSync';
 
 interface ImanTrackerContextType {
+  // New ring structure
+  ibadahGoals: IbadahGoals | null;
+  ilmGoals: IlmGoals | null;
+  amanahGoals: AmanahGoals | null;
+  
+  // Legacy support
   prayerGoals: PrayerGoals | null;
   dhikrGoals: DhikrGoals | null;
   quranGoals: QuranGoals | null;
+  
   sectionScores: SectionScores;
   overallScore: number;
   loading: boolean;
   refreshData: () => Promise<void>;
+  
+  // New update functions
+  updateIbadahGoals: (goals: IbadahGoals) => Promise<void>;
+  updateIlmGoals: (goals: IlmGoals) => Promise<void>;
+  updateAmanahGoals: (goals: AmanahGoals) => Promise<void>;
+  
+  // Legacy update functions
   updatePrayerGoals: (goals: PrayerGoals) => Promise<void>;
   updateDhikrGoals: (goals: DhikrGoals) => Promise<void>;
   updateQuranGoals: (goals: QuranGoals) => Promise<void>;
+  
   forceUpdate: () => void;
 }
 
@@ -38,10 +63,18 @@ const ImanTrackerContext = createContext<ImanTrackerContextType | undefined>(und
 
 export function ImanTrackerProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+  
+  // New ring states
+  const [ibadahGoals, setIbadahGoals] = useState<IbadahGoals | null>(null);
+  const [ilmGoals, setIlmGoals] = useState<IlmGoals | null>(null);
+  const [amanahGoals, setAmanahGoals] = useState<AmanahGoals | null>(null);
+  
+  // Legacy states
   const [prayerGoals, setPrayerGoals] = useState<PrayerGoals | null>(null);
   const [dhikrGoals, setDhikrGoals] = useState<DhikrGoals | null>(null);
   const [quranGoals, setQuranGoals] = useState<QuranGoals | null>(null);
-  const [sectionScores, setSectionScores] = useState<SectionScores>({ prayer: 0, dhikr: 0, quran: 0 });
+  
+  const [sectionScores, setSectionScores] = useState<SectionScores>({ ibadah: 0, ilm: 0, amanah: 0 });
   const [overallScore, setOverallScore] = useState(0);
   const [loading, setLoading] = useState(true);
   const [updateTrigger, setUpdateTrigger] = useState(0);
@@ -50,19 +83,25 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     try {
       console.log('ImanTrackerContext: Loading all data...');
       
-      // Check for time-based resets first
       await checkAndHandleResets();
 
-      // If user is logged in, initialize and sync with Supabase
       if (user) {
         await initializeImanTrackerForUser(user.id);
         await syncSupabaseToLocal(user.id);
       }
       
-      // Update scores
       await updateSectionScores();
       
-      // Load goals
+      // Load new ring goals
+      const ibadah = await loadIbadahGoals();
+      const ilm = await loadIlmGoals();
+      const amanah = await loadAmanahGoals();
+      
+      setIbadahGoals(ibadah);
+      setIlmGoals(ilm);
+      setAmanahGoals(amanah);
+      
+      // Load legacy goals for backward compatibility
       const prayer = await loadPrayerGoals();
       const dhikr = await loadDhikrGoals();
       const quran = await loadQuranGoals();
@@ -90,19 +129,83 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     await loadAllData();
   }, [loadAllData]);
 
+  const updateIbadahGoals = useCallback(async (goals: IbadahGoals) => {
+    console.log('ImanTrackerContext: Updating ibadah goals...');
+    setIbadahGoals(goals);
+    await saveIbadahGoals(goals);
+    await updateSectionScores();
+    
+    const scores = await getCurrentSectionScores();
+    const overall = await getOverallImanScore();
+    setSectionScores(scores);
+    setOverallScore(overall);
+    
+    // Update legacy states
+    const prayer = await loadPrayerGoals();
+    const dhikr = await loadDhikrGoals();
+    const quran = await loadQuranGoals();
+    setPrayerGoals(prayer);
+    setDhikrGoals(dhikr);
+    setQuranGoals(quran);
+    
+    if (user) {
+      await syncLocalToSupabase(user.id);
+    }
+    
+    console.log('ImanTrackerContext: Ibadah goals updated');
+  }, [user]);
+
+  const updateIlmGoals = useCallback(async (goals: IlmGoals) => {
+    console.log('ImanTrackerContext: Updating ilm goals...');
+    setIlmGoals(goals);
+    await saveIlmGoals(goals);
+    await updateSectionScores();
+    
+    const scores = await getCurrentSectionScores();
+    const overall = await getOverallImanScore();
+    setSectionScores(scores);
+    setOverallScore(overall);
+    
+    if (user) {
+      await syncLocalToSupabase(user.id);
+    }
+    
+    console.log('ImanTrackerContext: Ilm goals updated');
+  }, [user]);
+
+  const updateAmanahGoals = useCallback(async (goals: AmanahGoals) => {
+    console.log('ImanTrackerContext: Updating amanah goals...');
+    setAmanahGoals(goals);
+    await saveAmanahGoals(goals);
+    await updateSectionScores();
+    
+    const scores = await getCurrentSectionScores();
+    const overall = await getOverallImanScore();
+    setSectionScores(scores);
+    setOverallScore(overall);
+    
+    if (user) {
+      await syncLocalToSupabase(user.id);
+    }
+    
+    console.log('ImanTrackerContext: Amanah goals updated');
+  }, [user]);
+
   const updatePrayerGoals = useCallback(async (goals: PrayerGoals) => {
     console.log('ImanTrackerContext: Updating prayer goals...');
     setPrayerGoals(goals);
     await savePrayerGoals(goals);
     await updateSectionScores();
     
-    // Update scores immediately
     const scores = await getCurrentSectionScores();
     const overall = await getOverallImanScore();
     setSectionScores(scores);
     setOverallScore(overall);
     
-    // Sync to Supabase if user is logged in
+    // Update ibadah goals
+    const ibadah = await loadIbadahGoals();
+    setIbadahGoals(ibadah);
+    
     if (user) {
       await syncLocalToSupabase(user.id);
     }
@@ -116,13 +219,15 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     await saveDhikrGoals(goals);
     await updateSectionScores();
     
-    // Update scores immediately
     const scores = await getCurrentSectionScores();
     const overall = await getOverallImanScore();
     setSectionScores(scores);
     setOverallScore(overall);
     
-    // Sync to Supabase if user is logged in
+    // Update ibadah goals
+    const ibadah = await loadIbadahGoals();
+    setIbadahGoals(ibadah);
+    
     if (user) {
       await syncLocalToSupabase(user.id);
     }
@@ -136,13 +241,15 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     await saveQuranGoals(goals);
     await updateSectionScores();
     
-    // Update scores immediately
     const scores = await getCurrentSectionScores();
     const overall = await getOverallImanScore();
     setSectionScores(scores);
     setOverallScore(overall);
     
-    // Sync to Supabase if user is logged in
+    // Update ibadah goals
+    const ibadah = await loadIbadahGoals();
+    setIbadahGoals(ibadah);
+    
     if (user) {
       await syncLocalToSupabase(user.id);
     }
@@ -155,12 +262,10 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     setUpdateTrigger(prev => prev + 1);
   }, []);
 
-  // Initial load
   useEffect(() => {
     loadAllData();
   }, [loadAllData, updateTrigger]);
 
-  // Check for resets every minute
   useEffect(() => {
     const resetInterval = setInterval(async () => {
       await checkAndHandleResets();
@@ -170,7 +275,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(resetInterval);
   }, [refreshData]);
 
-  // Update scores every 30 seconds for decay
   useEffect(() => {
     const scoreInterval = setInterval(async () => {
       await updateSectionScores();
@@ -183,18 +287,20 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(scoreInterval);
   }, []);
 
-  // Sync to Supabase periodically if user is logged in
   useEffect(() => {
     if (!user) return;
 
     const syncInterval = setInterval(async () => {
       await syncLocalToSupabase(user.id);
-    }, 300000); // Sync every 5 minutes
+    }, 300000);
     
     return () => clearInterval(syncInterval);
   }, [user]);
 
   const value: ImanTrackerContextType = {
+    ibadahGoals,
+    ilmGoals,
+    amanahGoals,
     prayerGoals,
     dhikrGoals,
     quranGoals,
@@ -202,6 +308,9 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     overallScore,
     loading,
     refreshData,
+    updateIbadahGoals,
+    updateIlmGoals,
+    updateAmanahGoals,
     updatePrayerGoals,
     updateDhikrGoals,
     updateQuranGoals,

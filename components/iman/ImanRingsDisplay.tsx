@@ -13,7 +13,6 @@ interface ImanRingsDisplayProps {
 }
 
 export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
-  // Initialize all Animated.Value instances at the top level
   const pulseAnim = useMemo(() => new Animated.Value(1), []);
   const glowAnim = useMemo(() => new Animated.Value(0), []);
   const rotateAnim = useMemo(() => new Animated.Value(0), []);
@@ -94,30 +93,30 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const badge = getAchievementBadge(overallScore);
   const decayWarning = getDecayWarning();
 
-  // INCREASED RING SIZES - Made significantly larger
+  // Ring configuration - LARGER SIZES
   const centerX = 200;
   const centerY = 200;
   
-  // Prayer ring (outer) - INCREASED
-  const prayerRadius = 170;
-  const prayerStroke = 22;
-  const prayerCircumference = 2 * Math.PI * prayerRadius;
-  const prayerProgress = sectionScores.prayer / 100;
-  const prayerOffset = prayerCircumference * (1 - prayerProgress);
+  // ʿIbādah ring (outer) - GREEN
+  const ibadahRadius = 170;
+  const ibadahStroke = 24;
+  const ibadahCircumference = 2 * Math.PI * ibadahRadius;
+  const ibadahProgress = sectionScores.ibadah / 100;
+  const ibadahOffset = ibadahCircumference * (1 - ibadahProgress);
   
-  // Quran ring (middle) - INCREASED
-  const quranRadius = 125;
-  const quranStroke = 20;
-  const quranCircumference = 2 * Math.PI * quranRadius;
-  const quranProgress = sectionScores.quran / 100;
-  const quranOffset = quranCircumference * (1 - quranProgress);
+  // ʿIlm ring (middle) - BLUE
+  const ilmRadius = 125;
+  const ilmStroke = 22;
+  const ilmCircumference = 2 * Math.PI * ilmRadius;
+  const ilmProgress = sectionScores.ilm / 100;
+  const ilmOffset = ilmCircumference * (1 - ilmProgress);
   
-  // Dhikr ring (inner) - INCREASED
-  const dhikrRadius = 80;
-  const dhikrStroke = 18;
-  const dhikrCircumference = 2 * Math.PI * dhikrRadius;
-  const dhikrProgress = sectionScores.dhikr / 100;
-  const dhikrOffset = dhikrCircumference * (1 - dhikrProgress);
+  // Amanah ring (inner) - YELLOW/GOLD
+  const amanahRadius = 80;
+  const amanahStroke = 20;
+  const amanahCircumference = 2 * Math.PI * amanahRadius;
+  const amanahProgress = sectionScores.amanah / 100;
+  const amanahOffset = amanahCircumference * (1 - amanahProgress);
 
   const spin = rotateAnim.interpolate({
     inputRange: [0, 1],
@@ -133,6 +132,11 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setShowBreakdown(!showBreakdown);
   };
+
+  // Ring colors
+  const ibadahColor = '#10B981'; // Green
+  const ilmColor = '#3B82F6'; // Blue
+  const amanahColor = '#F59E0B'; // Amber/Gold
 
   return (
     <LinearGradient
@@ -160,73 +164,73 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
               />
             </Animated.View>
             
-            {/* Prayer Ring (Outer) */}
+            {/* ʿIbādah Ring (Outer) - GREEN */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={prayerRadius}
+              r={ibadahRadius}
               stroke="#E5E7EB"
-              strokeWidth={prayerStroke}
+              strokeWidth={ibadahStroke}
               fill="none"
               opacity={0.3}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={prayerRadius}
-              stroke={colors.primary}
-              strokeWidth={prayerStroke}
+              r={ibadahRadius}
+              stroke={ibadahColor}
+              strokeWidth={ibadahStroke}
               fill="none"
-              strokeDasharray={prayerCircumference}
-              strokeDashoffset={prayerOffset}
+              strokeDasharray={ibadahCircumference}
+              strokeDashoffset={ibadahOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
             />
             
-            {/* Quran Ring (Middle) */}
+            {/* ʿIlm Ring (Middle) - BLUE */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={quranRadius}
+              r={ilmRadius}
               stroke="#E5E7EB"
-              strokeWidth={quranStroke}
+              strokeWidth={ilmStroke}
               fill="none"
               opacity={0.3}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={quranRadius}
-              stroke={colors.accent}
-              strokeWidth={quranStroke}
+              r={ilmRadius}
+              stroke={ilmColor}
+              strokeWidth={ilmStroke}
               fill="none"
-              strokeDasharray={quranCircumference}
-              strokeDashoffset={quranOffset}
+              strokeDasharray={ilmCircumference}
+              strokeDashoffset={ilmOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
             />
             
-            {/* Dhikr Ring (Inner) */}
+            {/* Amanah Ring (Inner) - GOLD */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={dhikrRadius}
+              r={amanahRadius}
               stroke="#E5E7EB"
-              strokeWidth={dhikrStroke}
+              strokeWidth={amanahStroke}
               fill="none"
               opacity={0.3}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={dhikrRadius}
-              stroke={colors.info}
-              strokeWidth={dhikrStroke}
+              r={amanahRadius}
+              stroke={amanahColor}
+              strokeWidth={amanahStroke}
               fill="none"
-              strokeDasharray={dhikrCircumference}
-              strokeDashoffset={dhikrOffset}
+              strokeDasharray={amanahCircumference}
+              strokeDashoffset={amanahOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
@@ -286,29 +290,38 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
           <View style={styles.breakdownSection}>
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownLabelRow}>
-                <View style={[styles.colorDot, { backgroundColor: colors.primary }]} />
-                <Text style={styles.breakdownLabel}>Prayer</Text>
+                <View style={[styles.colorDot, { backgroundColor: ibadahColor }]} />
+                <View>
+                  <Text style={styles.breakdownLabel}>ʿIbādah (Worship)</Text>
+                  <Text style={styles.breakdownSubLabel}>العبادة</Text>
+                </View>
               </View>
-              <Text style={[styles.breakdownValue, { color: colors.primary }]}>
-                {Math.round(sectionScores.prayer)}%
+              <Text style={[styles.breakdownValue, { color: ibadahColor }]}>
+                {Math.round(sectionScores.ibadah)}%
               </Text>
             </View>
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownLabelRow}>
-                <View style={[styles.colorDot, { backgroundColor: colors.accent }]} />
-                <Text style={styles.breakdownLabel}>Quran</Text>
+                <View style={[styles.colorDot, { backgroundColor: ilmColor }]} />
+                <View>
+                  <Text style={styles.breakdownLabel}>ʿIlm (Knowledge)</Text>
+                  <Text style={styles.breakdownSubLabel}>العلم</Text>
+                </View>
               </View>
-              <Text style={[styles.breakdownValue, { color: colors.accent }]}>
-                {Math.round(sectionScores.quran)}%
+              <Text style={[styles.breakdownValue, { color: ilmColor }]}>
+                {Math.round(sectionScores.ilm)}%
               </Text>
             </View>
             <View style={styles.breakdownRow}>
               <View style={styles.breakdownLabelRow}>
-                <View style={[styles.colorDot, { backgroundColor: colors.info }]} />
-                <Text style={styles.breakdownLabel}>Dhikr</Text>
+                <View style={[styles.colorDot, { backgroundColor: amanahColor }]} />
+                <View>
+                  <Text style={styles.breakdownLabel}>Amanah (Well-Being)</Text>
+                  <Text style={styles.breakdownSubLabel}>الأمانة</Text>
+                </View>
               </View>
-              <Text style={[styles.breakdownValue, { color: colors.info }]}>
-                {Math.round(sectionScores.dhikr)}%
+              <Text style={[styles.breakdownValue, { color: amanahColor }]}>
+                {Math.round(sectionScores.amanah)}%
               </Text>
             </View>
           </View>
@@ -329,55 +342,40 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
       
       <View style={styles.ringLabelsContainer}>
         <View style={styles.ringLabel}>
-          <LinearGradient
-            colors={colors.gradientPrimary}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.ringLabelDot}
-          />
+          <View style={[styles.ringLabelDot, { backgroundColor: ibadahColor }]} />
           <View style={styles.ringLabelContent}>
-            <Text style={styles.ringLabelText}>Prayer</Text>
-            <Text style={styles.ringLabelProgress}>5 Fard + Sunnah + Tahajjud</Text>
+            <Text style={styles.ringLabelText}>ʿIbādah (العبادة)</Text>
+            <Text style={styles.ringLabelProgress}>Ṣalāh • Qur&apos;an • Dhikr • Duʿāʾ • Fasting</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
-            <Text style={[styles.ringLabelPercentText, { color: colors.primary }]}>
-              {Math.round(sectionScores.prayer)}%
+            <Text style={[styles.ringLabelPercentText, { color: ibadahColor }]}>
+              {Math.round(sectionScores.ibadah)}%
             </Text>
           </View>
         </View>
         
         <View style={styles.ringLabel}>
-          <LinearGradient
-            colors={colors.gradientAccent}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.ringLabelDot}
-          />
+          <View style={[styles.ringLabelDot, { backgroundColor: ilmColor }]} />
           <View style={styles.ringLabelContent}>
-            <Text style={styles.ringLabelText}>Quran</Text>
-            <Text style={styles.ringLabelProgress}>Reading + Memorization</Text>
+            <Text style={styles.ringLabelText}>ʿIlm (العلم)</Text>
+            <Text style={styles.ringLabelProgress}>Learning • Lectures • Quizzes • Reflection</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
-            <Text style={[styles.ringLabelPercentText, { color: colors.accent }]}>
-              {Math.round(sectionScores.quran)}%
+            <Text style={[styles.ringLabelPercentText, { color: ilmColor }]}>
+              {Math.round(sectionScores.ilm)}%
             </Text>
           </View>
         </View>
         
         <View style={styles.ringLabel}>
-          <LinearGradient
-            colors={colors.gradientInfo}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.ringLabelDot}
-          />
+          <View style={[styles.ringLabelDot, { backgroundColor: amanahColor }]} />
           <View style={styles.ringLabelContent}>
-            <Text style={styles.ringLabelText}>Dhikr</Text>
-            <Text style={styles.ringLabelProgress}>Daily + Weekly Goals</Text>
+            <Text style={styles.ringLabelText}>Amanah (الأمانة)</Text>
+            <Text style={styles.ringLabelProgress}>Physical • Mental • Sleep • Balance</Text>
           </View>
           <View style={styles.ringLabelPercentage}>
-            <Text style={[styles.ringLabelPercentText, { color: colors.info }]}>
-              {Math.round(sectionScores.dhikr)}%
+            <Text style={[styles.ringLabelPercentText, { color: amanahColor }]}>
+              {Math.round(sectionScores.amanah)}%
             </Text>
           </View>
         </View>
@@ -495,6 +493,11 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.text,
     fontWeight: '600',
+  },
+  breakdownSubLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
   },
   breakdownValue: {
     ...typography.bodyBold,

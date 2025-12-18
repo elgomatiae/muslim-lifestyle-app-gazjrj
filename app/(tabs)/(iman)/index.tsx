@@ -9,9 +9,11 @@ import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
+import { supabase } from '@/lib/supabase';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
 import DhikrCircularCounter from "@/components/iman/DhikrCircularCounter";
+import PhysicalWellnessSection from "./physical-wellness-section";
 
 export default function ImanTrackerScreen() {
   const { user } = useAuth();
@@ -27,12 +29,67 @@ export default function ImanTrackerScreen() {
   } = useImanTracker();
 
   const [refreshing, setRefreshing] = React.useState(false);
+  const [physicalGoals, setPhysicalGoals] = React.useState({
+    waterCompleted: 0,
+    waterGoal: 8,
+    exerciseCompleted: 0,
+    exerciseGoal: 30,
+  });
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await refreshData();
+    await loadPhysicalGoals();
     setRefreshing(false);
   }, [refreshData]);
+
+  const loadPhysicalGoals = async () => {
+    if (!user) return;
+    
+    try {
+      // Get physical wellness goals
+      const { data: goalsData } = await supabase
+        .from('physical_wellness_goals')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+
+      if (goalsData) {
+        // Get today's water intake
+        const today = new Date().toISOString().split('T')[0];
+        const { data: waterData } = await supabase
+          .from('water_intake')
+          .select('amount_ml')
+          .eq('user_id', user.id)
+          .eq('date', today);
+        
+        const totalWater = waterData?.reduce((sum, entry) => sum + entry.amount_ml, 0) || 0;
+        const waterGlasses = Math.floor(totalWater / 250);
+
+        // Get today's exercise
+        const { data: activityData } = await supabase
+          .from('physical_activities')
+          .select('duration_minutes')
+          .eq('user_id', user.id)
+          .eq('date', today);
+        
+        const totalMinutes = activityData?.reduce((sum, entry) => sum + entry.duration_minutes, 0) || 0;
+
+        setPhysicalGoals({
+          waterCompleted: waterGlasses,
+          waterGoal: goalsData.daily_water_glasses_goal,
+          exerciseCompleted: totalMinutes,
+          exerciseGoal: goalsData.daily_exercise_minutes_goal,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading physical goals:', error);
+    }
+  };
+
+  React.useEffect(() => {
+    loadPhysicalGoals();
+  }, [user]);
 
   const toggleFardPrayer = async (prayer: keyof typeof prayerGoals.fardPrayers) => {
     if (!prayerGoals) return;
@@ -570,6 +627,14 @@ export default function ImanTrackerScreen() {
             </View>
           </View>
         </View>
+
+        {/* PHYSICAL WELLNESS SECTION */}
+        <PhysicalWellnessSection
+          waterCompleted={physicalGoals.waterCompleted}
+          waterGoal={physicalGoals.waterGoal}
+          exerciseCompleted={physicalGoals.exerciseCompleted}
+          exerciseGoal={physicalGoals.exerciseGoal}
+        />
 
         {/* DHIKR SECTION */}
         <View style={styles.section}>

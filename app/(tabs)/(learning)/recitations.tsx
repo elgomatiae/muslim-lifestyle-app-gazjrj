@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, TouchableOpacity, TextInput, Keyboard, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Platform, ActivityIndicator, TouchableOpacity, TextInput, Keyboard, Alert, Modal } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import CategoryRow from '@/components/CategoryRow';
@@ -8,8 +8,14 @@ import VideoPlayer from '@/components/VideoPlayer';
 import { fetchCategories, fetchVideosByCategory, incrementVideoViews, isSupabaseConfigured, searchVideos, Video, VideoCategory, isYouTubeUrl, getYouTubeWatchUrl } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import { supabase } from '@/app/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { useImanTracker } from '@/contexts/ImanTrackerContext';
+import * as Haptics from 'expo-haptics';
 
 export default function RecitationsScreen() {
+  const { user } = useAuth();
+  const { ilmGoals, updateIlmGoals } = useImanTracker();
   const [categories, setCategories] = useState<VideoCategory[]>([]);
   const [videosByCategory, setVideosByCategory] = useState<{ [key: string]: Video[] }>({});
   const [loading, setLoading] = useState(true);
@@ -19,6 +25,8 @@ export default function RecitationsScreen() {
   const [searchResults, setSearchResults] = useState<Video[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [showTrackingModal, setShowTrackingModal] = useState(false);
+  const [pendingVideo, setPendingVideo] = useState<Video | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -72,23 +80,93 @@ export default function RecitationsScreen() {
     }
   }, [searchQuery, performSearch]);
 
+  const trackRecitation = async (video: Video) => {
+    if (!user) {
+      console.log('User not logged in, skipping tracking');
+      return;
+    }
+
+    try {
+      // Track in database
+      const { error } = await supabase
+        .from('tracked_content')
+        .upsert({
+          user_id: user.id,
+          content_type: 'recitation',
+          video_id: video.id,
+          video_title: video.title,
+          video_url: video.video_url,
+          reciter_name: video.reciter_name,
+          tracked_at: new Date().toISOString(),
+        }, {
+          onConflict: 'user_id,video_id'
+        });
+
+      if (error) {
+        console.error('Error tracking recitation:', error);
+        Alert.alert('Error', 'Failed to track recitation. Please try again.');
+        return;
+      }
+
+      // Increment Iman Tracker counter
+      if (ilmGoals) {
+        const updatedGoals = {
+          ...ilmGoals,
+          weeklyRecitationsCompleted: Math.min(
+            ilmGoals.weeklyRecitationsCompleted + 1,
+            ilmGoals.weeklyRecitationsGoal
+          ),
+        };
+        await updateIlmGoals(updatedGoals);
+      }
+
+      console.log('Recitation tracked successfully');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    } catch (error) {
+      console.error('Error tracking recitation:', error);
+    }
+  };
+
+  const openYouTubeVideo = async (video: Video) => {
+    try {
+      const youtubeUrl = getYouTubeWatchUrl(video.video_url);
+      console.log('Opening YouTube video:', youtubeUrl);
+      await WebBrowser.openBrowserAsync(youtubeUrl);
+    } catch (error) {
+      console.error('Error opening YouTube video:', error);
+      Alert.alert('Error', 'Could not open YouTube video. Please try again.');
+    }
+  };
+
   const handleVideoPress = async (video: Video) => {
     // Increment views first
     await incrementVideoViews(video.id);
 
     // Check if it's a YouTube video
     if (isYouTubeUrl(video.video_url)) {
-      try {
-        const youtubeUrl = getYouTubeWatchUrl(video.video_url);
-        console.log('Opening YouTube video:', youtubeUrl);
-        await WebBrowser.openBrowserAsync(youtubeUrl);
-      } catch (error) {
-        console.error('Error opening YouTube video:', error);
-        Alert.alert('Error', 'Could not open YouTube video. Please try again.');
-      }
+      // Show tracking modal before opening YouTube
+      setPendingVideo(video);
+      setShowTrackingModal(true);
     } else {
       // Use the in-app video player for non-YouTube videos
       setSelectedVideo(video);
+    }
+  };
+
+  const handleTrackAndWatch = async () => {
+    if (pendingVideo) {
+      await trackRecitation(pendingVideo);
+      setShowTrackingModal(false);
+      await openYouTubeVideo(pendingVideo);
+      setPendingVideo(null);
+    }
+  };
+
+  const handleWatchWithoutTracking = async () => {
+    if (pendingVideo) {
+      setShowTrackingModal(false);
+      await openYouTubeVideo(pendingVideo);
+      setPendingVideo(null);
     }
   };
 
@@ -340,6 +418,81 @@ export default function RecitationsScreen() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+
+      {/* Tracking Modal */}
+      <Modal
+        visible={showTrackingModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowTrackingModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <LinearGradient
+              colors={['#3B82F6', '#2563EB']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.modalHeader}
+            >
+              <IconSymbol
+                ios_icon_name="book.fill"
+                android_material_icon_name="menu-book"
+                size={32}
+                color="#FFFFFF"
+              />
+              <Text style={styles.modalTitle}>Track in Iman Tracker?</Text>
+            </LinearGradient>
+
+            <View style={styles.modalBody}>
+              <Text style={styles.modalText}>
+                Would you like to track this Quran recitation in your Iman Tracker under ʿIlm (Knowledge)?
+              </Text>
+              {pendingVideo && (
+                <View style={styles.videoPreview}>
+                  <Text style={styles.videoPreviewTitle} numberOfLines={2}>
+                    {pendingVideo.title}
+                  </Text>
+                  {pendingVideo.reciter_name && (
+                    <Text style={styles.videoPreviewScholar}>
+                      by {pendingVideo.reciter_name}
+                    </Text>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalButtonSecondary}
+                onPress={handleWatchWithoutTracking}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.modalButtonSecondaryText}>No, Just Watch</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalButtonPrimary}
+                onPress={handleTrackAndWatch}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={['#3B82F6', '#2563EB']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.modalButtonPrimaryText}>Track & Watch</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -592,5 +745,90 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 40,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: spacing.xl,
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.xl,
+    width: '100%',
+    maxWidth: 400,
+    overflow: 'hidden',
+    ...shadows.large,
+  },
+  modalHeader: {
+    padding: spacing.xl,
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  modalTitle: {
+    ...typography.h3,
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  modalBody: {
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  modalText: {
+    ...typography.body,
+    color: colors.text,
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  videoPreview: {
+    backgroundColor: colors.backgroundAlt,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    gap: spacing.xs,
+  },
+  videoPreviewTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  videoPreviewScholar: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    padding: spacing.lg,
+    gap: spacing.md,
+  },
+  modalButtonSecondary: {
+    flex: 1,
+    padding: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.backgroundAlt,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonSecondaryText: {
+    ...typography.body,
+    color: colors.text,
+    fontWeight: '600',
+  },
+  modalButtonPrimary: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  modalButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  modalButtonPrimaryText: {
+    ...typography.body,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });

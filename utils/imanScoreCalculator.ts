@@ -41,13 +41,13 @@ export interface IbadahGoals {
 
 // ʿIlm (Knowledge & Understanding) Goals Interface
 export interface IlmGoals {
-  // Learning modules
-  dailyLearningGoal: number; // minutes per day
-  dailyLearningCompleted: number;
-  
   // Lectures
   weeklyLecturesGoal: number; // number of lectures per week
   weeklyLecturesCompleted: number;
+  
+  // Quran Recitations
+  weeklyRecitationsGoal: number; // number of recitations per week
+  weeklyRecitationsCompleted: number;
   
   // Quizzes
   weeklyQuizzesGoal: number; // number of quizzes per week
@@ -185,17 +185,17 @@ export function calculateIbadahScore(goals: IbadahGoals): number {
 export function calculateIlmScore(goals: IlmGoals): number {
   let totalScore = 0;
   
-  // Daily learning (40%)
-  const learningScore = goals.dailyLearningGoal > 0
-    ? Math.min(1, goals.dailyLearningCompleted / goals.dailyLearningGoal) * 40
-    : 0;
-  totalScore += learningScore;
-  
-  // Weekly lectures (30%)
+  // Weekly lectures (35%)
   const lecturesScore = goals.weeklyLecturesGoal > 0
-    ? Math.min(1, goals.weeklyLecturesCompleted / goals.weeklyLecturesGoal) * 30
-    : 30;
+    ? Math.min(1, goals.weeklyLecturesCompleted / goals.weeklyLecturesGoal) * 35
+    : 35;
   totalScore += lecturesScore;
+  
+  // Weekly recitations (30%)
+  const recitationsScore = goals.weeklyRecitationsGoal > 0
+    ? Math.min(1, goals.weeklyRecitationsCompleted / goals.weeklyRecitationsGoal) * 30
+    : 30;
+  totalScore += recitationsScore;
   
   // Weekly quizzes (20%)
   const quizzesScore = goals.weeklyQuizzesGoal > 0
@@ -203,10 +203,10 @@ export function calculateIlmScore(goals: IlmGoals): number {
     : 20;
   totalScore += quizzesScore;
   
-  // Weekly reflection (10%)
+  // Weekly reflection (15%)
   const reflectionScore = goals.weeklyReflectionGoal > 0
-    ? Math.min(1, goals.weeklyReflectionCompleted / goals.weeklyReflectionGoal) * 10
-    : 10;
+    ? Math.min(1, goals.weeklyReflectionCompleted / goals.weeklyReflectionGoal) * 15
+    : 15;
   totalScore += reflectionScore;
   
   return Math.min(100, totalScore);
@@ -393,14 +393,25 @@ export async function loadIlmGoals(): Promise<IlmGoals> {
   try {
     const saved = await AsyncStorage.getItem('ilmGoals');
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      // Ensure new fields exist for backward compatibility
+      if (!parsed.hasOwnProperty('weeklyRecitationsGoal')) {
+        parsed.weeklyRecitationsGoal = 2;
+        parsed.weeklyRecitationsCompleted = 0;
+      }
+      // Remove old dailyLearningGoal if it exists
+      if (parsed.hasOwnProperty('dailyLearningGoal')) {
+        delete parsed.dailyLearningGoal;
+        delete parsed.dailyLearningCompleted;
+      }
+      return parsed;
     }
     
     return {
-      dailyLearningGoal: 15, // 15 minutes per day
-      dailyLearningCompleted: 0,
       weeklyLecturesGoal: 2,
       weeklyLecturesCompleted: 0,
+      weeklyRecitationsGoal: 2,
+      weeklyRecitationsCompleted: 0,
       weeklyQuizzesGoal: 1,
       weeklyQuizzesCompleted: 0,
       weeklyReflectionGoal: 3,
@@ -410,10 +421,10 @@ export async function loadIlmGoals(): Promise<IlmGoals> {
   } catch (error) {
     console.log('Error loading ilm goals:', error);
     return {
-      dailyLearningGoal: 15,
-      dailyLearningCompleted: 0,
       weeklyLecturesGoal: 2,
       weeklyLecturesCompleted: 0,
+      weeklyRecitationsGoal: 2,
+      weeklyRecitationsCompleted: 0,
       weeklyQuizzesGoal: 1,
       weeklyQuizzesCompleted: 0,
       weeklyReflectionGoal: 3,
@@ -540,7 +551,7 @@ async function checkDailyGoalsMet(): Promise<{ ibadah: boolean; ilm: boolean; am
                     ibadahGoals.dhikrDailyCompleted >= ibadahGoals.dhikrDailyGoal &&
                     ibadahGoals.duaDailyCompleted >= ibadahGoals.duaDailyGoal;
   
-  const ilmMet = ilmGoals.dailyLearningCompleted >= ilmGoals.dailyLearningGoal;
+  const ilmMet = true; // No daily goals for ilm anymore
   
   const amanahMet = amanahGoals.dailyExerciseCompleted >= amanahGoals.dailyExerciseGoal &&
                     amanahGoals.dailyWaterCompleted >= amanahGoals.dailyWaterGoal &&
@@ -560,6 +571,7 @@ async function checkWeeklyGoalsMet(): Promise<{ ibadah: boolean; ilm: boolean; a
                     ibadahGoals.quranWeeklyMemorizationCompleted >= ibadahGoals.quranWeeklyMemorizationGoal;
   
   const ilmMet = ilmGoals.weeklyLecturesCompleted >= ilmGoals.weeklyLecturesGoal &&
+                 ilmGoals.weeklyRecitationsCompleted >= ilmGoals.weeklyRecitationsGoal &&
                  ilmGoals.weeklyQuizzesCompleted >= ilmGoals.weeklyQuizzesGoal;
   
   const amanahMet = amanahGoals.weeklyWorkoutCompleted >= amanahGoals.weeklyWorkoutGoal &&
@@ -603,7 +615,7 @@ export async function resetDailyGoals(): Promise<void> {
     ibadahGoals.dhikrDailyCompleted = 0;
     ibadahGoals.duaDailyCompleted = 0;
     
-    ilmGoals.dailyLearningCompleted = 0;
+    // No daily goals for ilm anymore
     
     amanahGoals.dailyExerciseCompleted = 0;
     amanahGoals.dailyWaterCompleted = 0;
@@ -646,6 +658,7 @@ export async function resetWeeklyGoals(): Promise<void> {
     ibadahGoals.fastingWeeklyCompleted = 0;
     
     ilmGoals.weeklyLecturesCompleted = 0;
+    ilmGoals.weeklyRecitationsCompleted = 0;
     ilmGoals.weeklyQuizzesCompleted = 0;
     ilmGoals.weeklyReflectionCompleted = 0;
     

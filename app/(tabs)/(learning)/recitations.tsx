@@ -12,6 +12,7 @@ import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
 export default function RecitationsScreen() {
   const { user } = useAuth();
@@ -188,6 +189,10 @@ export default function RecitationsScreen() {
     setSearchResults([]);
   };
 
+  const handleImportPlaylist = () => {
+    router.push('/(tabs)/(learning)/playlist-import?type=recitation');
+  };
+
   if (selectedVideo) {
     return <VideoPlayer video={selectedVideo} onClose={handleCloseVideo} />;
   }
@@ -275,18 +280,32 @@ export default function RecitationsScreen() {
             <Text style={styles.headerTitle}>Quran Recitations</Text>
             <Text style={styles.headerSubtitle}>Beautiful recitations of the Holy Quran</Text>
           </View>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={handleSearchToggle}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              ios_icon_name={showSearch ? 'xmark' : 'magnifyingglass'}
-              android_material_icon_name={showSearch ? 'close' : 'search'}
-              size={24}
-              color={colors.text}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.importButton}
+              onPress={handleImportPlaylist}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="square.and.arrow.down"
+                android_material_icon_name="download"
+                size={20}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={handleSearchToggle}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name={showSearch ? 'xmark' : 'magnifyingglass'}
+                android_material_icon_name={showSearch ? 'close' : 'search'}
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {showSearch && (
@@ -547,6 +566,19 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  importButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
   },
   searchButton: {
     width: 44,

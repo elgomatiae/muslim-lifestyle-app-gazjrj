@@ -12,6 +12,7 @@ import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
 
 export default function LecturesScreen() {
   const { user } = useAuth();
@@ -183,6 +184,10 @@ export default function LecturesScreen() {
     }
   };
 
+  const handleImportPlaylist = () => {
+    router.push('/(tabs)/(learning)/playlist-import');
+  };
+
   const handleClearSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
@@ -300,18 +305,32 @@ export default function LecturesScreen() {
             <Text style={styles.headerTitle}>Islamic Lectures</Text>
             <Text style={styles.headerSubtitle}>Learn from renowned scholars</Text>
           </View>
-          <TouchableOpacity
-            style={styles.searchButton}
-            onPress={handleSearchToggle}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              ios_icon_name={showSearch ? 'xmark' : 'magnifyingglass'}
-              android_material_icon_name={showSearch ? 'close' : 'search'}
-              size={24}
-              color={colors.text}
-            />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity
+              style={styles.importButton}
+              onPress={handleImportPlaylist}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="square.and.arrow.down"
+                android_material_icon_name="download"
+                size={20}
+                color={colors.primary}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.searchButton}
+              onPress={handleSearchToggle}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name={showSearch ? 'xmark' : 'magnifyingglass'}
+                android_material_icon_name={showSearch ? 'close' : 'search'}
+                size={24}
+                color={colors.text}
+              />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {showSearch && (
@@ -572,6 +591,19 @@ const styles = StyleSheet.create({
   headerSubtitle: {
     ...typography.body,
     color: colors.textSecondary,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  importButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.card,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
   },
   searchButton: {
     width: 44,

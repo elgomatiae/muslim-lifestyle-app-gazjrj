@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -35,13 +35,21 @@ export default function EmotionalSupportScreen() {
   const [selectedResource, setSelectedResource] = useState<EmotionalResource | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const filterResources = useCallback(() => {
+    if (selectedEmotion === 'all') {
+      setFilteredResources(resources);
+    } else {
+      setFilteredResources(resources.filter(r => r.emotion_category === selectedEmotion));
+    }
+  }, [selectedEmotion, resources]);
+
   useEffect(() => {
     loadResources();
   }, []);
 
   useEffect(() => {
     filterResources();
-  }, [selectedEmotion, resources]);
+  }, [filterResources]);
 
   const loadResources = async () => {
     try {
@@ -60,14 +68,6 @@ export default function EmotionalSupportScreen() {
       console.error('Error loading resources:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const filterResources = () => {
-    if (selectedEmotion === 'all') {
-      setFilteredResources(resources);
-    } else {
-      setFilteredResources(resources.filter(r => r.emotion_category === selectedEmotion));
     }
   };
 

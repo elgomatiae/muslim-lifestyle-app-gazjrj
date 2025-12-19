@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -18,11 +18,7 @@ export default function PhysicalGoalsScreen() {
   const [weeklyWorkoutsGoal, setWeeklyWorkoutsGoal] = useState('3');
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadGoals();
-  }, []);
-
-  const loadGoals = async () => {
+  const loadGoals = useCallback(async () => {
     if (!user) return;
     
     const { data } = await supabase
@@ -38,7 +34,11 @@ export default function PhysicalGoalsScreen() {
       setWeeklyWorkoutsGoal(data.weekly_workout_sessions_goal.toString());
     }
     setLoading(false);
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadGoals();
+  }, [loadGoals]);
 
   const saveGoals = async () => {
     if (!user) return;

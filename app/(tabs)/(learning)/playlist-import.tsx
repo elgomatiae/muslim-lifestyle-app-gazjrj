@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -25,11 +25,7 @@ export default function PlaylistImportScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingCategories, setLoadingCategories] = useState(true);
 
-  useEffect(() => {
-    loadCategories();
-  }, [contentType]);
-
-  const loadCategories = async () => {
+  const loadCategories = useCallback(async () => {
     try {
       const { data, error } = await supabase
         .from('video_categories')
@@ -48,7 +44,11 @@ export default function PlaylistImportScreen() {
     } finally {
       setLoadingCategories(false);
     }
-  };
+  }, [contentType]);
+
+  useEffect(() => {
+    loadCategories();
+  }, [loadCategories]);
 
   const validateYouTubePlaylistUrl = (url: string): boolean => {
     try {

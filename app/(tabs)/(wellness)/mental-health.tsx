@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, TextInput } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -58,8 +58,26 @@ export default function MentalHealthHubScreen() {
   const [loading, setLoading] = useState(true);
   
   // Animation values
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+
+  const loadAllContent = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadJournalEntries(),
+        loadProphetStories(),
+        loadDuas(),
+        loadPrompts(),
+        loadMoodData(),
+        loadStats(),
+      ]);
+    } catch (error) {
+      console.error('Error loading content:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
 
   useEffect(() => {
     loadAllContent();
@@ -77,25 +95,7 @@ export default function MentalHealthHubScreen() {
         useNativeDriver: true,
       }),
     ]).start();
-  }, []);
-
-  const loadAllContent = async () => {
-    setLoading(true);
-    try {
-      await Promise.all([
-        loadJournalEntries(),
-        loadProphetStories(),
-        loadDuas(),
-        loadPrompts(),
-        loadMoodData(),
-        loadStats(),
-      ]);
-    } catch (error) {
-      console.error('Error loading content:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [loadAllContent, fadeAnim, slideAnim]);
 
   const loadJournalEntries = async () => {
     if (!user) return;

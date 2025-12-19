@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -40,13 +40,21 @@ export default function MentalDuasScreen() {
   const [selectedDua, setSelectedDua] = useState<MentalHealthDua | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const filterDuas = useCallback(() => {
+    if (selectedCategory === 'all') {
+      setFilteredDuas(duas);
+    } else {
+      setFilteredDuas(duas.filter(d => d.emotion_category === selectedCategory));
+    }
+  }, [selectedCategory, duas]);
+
   useEffect(() => {
     loadDuas();
   }, []);
 
   useEffect(() => {
     filterDuas();
-  }, [selectedCategory, duas]);
+  }, [filterDuas]);
 
   useEffect(() => {
     // Auto-open dua if duaId is provided
@@ -75,14 +83,6 @@ export default function MentalDuasScreen() {
       console.error('Error loading duas:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const filterDuas = () => {
-    if (selectedCategory === 'all') {
-      setFilteredDuas(duas);
-    } else {
-      setFilteredDuas(duas.filter(d => d.emotion_category === selectedCategory));
     }
   };
 

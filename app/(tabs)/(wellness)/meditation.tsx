@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
@@ -86,11 +86,7 @@ export default function MeditationScreen() {
     },
   ];
 
-  useEffect(() => {
-    loadMeditationData();
-  }, [user]);
-
-  const loadMeditationData = async () => {
+  const loadMeditationData = useCallback(async () => {
     if (!user) return;
 
     try {
@@ -122,7 +118,11 @@ export default function MeditationScreen() {
     } catch (error) {
       console.error('Error loading meditation data:', error);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    loadMeditationData();
+  }, [loadMeditationData]);
 
   const handleStartPractice = (practice: MeditationPractice) => {
     setSelectedPractice(practice);

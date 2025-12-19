@@ -395,12 +395,12 @@ export async function loadIlmGoals(): Promise<IlmGoals> {
     if (saved) {
       const parsed = JSON.parse(saved);
       // Ensure new fields exist for backward compatibility
-      if (!parsed.hasOwnProperty('weeklyRecitationsGoal')) {
+      if (!Object.prototype.hasOwnProperty.call(parsed, 'weeklyRecitationsGoal')) {
         parsed.weeklyRecitationsGoal = 2;
         parsed.weeklyRecitationsCompleted = 0;
       }
       // Remove old dailyLearningGoal if it exists
-      if (parsed.hasOwnProperty('dailyLearningGoal')) {
+      if (Object.prototype.hasOwnProperty.call(parsed, 'dailyLearningGoal')) {
         delete parsed.dailyLearningGoal;
         delete parsed.dailyLearningCompleted;
       }

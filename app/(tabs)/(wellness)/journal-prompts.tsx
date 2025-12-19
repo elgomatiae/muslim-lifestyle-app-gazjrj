@@ -1,11 +1,10 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
-import { router } from "expo-router";
 import { supabase } from "@/lib/supabase";
 
 interface JournalPrompt {
@@ -29,13 +28,21 @@ export default function JournalPromptsScreen() {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [loading, setLoading] = useState(true);
 
+  const filterPrompts = useCallback(() => {
+    if (selectedCategory === 'all') {
+      setFilteredPrompts(prompts);
+    } else {
+      setFilteredPrompts(prompts.filter(p => p.category === selectedCategory));
+    }
+  }, [selectedCategory, prompts]);
+
   useEffect(() => {
     loadPrompts();
   }, []);
 
   useEffect(() => {
     filterPrompts();
-  }, [selectedCategory, prompts]);
+  }, [filterPrompts]);
 
   const loadPrompts = async () => {
     try {
@@ -54,14 +61,6 @@ export default function JournalPromptsScreen() {
       console.error('Error loading prompts:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const filterPrompts = () => {
-    if (selectedCategory === 'all') {
-      setFilteredPrompts(prompts);
-    } else {
-      setFilteredPrompts(prompts.filter(p => p.category === selectedCategory));
     }
   };
 

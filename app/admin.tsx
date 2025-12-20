@@ -22,7 +22,6 @@ interface VideoFormData {
 interface PlaylistImportData {
   playlistUrl: string;
   targetType: 'lecture' | 'recitation';
-  categoryId: string;
 }
 
 interface Category {
@@ -46,45 +45,8 @@ export default function AdminScreen() {
   const [playlistData, setPlaylistData] = useState<PlaylistImportData>({
     playlistUrl: '',
     targetType: 'lecture',
-    categoryId: '',
   });
   const [fetchingMetadata, setFetchingMetadata] = useState(false);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loadingCategories, setLoadingCategories] = useState(false);
-
-  useEffect(() => {
-    if (activeTab === 'playlist') {
-      loadCategories(playlistData.targetType);
-    }
-  }, [activeTab, playlistData.targetType]);
-
-  const loadCategories = async (type: 'lecture' | 'recitation') => {
-    setLoadingCategories(true);
-    try {
-      const { data, error } = await supabase
-        .from('video_categories')
-        .select('*')
-        .eq('type', type)
-        .order('order_index', { ascending: true });
-
-      if (error) {
-        console.error('Error loading categories:', error);
-        throw error;
-      }
-
-      setCategories(data || []);
-      if (data && data.length > 0) {
-        setPlaylistData(prev => ({ ...prev, categoryId: data[0].id }));
-      } else {
-        setPlaylistData(prev => ({ ...prev, categoryId: '' }));
-      }
-    } catch (error: any) {
-      console.error('Error loading categories:', error);
-      Alert.alert('Error', 'Failed to load categories. Please try again.');
-    } finally {
-      setLoadingCategories(false);
-    }
-  };
 
   const handleBack = () => {
     if (Platform.OS !== 'web') {
@@ -110,7 +72,6 @@ export default function AdminScreen() {
     setPlaylistData({
       playlistUrl: '',
       targetType: 'lecture',
-      categoryId: '',
     });
   };
 
@@ -338,18 +299,12 @@ export default function AdminScreen() {
       return;
     }
 
-    if (!playlistData.categoryId) {
-      Alert.alert('Validation Error', 'Please select a category');
-      return;
-    }
-
     setLoading(true);
 
     try {
       const { data, error } = await supabase.functions.invoke('youtube-playlist-import', {
         body: {
           playlistUrl: playlistData.playlistUrl,
-          categoryId: playlistData.categoryId,
           targetType: playlistData.targetType,
         },
       });
@@ -366,7 +321,7 @@ export default function AdminScreen() {
 
         Alert.alert(
           'Success',
-          `Playlist imported successfully!\n\nTotal videos: ${data.totalVideos}\nSuccessfully added: ${data.successCount}\nErrors: ${data.errorCount}`,
+          `Playlist imported successfully!\n\nTotal videos: ${data.totalVideos}\nSuccessfully added: ${data.successCount}\nErrors: ${data.errorCount}\n\nEach video has been automatically categorized using AI based on its content.`,
           [
             {
               text: 'Import Another',
@@ -374,7 +329,6 @@ export default function AdminScreen() {
                 setPlaylistData({
                   playlistUrl: '',
                   targetType: 'lecture',
-                  categoryId: categories.length > 0 ? categories[0].id : '',
                 });
               },
             },
@@ -414,7 +368,6 @@ export default function AdminScreen() {
     setPlaylistData({
       playlistUrl: '',
       targetType: 'lecture',
-      categoryId: '',
     });
   };
 
@@ -559,7 +512,7 @@ export default function AdminScreen() {
                     </View>
                     <Text style={styles.optionTitle}>Import Playlist</Text>
                     <Text style={styles.optionDescription}>
-                      Import entire YouTube playlists at once
+                      Import entire YouTube playlists with AI categorization
                     </Text>
                     <View style={styles.optionArrow}>
                       <IconSymbol
@@ -587,13 +540,13 @@ export default function AdminScreen() {
 
               <View style={styles.infoBox}>
                 <IconSymbol
-                  ios_icon_name="info.circle.fill"
-                  android_material_icon_name="info"
+                  ios_icon_name="sparkles"
+                  android_material_icon_name="auto-awesome"
                   size={24}
-                  color={colors.info}
+                  color={colors.primary}
                 />
                 <Text style={styles.infoText}>
-                  Paste a YouTube playlist URL to import all videos at once. Video details will be automatically fetched.
+                  AI-Powered Categorization: Each video will be automatically assigned to the most relevant category based on its title and description.
                 </Text>
               </View>
 
@@ -619,7 +572,7 @@ export default function AdminScreen() {
                       playlistData.targetType === 'lecture' && styles.typeOptionSelected,
                     ]}
                     onPress={() => {
-                      setPlaylistData({ ...playlistData, targetType: 'lecture', categoryId: '' });
+                      setPlaylistData({ ...playlistData, targetType: 'lecture' });
                       if (Platform.OS !== 'web') {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
@@ -648,7 +601,7 @@ export default function AdminScreen() {
                       playlistData.targetType === 'recitation' && styles.typeOptionSelected,
                     ]}
                     onPress={() => {
-                      setPlaylistData({ ...playlistData, targetType: 'recitation', categoryId: '' });
+                      setPlaylistData({ ...playlistData, targetType: 'recitation' });
                       if (Platform.OS !== 'web') {
                         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       }
@@ -673,72 +626,19 @@ export default function AdminScreen() {
                 </View>
               </View>
 
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Select Category *</Text>
-                {loadingCategories ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color={colors.primary} />
-                    <Text style={styles.loadingText}>Loading categories...</Text>
-                  </View>
-                ) : categories.length === 0 ? (
-                  <View style={styles.noCategoriesContainer}>
-                    <IconSymbol
-                      ios_icon_name="exclamationmark.triangle"
-                      android_material_icon_name="warning"
-                      size={24}
-                      color={colors.warning}
-                    />
-                    <Text style={styles.noCategoriesText}>
-                      No categories found for {playlistData.targetType === 'lecture' ? 'lectures' : 'recitations'}. 
-                      A default category will be created automatically.
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.categoryList}>
-                    {categories.map((category, index) => (
-                      <TouchableOpacity
-                        key={index}
-                        style={[
-                          styles.categoryItem,
-                          playlistData.categoryId === category.id && styles.categoryItemSelected,
-                        ]}
-                        onPress={() => {
-                          setPlaylistData({ ...playlistData, categoryId: category.id });
-                          if (Platform.OS !== 'web') {
-                            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          }
-                        }}
-                        activeOpacity={0.7}
-                      >
-                        <View style={styles.categoryItemContent}>
-                          <View style={styles.categoryItemLeft}>
-                            <Text
-                              style={[
-                                styles.categoryItemText,
-                                playlistData.categoryId === category.id && styles.categoryItemTextSelected,
-                              ]}
-                            >
-                              {category.name}
-                            </Text>
-                            {category.description && (
-                              <Text style={styles.categoryItemDescription}>
-                                {category.description}
-                              </Text>
-                            )}
-                          </View>
-                          {playlistData.categoryId === category.id && (
-                            <IconSymbol
-                              ios_icon_name="checkmark.circle.fill"
-                              android_material_icon_name="check-circle"
-                              size={24}
-                              color={colors.primary}
-                            />
-                          )}
-                        </View>
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                )}
+              <View style={styles.aiInfoCard}>
+                <View style={styles.aiInfoHeader}>
+                  <IconSymbol
+                    ios_icon_name="brain"
+                    android_material_icon_name="psychology"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.aiInfoTitle}>How AI Categorization Works</Text>
+                </View>
+                <Text style={styles.aiInfoText}>
+                  Our AI analyzes each video&apos;s title and description to determine the best category match. For lectures, categories include Tafsir, Hadith Studies, Fiqh, Aqeedah, Seerah, and more. Each video is individually assessed for accurate categorization.
+                </Text>
               </View>
 
               <View style={styles.buttonContainer}>
@@ -1059,13 +959,13 @@ const styles = StyleSheet.create({
   },
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.primaryLight,
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
     gap: spacing.md,
     borderWidth: 1,
-    borderColor: colors.info,
+    borderColor: colors.primary,
   },
   infoText: {
     ...typography.small,
@@ -1152,69 +1052,28 @@ const styles = StyleSheet.create({
   typeOptionTextSelected: {
     color: colors.card,
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    padding: spacing.md,
+  aiInfoCard: {
     backgroundColor: colors.backgroundAlt,
     borderRadius: borderRadius.md,
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-  },
-  noCategoriesContainer: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
     padding: spacing.md,
-    backgroundColor: colors.warningLight,
-    borderRadius: borderRadius.md,
+    marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.warning,
-  },
-  noCategoriesText: {
-    ...typography.small,
-    color: colors.text,
-    flex: 1,
-    lineHeight: 20,
-  },
-  categoryList: {
-    gap: spacing.sm,
-  },
-  categoryItem: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderWidth: 2,
     borderColor: colors.border,
   },
-  categoryItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  categoryItemContent: {
+  aiInfoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.sm,
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
   },
-  categoryItemLeft: {
-    flex: 1,
-  },
-  categoryItemText: {
-    ...typography.body,
+  aiInfoTitle: {
+    ...typography.captionBold,
     color: colors.text,
   },
-  categoryItemTextSelected: {
-    ...typography.bodyBold,
-    color: colors.primary,
-  },
-  categoryItemDescription: {
+  aiInfoText: {
     ...typography.small,
     color: colors.textSecondary,
-    marginTop: spacing.xs,
+    lineHeight: 18,
   },
   buttonContainer: {
     flexDirection: 'row',

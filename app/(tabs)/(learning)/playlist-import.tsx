@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -9,46 +9,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 
-interface Category {
-  id: string;
-  name: string;
-  type: string;
-}
-
 export default function PlaylistImportScreen() {
   const { user } = useAuth();
   const { type } = useLocalSearchParams<{ type?: string }>();
   const contentType = type === 'recitation' ? 'recitation' : 'lecture';
   const [playlistUrl, setPlaylistUrl] = useState('');
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [loading, setLoading] = useState(false);
-  const [loadingCategories, setLoadingCategories] = useState(true);
-
-  const loadCategories = useCallback(async () => {
-    try {
-      const { data, error } = await supabase
-        .from('video_categories')
-        .select('*')
-        .eq('type', contentType)
-        .order('order_index', { ascending: true });
-
-      if (error) throw error;
-      setCategories(data || []);
-      if (data && data.length > 0) {
-        setSelectedCategory(data[0].id);
-      }
-    } catch (error) {
-      console.error('Error loading categories:', error);
-      Alert.alert('Error', 'Failed to load categories');
-    } finally {
-      setLoadingCategories(false);
-    }
-  }, [contentType]);
-
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
 
   const validateYouTubePlaylistUrl = (url: string): boolean => {
     try {
@@ -76,11 +42,6 @@ export default function PlaylistImportScreen() {
       return;
     }
 
-    if (!selectedCategory) {
-      Alert.alert('Error', 'Please select a category');
-      return;
-    }
-
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -89,7 +50,7 @@ export default function PlaylistImportScreen() {
       const { data, error } = await supabase.functions.invoke('youtube-playlist-import', {
         body: {
           playlistUrl: playlistUrl.trim(),
-          categoryId: selectedCategory,
+          targetType: contentType,
         },
       });
 
@@ -105,7 +66,7 @@ export default function PlaylistImportScreen() {
       
       Alert.alert(
         'Success!',
-        data.message || `Successfully imported ${data.successCount} videos from the playlist.`,
+        `${data.message || `Successfully imported ${data.successCount} videos from the playlist.`}\n\nEach video has been automatically categorized using AI based on its content.`,
         [
           {
             text: `View ${contentType === 'recitation' ? 'Recitations' : 'Lectures'}`,
@@ -127,6 +88,8 @@ export default function PlaylistImportScreen() {
       
       if (error.message?.includes('YouTube API key')) {
         errorMessage = 'YouTube API is not configured. Please contact the administrator.';
+      } else if (error.message?.includes('OpenAI API key')) {
+        errorMessage = 'AI categorization is not configured. Please contact the administrator.';
       } else if (error.message?.includes('Invalid')) {
         errorMessage = error.message;
       }
@@ -138,22 +101,11 @@ export default function PlaylistImportScreen() {
   };
 
   const handlePasteUrl = async () => {
-    // Note: Clipboard API would require expo-clipboard package
-    // For now, users will paste manually
     Alert.alert(
       'Paste Playlist URL',
       'Please paste your YouTube playlist URL in the text field above.\n\nTo get a playlist URL:\n1. Open YouTube\n2. Go to the playlist\n3. Copy the URL from the address bar'
     );
   };
-
-  if (loadingCategories) {
-    return (
-      <View style={[styles.container, styles.centerContent]}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={styles.loadingText}>Loading categories...</Text>
-      </View>
-    );
-  }
 
   return (
     <View style={styles.container}>
@@ -179,9 +131,24 @@ export default function PlaylistImportScreen() {
           </View>
           <Text style={styles.headerTitle}>Import YouTube Playlist</Text>
           <Text style={styles.headerSubtitle}>
-            Add multiple {contentType === 'recitation' ? 'recitations' : 'lectures'} at once from a YouTube playlist
+            Add multiple {contentType === 'recitation' ? 'recitations' : 'lectures'} at once with AI categorization
           </Text>
         </LinearGradient>
+
+        <View style={styles.aiFeatureCard}>
+          <View style={styles.aiFeatureHeader}>
+            <IconSymbol
+              ios_icon_name="sparkles"
+              android_material_icon_name="auto-awesome"
+              size={28}
+              color={colors.primary}
+            />
+            <Text style={styles.aiFeatureTitle}>AI-Powered Categorization</Text>
+          </View>
+          <Text style={styles.aiFeatureText}>
+            Each video in your playlist will be automatically analyzed and assigned to the most relevant category based on its title and description. No manual sorting needed!
+          </Text>
+        </View>
 
         <View style={styles.instructionsCard}>
           <View style={styles.instructionHeader}>
@@ -215,7 +182,7 @@ export default function PlaylistImportScreen() {
                 <Text style={styles.stepNumberText}>3</Text>
               </View>
               <Text style={styles.stepText}>
-                Paste the URL below and select a category
+                Paste the URL below and tap Import
               </Text>
             </View>
             <View style={styles.instructionStep}>
@@ -223,7 +190,7 @@ export default function PlaylistImportScreen() {
                 <Text style={styles.stepNumberText}>4</Text>
               </View>
               <Text style={styles.stepText}>
-                Tap Import to add all videos to your {contentType === 'recitation' ? 'recitations' : 'lectures'}
+                AI will automatically categorize each video for you
               </Text>
             </View>
           </View>
@@ -260,43 +227,6 @@ export default function PlaylistImportScreen() {
             <Text style={styles.pasteButtonText}>How to get playlist URL</Text>
           </TouchableOpacity>
 
-          <Text style={styles.formLabel}>Select Category</Text>
-          <View style={styles.categoryList}>
-            {categories.map((category, index) => (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.categoryItem,
-                  selectedCategory === category.id && styles.categoryItemSelected,
-                ]}
-                onPress={() => {
-                  setSelectedCategory(category.id);
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={styles.categoryItemContent}>
-                  <Text
-                    style={[
-                      styles.categoryItemText,
-                      selectedCategory === category.id && styles.categoryItemTextSelected,
-                    ]}
-                  >
-                    {category.name}
-                  </Text>
-                  {selectedCategory === category.id && (
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
-          </View>
-
           <TouchableOpacity
             style={[styles.importButton, loading && styles.importButtonDisabled]}
             onPress={handleImport}
@@ -312,7 +242,7 @@ export default function PlaylistImportScreen() {
               {loading ? (
                 <React.Fragment>
                   <ActivityIndicator size="small" color={colors.card} />
-                  <Text style={styles.importButtonText}>Importing...</Text>
+                  <Text style={styles.importButtonText}>Importing & Categorizing...</Text>
                 </React.Fragment>
               ) : (
                 <React.Fragment>
@@ -329,6 +259,26 @@ export default function PlaylistImportScreen() {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.categoriesCard}>
+          <View style={styles.categoriesHeader}>
+            <IconSymbol
+              ios_icon_name="folder.fill"
+              android_material_icon_name="folder"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={styles.categoriesTitle}>Available Categories</Text>
+          </View>
+          <Text style={styles.categoriesText}>
+            {contentType === 'lecture' 
+              ? 'Tafsir, Hadith Studies, Fiqh, Aqeedah, Seerah, Contemporary Issues, Ramadan Specials, Youth & Family'
+              : 'Various Quran recitation categories'}
+          </Text>
+          <Text style={styles.categoriesSubtext}>
+            AI will analyze each video and assign it to the most appropriate category automatically.
+          </Text>
+        </View>
+
         <View style={styles.noteCard}>
           <IconSymbol
             ios_icon_name="exclamationmark.triangle.fill"
@@ -338,7 +288,7 @@ export default function PlaylistImportScreen() {
           />
           <Text style={styles.noteText}>
             <Text style={styles.noteTextBold}>Note: </Text>
-            This feature requires a YouTube Data API key to be configured. 
+            This feature requires YouTube Data API and OpenAI API to be configured. 
             The import process may take a few moments depending on the playlist size.
           </Text>
         </View>
@@ -361,15 +311,6 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === 'android' ? 56 : 20,
     paddingHorizontal: spacing.xl,
     paddingBottom: 120,
-  },
-  centerContent: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    ...typography.body,
-    color: colors.textSecondary,
-    marginTop: spacing.lg,
   },
   headerBanner: {
     borderRadius: borderRadius.xl,
@@ -398,6 +339,31 @@ const styles = StyleSheet.create({
     color: colors.card,
     textAlign: 'center',
     opacity: 0.9,
+  },
+  aiFeatureCard: {
+    backgroundColor: colors.primaryLight,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xl,
+    marginBottom: spacing.xl,
+    borderWidth: 2,
+    borderColor: colors.primary,
+    ...shadows.medium,
+  },
+  aiFeatureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  aiFeatureTitle: {
+    ...typography.h4,
+    color: colors.text,
+    fontWeight: '700',
+  },
+  aiFeatureText: {
+    ...typography.body,
+    color: colors.text,
+    lineHeight: 22,
   },
   instructionsCard: {
     backgroundColor: colors.card,
@@ -481,34 +447,6 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontWeight: '600',
   },
-  categoryList: {
-    gap: spacing.sm,
-    marginBottom: spacing.xl,
-  },
-  categoryItem: {
-    backgroundColor: colors.backgroundAlt,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  categoryItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryLight,
-  },
-  categoryItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  categoryItemText: {
-    ...typography.body,
-    color: colors.text,
-  },
-  categoryItemTextSelected: {
-    ...typography.bodyBold,
-    color: colors.primary,
-  },
   importButton: {
     borderRadius: borderRadius.md,
     overflow: 'hidden',
@@ -529,6 +467,35 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.card,
     fontWeight: '600',
+  },
+  categoriesCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.medium,
+  },
+  categoriesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  categoriesTitle: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  categoriesText: {
+    ...typography.body,
+    color: colors.text,
+    lineHeight: 22,
+    marginBottom: spacing.sm,
+  },
+  categoriesSubtext: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 18,
   },
   noteCard: {
     flexDirection: 'row',

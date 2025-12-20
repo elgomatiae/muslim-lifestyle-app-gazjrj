@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
@@ -22,12 +22,6 @@ interface VideoFormData {
 interface PlaylistImportData {
   playlistUrl: string;
   targetType: 'lecture' | 'recitation';
-}
-
-interface Category {
-  id: string;
-  name: string;
-  type: string;
 }
 
 export default function AdminScreen() {
@@ -71,7 +65,7 @@ export default function AdminScreen() {
     });
     setPlaylistData({
       playlistUrl: '',
-      targetType: 'lecture',
+      targetType: tab === 'lectures' ? 'lecture' : 'recitation',
     });
   };
 
@@ -302,12 +296,19 @@ export default function AdminScreen() {
     setLoading(true);
 
     try {
+      console.log('Invoking youtube-playlist-import with:', {
+        playlistUrl: playlistData.playlistUrl,
+        targetType: playlistData.targetType,
+      });
+
       const { data, error } = await supabase.functions.invoke('youtube-playlist-import', {
         body: {
           playlistUrl: playlistData.playlistUrl,
           targetType: playlistData.targetType,
         },
       });
+
+      console.log('Edge function response:', { data, error });
 
       if (error) {
         console.error('Error importing playlist:', error);
@@ -319,16 +320,20 @@ export default function AdminScreen() {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
 
+        const errorDetails = data.errors && data.errors.length > 0 
+          ? `\n\nErrors:\n${data.errors.slice(0, 3).join('\n')}${data.errors.length > 3 ? '\n...' : ''}`
+          : '';
+
         Alert.alert(
           'Success',
-          `Playlist imported successfully!\n\nTotal videos: ${data.totalVideos}\nSuccessfully added: ${data.successCount}\nErrors: ${data.errorCount}\n\nEach video has been automatically categorized using AI based on its content.`,
+          `Playlist imported successfully!\n\nTotal videos: ${data.totalVideos}\nSuccessfully added: ${data.successCount}\nErrors: ${data.errorCount}\n\nEach video has been automatically categorized using AI based on its content.${errorDetails}`,
           [
             {
               text: 'Import Another',
               onPress: () => {
                 setPlaylistData({
                   playlistUrl: '',
-                  targetType: 'lecture',
+                  targetType: playlistData.targetType,
                 });
               },
             },
@@ -345,7 +350,10 @@ export default function AdminScreen() {
       }
     } catch (error: any) {
       console.error('Error importing playlist:', error);
-      Alert.alert('Error', error.message || 'Failed to import playlist. Please try again.');
+      Alert.alert(
+        'Error', 
+        error.message || 'Failed to import playlist. Please check your playlist URL and try again.'
+      );
     } finally {
       setLoading(false);
     }
@@ -560,6 +568,7 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textSecondary}
                   autoCapitalize="none"
                   keyboardType="url"
+                  editable={!loading}
                 />
               </View>
 
@@ -578,6 +587,7 @@ export default function AdminScreen() {
                       }
                     }}
                     activeOpacity={0.7}
+                    disabled={loading}
                   >
                     <IconSymbol
                       ios_icon_name="video.fill"
@@ -607,6 +617,7 @@ export default function AdminScreen() {
                       }
                     }}
                     activeOpacity={0.7}
+                    disabled={loading}
                   >
                     <IconSymbol
                       ios_icon_name="music.note"
@@ -698,12 +709,13 @@ export default function AdminScreen() {
                     placeholderTextColor={colors.textSecondary}
                     autoCapitalize="none"
                     keyboardType="url"
+                    editable={!loading}
                   />
                   <TouchableOpacity
                     style={[styles.fetchButton, fetchingMetadata && styles.fetchButtonDisabled]}
                     onPress={() => fetchYouTubeMetadata(formData.videoUrl)}
                     activeOpacity={0.7}
-                    disabled={fetchingMetadata || !formData.videoUrl.trim()}
+                    disabled={fetchingMetadata || !formData.videoUrl.trim() || loading}
                   >
                     {fetchingMetadata ? (
                       <ActivityIndicator size="small" color={colors.card} />
@@ -733,6 +745,7 @@ export default function AdminScreen() {
                   onChangeText={(text) => setFormData({ ...formData, title: text })}
                   placeholder="Enter video title"
                   placeholderTextColor={colors.textSecondary}
+                  editable={!loading}
                 />
               </View>
 
@@ -745,6 +758,7 @@ export default function AdminScreen() {
                     onChangeText={(text) => setFormData({ ...formData, scholarName: text })}
                     placeholder="Enter scholar name"
                     placeholderTextColor={colors.textSecondary}
+                    editable={!loading}
                   />
                 </View>
               )}
@@ -758,6 +772,7 @@ export default function AdminScreen() {
                     onChangeText={(text) => setFormData({ ...formData, reciterName: text })}
                     placeholder="Enter reciter name"
                     placeholderTextColor={colors.textSecondary}
+                    editable={!loading}
                   />
                 </View>
               )}
@@ -772,6 +787,7 @@ export default function AdminScreen() {
                   placeholderTextColor={colors.textSecondary}
                   multiline
                   numberOfLines={4}
+                  editable={!loading}
                 />
               </View>
 
@@ -784,6 +800,7 @@ export default function AdminScreen() {
                   placeholder="0"
                   placeholderTextColor={colors.textSecondary}
                   keyboardType="numeric"
+                  editable={!loading}
                 />
               </View>
 

@@ -206,8 +206,15 @@ export default function ProfileScreen() {
   };
 
   const handleNotifications = () => {
+    console.log('Notification button pressed - navigating to notification settings');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    router.push('/notification-settings');
+    try {
+      router.push('/(tabs)/notification-settings');
+      console.log('Navigation to notification-settings executed successfully');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Error', 'Failed to open notification settings. Please try again.');
+    }
   };
 
   const handlePrayerSettings = () => {

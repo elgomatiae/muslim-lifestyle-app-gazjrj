@@ -1,12 +1,13 @@
 
 import React, { useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, RefreshControl, TouchableOpacity } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
+import { router } from 'expo-router';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
 import IbadahSection from "./ibadah-section";
@@ -81,6 +82,101 @@ export default function ImanTrackerScreen() {
         <IbadahSection />
         <IlmSection />
         <AmanahSection />
+
+        {/* QUICK ACCESS FEATURES */}
+        <View style={styles.featuresSection}>
+          <Text style={styles.featuresTitle}>Track & Grow</Text>
+          
+          <View style={styles.featuresGrid}>
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={() => router.push('/(tabs)/(iman)/streak-tracker' as any)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#F59E0B', '#D97706']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.featureGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="flame.fill"
+                  android_material_icon_name="local-fire-department"
+                  size={32}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.featureTitle}>Streaks</Text>
+                <Text style={styles.featureSubtitle}>Track consistency</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={() => router.push('/(tabs)/(iman)/achievements' as any)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#8B5CF6', '#7C3AED']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.featureGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="trophy.fill"
+                  android_material_icon_name="emoji-events"
+                  size={32}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.featureTitle}>Achievements</Text>
+                <Text style={styles.featureSubtitle}>Unlock badges</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={() => router.push('/(tabs)/(iman)/leaderboard' as any)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.featureGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="chart.bar.fill"
+                  android_material_icon_name="leaderboard"
+                  size={32}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.featureTitle}>Leaderboard</Text>
+                <Text style={styles.featureSubtitle}>Compare ranks</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.featureCard}
+              onPress={() => router.push('/(tabs)/(iman)/community-challenges' as any)}
+              activeOpacity={0.7}
+            >
+              <LinearGradient
+                colors={['#3B82F6', '#2563EB']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.featureGradient}
+              >
+                <IconSymbol
+                  ios_icon_name="person.3.fill"
+                  android_material_icon_name="groups"
+                  size={32}
+                  color="#FFFFFF"
+                />
+                <Text style={styles.featureTitle}>Challenges</Text>
+                <Text style={styles.featureSubtitle}>Join community</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* INFO SECTION */}
         <View style={styles.infoSection}>
@@ -200,5 +296,42 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  featuresSection: {
+    marginBottom: spacing.xxl,
+  },
+  featuresTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  featuresGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.md,
+  },
+  featureCard: {
+    width: '48%',
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  featureGradient: {
+    padding: spacing.lg,
+    alignItems: 'center',
+    minHeight: 120,
+    justifyContent: 'center',
+  },
+  featureTitle: {
+    ...typography.bodyBold,
+    color: '#FFFFFF',
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  featureSubtitle: {
+    ...typography.small,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: spacing.xs,
+    textAlign: 'center',
   },
 });

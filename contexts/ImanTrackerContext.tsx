@@ -29,6 +29,7 @@ import {
 } from '@/utils/imanScoreCalculator';
 import { useAuth } from './AuthContext';
 import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from '@/utils/imanSupabaseSync';
+import { sendImanTrackerMilestone } from '@/utils/notificationService';
 
 interface ImanTrackerContextType {
   // New ring structure
@@ -280,12 +281,24 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       await updateSectionScores();
       const scores = await getCurrentSectionScores();
       const overall = await getOverallImanScore();
+      
+      // Check for milestones and send notifications
+      if (overall >= 90 && overallScore < 90) {
+        await sendImanTrackerMilestone('Excellent Progress!', 'You\'ve reached 90% Iman score! Keep up the amazing work! 🌟');
+      } else if (overall >= 75 && overallScore < 75) {
+        await sendImanTrackerMilestone('Great Achievement!', 'You\'ve reached 75% Iman score! You\'re doing great! 🎯');
+      } else if (overall >= 50 && overallScore < 50) {
+        await sendImanTrackerMilestone('Halfway There!', 'You\'ve reached 50% Iman score! Keep going! 💪');
+      } else if (overall >= 25 && overallScore < 25) {
+        await sendImanTrackerMilestone('Good Start!', 'You\'ve reached 25% Iman score! You\'re on the right path! 🌱');
+      }
+      
       setSectionScores(scores);
       setOverallScore(overall);
     }, 30000);
     
     return () => clearInterval(scoreInterval);
-  }, []);
+  }, [overallScore]);
 
   useEffect(() => {
     if (!user) return;

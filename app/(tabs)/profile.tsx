@@ -220,7 +220,7 @@ export default function ProfileScreen() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    Alert.alert('Notifications', 'Notification settings coming soon!');
+    router.push('/notification-settings');
   };
 
   const handlePrayerSettings = () => {

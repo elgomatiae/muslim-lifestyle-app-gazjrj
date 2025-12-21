@@ -49,6 +49,7 @@ export const colors = {
   gradientSunset: ['#F59E0B', '#EC4899'],       // Sunset gradient
   gradientOcean: ['#14B8A6', '#8B5CF6'],        // Ocean gradient (Teal to Purple)
   gradientWarning: ['#F59E0B', '#D97706'],      // Warning gradient (Amber)
+  gradientSuccess: ['#10B981', '#059669'],      // Success gradient (Green)
 };
 
 // Typography scale - optimized for smaller screens

@@ -41,14 +41,14 @@ export default function TabLayout() {
         key="notification-settings" 
         name="notification-settings"
         options={{
-          href: null,
+          presentation: 'modal',
         }}
       />
       <NativeTabs.Screen 
         key="admin-panel" 
         name="admin-panel"
         options={{
-          href: null,
+          presentation: 'modal',
         }}
       />
     </NativeTabs>

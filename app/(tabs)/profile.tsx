@@ -218,7 +218,7 @@ export default function ProfileScreen() {
 
   const handleNotifications = () => {
     console.log('=== NOTIFICATION NAVIGATION START ===');
-    console.log('Current route:', router);
+    console.log('Platform:', Platform.OS);
     
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -226,7 +226,8 @@ export default function ProfileScreen() {
     
     try {
       console.log('Attempting to navigate to notification-settings');
-      router.push('/notification-settings');
+      // Use the full path from the tabs root
+      router.push('/(tabs)/notification-settings');
       console.log('Navigation command executed successfully');
     } catch (error) {
       console.error('Navigation error:', error);

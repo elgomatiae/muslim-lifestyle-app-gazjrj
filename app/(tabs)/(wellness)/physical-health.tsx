@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, RefreshControl, Switch, TextInput, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions, Animated, RefreshControl, Switch, TextInput, Alert, Modal } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
@@ -36,6 +36,10 @@ interface PhysicalWellnessGoals {
   workout_types: string[];
 }
 
+interface WorkoutDurations {
+  [key: string]: number;
+}
+
 export default function PhysicalHealthScreen() {
   const { user } = useAuth();
   const { amanahGoals, updateAmanahGoals, refreshData } = useImanTracker();
@@ -55,6 +59,10 @@ export default function PhysicalHealthScreen() {
   const [tempWorkoutEnabled, setTempWorkoutEnabled] = useState(true);
   const [tempWaterEnabled, setTempWaterEnabled] = useState(true);
   const [tempSleepEnabled, setTempSleepEnabled] = useState(true);
+  
+  // Modal state for multi-workout time entry
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [workoutDurations, setWorkoutDurations] = useState<WorkoutDurations>({});
   
   // Animation values
   const fadeAnim = new Animated.Value(0);
@@ -190,7 +198,37 @@ export default function PhysicalHealthScreen() {
     }
   };
 
-  const addExerciseSession = async (minutes: number) => {
+  const openWorkoutModal = () => {
+    if (!goals?.workout_enabled) return;
+    
+    const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    
+    // Initialize durations for each workout type
+    const initialDurations: WorkoutDurations = {};
+    workoutTypes.forEach(type => {
+      initialDurations[type] = 30; // Default 30 minutes
+    });
+    
+    setWorkoutDurations(initialDurations);
+    setShowWorkoutModal(true);
+  };
+
+  const addExerciseSession = async () => {
+    if (!user || !goals?.workout_enabled) return;
+    
+    const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    
+    // If only one workout type, use quick add
+    if (workoutTypes.length === 1) {
+      await addSingleExerciseSession(30);
+      return;
+    }
+    
+    // Multiple workout types - open modal
+    openWorkoutModal();
+  };
+
+  const addSingleExerciseSession = async (minutes: number) => {
     if (!user || minutes <= 0 || !goals?.workout_enabled) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -205,12 +243,51 @@ export default function PhysicalHealthScreen() {
         duration_minutes: minutes,
         workout_type: workoutTypes[0] || 'general',
         workout_types: workoutTypes,
+        is_multi_workout: false,
       });
 
     if (!error) {
       await loadTodayStats();
       await updateGoalsProgress();
       await refreshData();
+    }
+  };
+
+  const saveMultiWorkoutSession = async () => {
+    if (!user || !goals?.workout_enabled) return;
+    
+    // Calculate total duration
+    const totalDuration = Object.values(workoutDurations).reduce((sum, duration) => sum + duration, 0);
+    
+    if (totalDuration === 0) {
+      Alert.alert('Error', 'Please enter at least one workout duration.');
+      return;
+    }
+    
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    
+    const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    
+    const { error } = await supabase
+      .from('physical_activities')
+      .insert({
+        user_id: user.id,
+        activity_type: workoutTypes[0] || 'general',
+        duration_minutes: totalDuration,
+        workout_type: workoutTypes[0] || 'general',
+        workout_types: workoutTypes,
+        is_multi_workout: true,
+        workout_durations: workoutDurations,
+      });
+
+    if (!error) {
+      setShowWorkoutModal(false);
+      await loadTodayStats();
+      await updateGoalsProgress();
+      await refreshData();
+      Alert.alert('Success', `Logged ${totalDuration} minutes of exercise!`);
+    } else {
+      Alert.alert('Error', 'Failed to log workout. Please try again.');
     }
   };
 
@@ -566,7 +643,7 @@ export default function PhysicalHealthScreen() {
                 <View style={styles.quickActionButtons}>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addExerciseSession(15)}
+                    onPress={() => addSingleExerciseSession(15)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -580,7 +657,7 @@ export default function PhysicalHealthScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addExerciseSession(30)}
+                    onPress={() => addSingleExerciseSession(30)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -594,7 +671,7 @@ export default function PhysicalHealthScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addExerciseSession(60)}
+                    onPress={() => addSingleExerciseSession(60)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -607,6 +684,30 @@ export default function PhysicalHealthScreen() {
                     </LinearGradient>
                   </TouchableOpacity>
                 </View>
+
+                {/* Custom Workout Button - Opens modal for multiple workout types */}
+                {goals.workout_types && goals.workout_types.length > 1 && (
+                  <TouchableOpacity
+                    style={styles.customWorkoutButton}
+                    onPress={openWorkoutModal}
+                    activeOpacity={0.7}
+                  >
+                    <LinearGradient
+                      colors={colors.gradientWarning}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={styles.customWorkoutButtonGradient}
+                    >
+                      <IconSymbol
+                        ios_icon_name="plus.circle.fill"
+                        android_material_icon_name="add-circle"
+                        size={20}
+                        color={colors.card}
+                      />
+                      <Text style={styles.customWorkoutButtonText}>Log Custom Workout</Text>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                )}
               </>
             ) : (
               <View style={styles.disabledMessage}>
@@ -889,6 +990,99 @@ export default function PhysicalHealthScreen() {
       </View>
 
       <View style={styles.bottomPadding} />
+
+      {/* Multi-Workout Modal */}
+      <Modal
+        visible={showWorkoutModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowWorkoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Log Workout</Text>
+              <TouchableOpacity onPress={() => setShowWorkoutModal(false)}>
+                <IconSymbol
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="cancel"
+                  size={28}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Enter the duration for each workout type
+            </Text>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {goals?.workout_types?.map((type, index) => {
+                const workoutType = WORKOUT_TYPES.find(t => t.value === type);
+                if (!workoutType) return null;
+
+                return (
+                  <React.Fragment key={index}>
+                    <View style={styles.workoutDurationItem}>
+                      <View style={styles.workoutDurationHeader}>
+                        <IconSymbol
+                          ios_icon_name={workoutType.icon.ios}
+                          android_material_icon_name={workoutType.icon.android}
+                          size={24}
+                          color={colors.warning}
+                        />
+                        <Text style={styles.workoutDurationLabel}>{workoutType.label}</Text>
+                      </View>
+                      <View style={styles.workoutDurationInputContainer}>
+                        <TextInput
+                          style={styles.workoutDurationInput}
+                          value={workoutDurations[type]?.toString() || '0'}
+                          onChangeText={(value) => {
+                            setWorkoutDurations(prev => ({
+                              ...prev,
+                              [type]: parseInt(value) || 0,
+                            }));
+                          }}
+                          keyboardType="number-pad"
+                          placeholder="0"
+                          placeholderTextColor={colors.textSecondary}
+                        />
+                        <Text style={styles.workoutDurationUnit}>min</Text>
+                      </View>
+                    </View>
+                  </React.Fragment>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <Text style={styles.modalTotalText}>
+                Total: {Object.values(workoutDurations).reduce((sum, duration) => sum + duration, 0)} minutes
+              </Text>
+              <TouchableOpacity
+                style={styles.modalSaveButton}
+                onPress={saveMultiWorkoutSession}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={colors.gradientWarning}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalSaveButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={20}
+                    color={colors.card}
+                  />
+                  <Text style={styles.modalSaveButtonText}>Log Workout</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -1127,6 +1321,7 @@ const styles = StyleSheet.create({
   quickActionButtons: {
     flexDirection: 'row',
     gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   quickButton: {
     flex: 1,
@@ -1148,6 +1343,23 @@ const styles = StyleSheet.create({
     color: colors.card,
     opacity: 0.9,
     marginTop: spacing.xs,
+  },
+  customWorkoutButton: {
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  customWorkoutButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  customWorkoutButtonText: {
+    ...typography.bodyBold,
+    color: colors.card,
   },
   disabledMessage: {
     backgroundColor: colors.highlight,
@@ -1204,5 +1416,102 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 120,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: colors.card,
+    borderTopLeftRadius: borderRadius.xxl,
+    borderTopRightRadius: borderRadius.xxl,
+    padding: spacing.xl,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    ...typography.h2,
+    color: colors.text,
+  },
+  modalSubtitle: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginBottom: spacing.lg,
+  },
+  modalScroll: {
+    maxHeight: 300,
+    marginBottom: spacing.lg,
+  },
+  workoutDurationItem: {
+    backgroundColor: colors.highlight,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.sm,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  workoutDurationHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    flex: 1,
+  },
+  workoutDurationLabel: {
+    ...typography.bodyBold,
+    color: colors.text,
+  },
+  workoutDurationInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  workoutDurationInput: {
+    ...typography.h3,
+    color: colors.text,
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.sm,
+    padding: spacing.sm,
+    width: 80,
+    textAlign: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  workoutDurationUnit: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  modalFooter: {
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.lg,
+  },
+  modalTotalText: {
+    ...typography.h3,
+    color: colors.text,
+    textAlign: 'center',
+    marginBottom: spacing.md,
+  },
+  modalSaveButton: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.large,
+  },
+  modalSaveButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+  modalSaveButtonText: {
+    ...typography.h4,
+    color: colors.card,
   },
 });

@@ -5,8 +5,9 @@ import { colors, typography, spacing, borderRadius, shadows } from "@/styles/com
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle } from 'react-native-svg';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface PrayerTime {
   name: string;
@@ -15,7 +16,22 @@ interface PrayerTime {
   completed: boolean;
 }
 
+interface DailyVerse {
+  id: string;
+  arabic_text: string;
+  translation: string;
+  reference: string;
+}
+
+interface DailyHadith {
+  id: string;
+  arabic_text?: string;
+  translation: string;
+  source: string;
+}
+
 export default function HomeScreen() {
+  const { user } = useAuth();
   const { 
     prayerGoals, 
     dhikrGoals, 
@@ -35,6 +51,9 @@ export default function HomeScreen() {
   ]);
 
   const [refreshing, setRefreshing] = useState(false);
+  const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null);
+  const [dailyHadith, setDailyHadith] = useState<DailyHadith | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // Sync prayers with prayerGoals from context
   useEffect(() => {
@@ -50,9 +69,72 @@ export default function HomeScreen() {
     }
   }, [prayerGoals]);
 
+  useEffect(() => {
+    loadDailyContent();
+  }, [user]);
+
+  const loadDailyContent = async () => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const today = new Date().toISOString().split('T')[0];
+
+      // Check if user already has content for today
+      const { data: existingContent } = await supabase
+        .from('user_daily_content')
+        .select('*, daily_verses(*), daily_hadiths(*)')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single();
+
+      if (existingContent && existingContent.daily_verses && existingContent.daily_hadiths) {
+        // User already has content for today
+        setDailyVerse(existingContent.daily_verses);
+        setDailyHadith(existingContent.daily_hadiths);
+      } else {
+        // Get random verse and hadith
+        const { data: verses } = await supabase
+          .from('daily_verses')
+          .select('*')
+          .eq('is_active', true);
+
+        const { data: hadiths } = await supabase
+          .from('daily_hadiths')
+          .select('*')
+          .eq('is_active', true);
+
+        if (verses && verses.length > 0 && hadiths && hadiths.length > 0) {
+          // Select random verse and hadith
+          const randomVerse = verses[Math.floor(Math.random() * verses.length)];
+          const randomHadith = hadiths[Math.floor(Math.random() * hadiths.length)];
+
+          setDailyVerse(randomVerse);
+          setDailyHadith(randomHadith);
+
+          // Save to user_daily_content
+          await supabase
+            .from('user_daily_content')
+            .upsert({
+              user_id: user.id,
+              date: today,
+              verse_id: randomVerse.id,
+              hadith_id: randomHadith.id,
+            });
+        }
+      }
+    } catch (error) {
+      console.error('Error loading daily content:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const onRefresh = async () => {
     setRefreshing(true);
-    await refreshData();
+    await Promise.all([refreshData(), loadDailyContent()]);
     setRefreshing(false);
   };
 
@@ -74,17 +156,6 @@ export default function HomeScreen() {
   };
 
   const completedCount = prayers.filter(p => p.completed).length;
-
-  const dailyHadith = {
-    text: "The best of you are those who are best to their families.",
-    source: "Tirmidhi"
-  };
-
-  const dailyVerse = {
-    text: "Indeed, with hardship comes ease.",
-    reference: "Quran 94:6",
-    arabic: "إِنَّ مَعَ الْعُسْرِ يُسْرًا"
-  };
 
   const currentDate = new Date().toLocaleDateString('en-US', { 
     weekday: 'long', 
@@ -293,6 +364,42 @@ export default function HomeScreen() {
           <Text style={styles.date}>{currentDate}</Text>
         </LinearGradient>
 
+        {/* Daily Quran Verse Section - MOVED ABOVE IMAN SCORE */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <IconSymbol
+                ios_icon_name="book.closed.fill"
+                android_material_icon_name="book"
+                size={20}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={styles.sectionTitle}>Daily Verse</Text>
+          </View>
+          {loading ? (
+            <View style={styles.loadingCard}>
+              <Text style={styles.loadingText}>Loading verse...</Text>
+            </View>
+          ) : dailyVerse ? (
+            <LinearGradient
+              colors={colors.gradientPrimary}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.verseCard}
+            >
+              <Text style={styles.verseArabic}>{dailyVerse.arabic_text}</Text>
+              <View style={styles.verseDivider} />
+              <Text style={styles.verseText}>{dailyVerse.translation}</Text>
+              <Text style={styles.verseReference}>{dailyVerse.reference}</Text>
+            </LinearGradient>
+          ) : (
+            <View style={styles.contentCard}>
+              <Text style={styles.contentText}>No verse available today</Text>
+            </View>
+          )}
+        </View>
+
         {/* Iman Score Rings */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -417,47 +524,34 @@ export default function HomeScreen() {
             </View>
             <Text style={styles.sectionTitle}>Daily Hadith</Text>
           </View>
-          <View style={styles.contentCard}>
-            <View style={styles.quoteIconContainer}>
-              <IconSymbol
-                ios_icon_name="quote.opening"
-                android_material_icon_name="format-quote"
-                size={28}
-                color={colors.accent}
-              />
+          {loading ? (
+            <View style={styles.loadingCard}>
+              <Text style={styles.loadingText}>Loading hadith...</Text>
             </View>
-            <Text style={styles.contentText}>{dailyHadith.text}</Text>
-            <View style={styles.sourceContainer}>
-              <View style={styles.sourceDivider} />
-              <Text style={styles.contentSource}>{dailyHadith.source}</Text>
+          ) : dailyHadith ? (
+            <View style={styles.contentCard}>
+              <View style={styles.quoteIconContainer}>
+                <IconSymbol
+                  ios_icon_name="quote.opening"
+                  android_material_icon_name="format-quote"
+                  size={28}
+                  color={colors.accent}
+                />
+              </View>
+              {dailyHadith.arabic_text && (
+                <Text style={styles.hadithArabic}>{dailyHadith.arabic_text}</Text>
+              )}
+              <Text style={styles.contentText}>{dailyHadith.translation}</Text>
+              <View style={styles.sourceContainer}>
+                <View style={styles.sourceDivider} />
+                <Text style={styles.contentSource}>{dailyHadith.source}</Text>
+              </View>
             </View>
-          </View>
-        </View>
-
-        {/* Daily Quran Verse Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View style={styles.sectionIconContainer}>
-              <IconSymbol
-                ios_icon_name="book.closed.fill"
-                android_material_icon_name="book"
-                size={20}
-                color={colors.primary}
-              />
+          ) : (
+            <View style={styles.contentCard}>
+              <Text style={styles.contentText}>No hadith available today</Text>
             </View>
-            <Text style={styles.sectionTitle}>Daily Verse</Text>
-          </View>
-          <LinearGradient
-            colors={colors.gradientPrimary}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
-            style={styles.verseCard}
-          >
-            <Text style={styles.verseArabic}>{dailyVerse.arabic}</Text>
-            <View style={styles.verseDivider} />
-            <Text style={styles.verseText}>{dailyVerse.text}</Text>
-            <Text style={styles.verseReference}>{dailyVerse.reference}</Text>
-          </LinearGradient>
+          )}
         </View>
 
         <View style={styles.bottomPadding} />
@@ -705,10 +799,31 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  loadingCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.md,
+    padding: spacing.xl,
+    ...shadows.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  loadingText: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
   quoteIconContainer: {
     alignSelf: 'flex-start',
     marginBottom: spacing.md,
     opacity: 0.3,
+  },
+  hadithArabic: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+    textAlign: 'right',
+    marginBottom: spacing.md,
+    lineHeight: 30,
   },
   contentText: {
     ...typography.body,

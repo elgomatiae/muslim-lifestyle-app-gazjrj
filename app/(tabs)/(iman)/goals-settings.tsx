@@ -439,7 +439,25 @@ export default function GoalsSettingsScreen() {
       
       if (localIbadahGoals) await updateIbadahGoals(localIbadahGoals);
       if (localIlmGoals) await updateIlmGoals(localIlmGoals);
-      if (localAmanahGoals) await updateAmanahGoals(localAmanahGoals);
+      if (localAmanahGoals) {
+        await updateAmanahGoals(localAmanahGoals);
+        
+        // Also update physical_wellness_goals table
+        if (user) {
+          await supabase
+            .from('physical_wellness_goals')
+            .upsert({
+              user_id: user.id,
+              daily_exercise_minutes_goal: localAmanahGoals.dailyExerciseGoal || 0,
+              daily_water_glasses_goal: localAmanahGoals.dailyWaterGoal || 0,
+              daily_sleep_hours_goal: localAmanahGoals.dailySleepGoal || 0,
+              workout_enabled: (localAmanahGoals.dailyExerciseGoal || 0) > 0,
+              water_enabled: (localAmanahGoals.dailyWaterGoal || 0) > 0,
+              sleep_enabled: (localAmanahGoals.dailySleepGoal || 0) > 0,
+              updated_at: new Date().toISOString(),
+            });
+        }
+      }
       
       // Save workout type
       await saveWorkoutType(selectedWorkoutType);
@@ -602,7 +620,7 @@ export default function GoalsSettingsScreen() {
           color={colors.info}
         />
         <Text style={styles.infoText}>
-          Customize your spiritual goals. The five daily prayers (Fard) are obligatory and cannot be changed.
+          Customize your spiritual and wellness goals. Toggle any goal off to exclude it from your Iman Tracker score.
         </Text>
       </View>
 

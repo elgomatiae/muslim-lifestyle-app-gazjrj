@@ -29,6 +29,7 @@ export default function LecturesScreen() {
   const { ilmGoals, updateIlmGoals } = useImanTracker();
   const [categories, setCategories] = useState<string[]>([]);
   const [lecturesByCategory, setLecturesByCategory] = useState<{ [key: string]: Lecture[] }>({});
+  const [uncategorizedLectures, setUncategorizedLectures] = useState<Lecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
   const [supabaseEnabled, setSupabaseEnabled] = useState(false);
@@ -38,6 +39,7 @@ export default function LecturesScreen() {
   const [showSearch, setShowSearch] = useState(false);
   const [showTrackingModal, setShowTrackingModal] = useState(false);
   const [pendingLecture, setPendingLecture] = useState<Lecture | null>(null);
+  const [isCategorizing, setIsCategorizing] = useState(false);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -50,15 +52,32 @@ export default function LecturesScreen() {
     }
 
     try {
-      const fetchedCategories = await getLectureCategories();
-      setCategories(fetchedCategories);
-
-      const lecturesData: { [key: string]: Lecture[] } = {};
-      for (const category of fetchedCategories) {
-        const lectures = await fetchLecturesByCategory(category);
-        lecturesData[category] = lectures;
-      }
-      setLecturesByCategory(lecturesData);
+      // Fetch all lectures first
+      const allLectures = await fetchLectures();
+      
+      // Separate categorized and uncategorized lectures
+      const categorized: { [key: string]: Lecture[] } = {};
+      const uncategorized: Lecture[] = [];
+      
+      allLectures.forEach(lecture => {
+        if (lecture.category && lecture.category.trim() !== '') {
+          if (!categorized[lecture.category]) {
+            categorized[lecture.category] = [];
+          }
+          categorized[lecture.category].push(lecture);
+        } else {
+          uncategorized.push(lecture);
+        }
+      });
+      
+      // Get unique categories
+      const uniqueCategories = Object.keys(categorized).sort();
+      
+      setCategories(uniqueCategories);
+      setLecturesByCategory(categorized);
+      setUncategorizedLectures(uncategorized);
+      
+      console.log(`Loaded ${allLectures.length} lectures: ${uniqueCategories.length} categories, ${uncategorized.length} uncategorized`);
     } catch (error) {
       console.error('Error loading lectures:', error);
     } finally {
@@ -193,9 +212,20 @@ export default function LecturesScreen() {
   };
 
   const handleCategorizeLectures = async () => {
+    const totalUncategorized = uncategorizedLectures.length;
+    
+    if (totalUncategorized === 0) {
+      Alert.alert(
+        'All Categorized',
+        'All lectures are already categorized!',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
     Alert.alert(
       'Categorize Lectures',
-      'This will automatically categorize all uncategorized lectures using AI. This may take a few minutes.',
+      `This will automatically categorize ${totalUncategorized} uncategorized lecture${totalUncategorized !== 1 ? 's' : ''} using AI. This may take a few minutes.`,
       [
         {
           text: 'Cancel',
@@ -205,7 +235,7 @@ export default function LecturesScreen() {
           text: 'Categorize',
           onPress: async () => {
             try {
-              setLoading(true);
+              setIsCategorizing(true);
               const response = await fetch(
                 `${supabase.supabaseUrl}/functions/v1/categorize-lectures`,
                 {
@@ -236,7 +266,7 @@ export default function LecturesScreen() {
               console.error('Error categorizing lectures:', error);
               Alert.alert('Error', 'Failed to categorize lectures. Please try again.');
             } finally {
-              setLoading(false);
+              setIsCategorizing(false);
             }
           },
         },
@@ -307,7 +337,9 @@ export default function LecturesScreen() {
     );
   }
 
-  if (categories.length === 0) {
+  const totalLectures = categories.reduce((sum, cat) => sum + (lecturesByCategory[cat]?.length || 0), 0) + uncategorizedLectures.length;
+
+  if (totalLectures === 0) {
     return (
       <View style={styles.container}>
         <ScrollView
@@ -360,21 +392,31 @@ export default function LecturesScreen() {
         <View style={styles.headerTop}>
           <View style={styles.headerTextContainer}>
             <Text style={styles.headerTitle}>Islamic Lectures</Text>
-            <Text style={styles.headerSubtitle}>Learn from renowned scholars</Text>
+            <Text style={styles.headerSubtitle}>
+              {totalLectures} lecture{totalLectures !== 1 ? 's' : ''} available
+              {uncategorizedLectures.length > 0 && ` • ${uncategorizedLectures.length} uncategorized`}
+            </Text>
           </View>
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={styles.categorizeButton}
-              onPress={handleCategorizeLectures}
-              activeOpacity={0.7}
-            >
-              <IconSymbol
-                ios_icon_name="tag.fill"
-                android_material_icon_name="label"
-                size={20}
-                color={colors.primary}
-              />
-            </TouchableOpacity>
+            {uncategorizedLectures.length > 0 && (
+              <TouchableOpacity
+                style={[styles.categorizeButton, isCategorizing && styles.categorizeButtonActive]}
+                onPress={handleCategorizeLectures}
+                activeOpacity={0.7}
+                disabled={isCategorizing}
+              >
+                {isCategorizing ? (
+                  <ActivityIndicator size="small" color={colors.primary} />
+                ) : (
+                  <IconSymbol
+                    ios_icon_name="tag.fill"
+                    android_material_icon_name="label"
+                    size={20}
+                    color={colors.primary}
+                  />
+                )}
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.importButton}
               onPress={handleImportPlaylist}
@@ -527,6 +569,99 @@ export default function LecturesScreen() {
           </View>
         ) : (
           <React.Fragment>
+            {/* Show uncategorized lectures first with a banner to categorize */}
+            {uncategorizedLectures.length > 0 && (
+              <View style={styles.categorySection}>
+                <View style={styles.uncategorizedBanner}>
+                  <LinearGradient
+                    colors={['#F59E0B', '#D97706']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.uncategorizedBannerGradient}
+                  >
+                    <View style={styles.uncategorizedBannerContent}>
+                      <View style={styles.uncategorizedBannerIcon}>
+                        <IconSymbol
+                          ios_icon_name="exclamationmark.triangle.fill"
+                          android_material_icon_name="warning"
+                          size={24}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                      <View style={styles.uncategorizedBannerText}>
+                        <Text style={styles.uncategorizedBannerTitle}>
+                          {uncategorizedLectures.length} Uncategorized Lecture{uncategorizedLectures.length !== 1 ? 's' : ''}
+                        </Text>
+                        <Text style={styles.uncategorizedBannerSubtitle}>
+                          Tap the label icon above to auto-categorize with AI
+                        </Text>
+                      </View>
+                    </View>
+                  </LinearGradient>
+                </View>
+                <View style={styles.categoryHeader}>
+                  <Text style={styles.categoryTitle}>Uncategorized</Text>
+                  <Text style={styles.categoryCount}>{uncategorizedLectures.length} lectures</Text>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.lecturesRow}
+                >
+                  {uncategorizedLectures.map((lecture, lectureIndex) => {
+                    const thumbnailUrl = lecture.thumbnail_url || (lecture.url ? getYouTubeThumbnailUrl(lecture.url) : '');
+                    return (
+                      <TouchableOpacity
+                        key={lectureIndex}
+                        style={styles.lectureCard}
+                        onPress={() => handleLecturePress(lecture)}
+                        activeOpacity={0.7}
+                      >
+                        {thumbnailUrl ? (
+                          <View style={styles.lectureThumbnailContainer}>
+                            <Image 
+                              source={{ uri: thumbnailUrl }} 
+                              style={styles.lectureThumbnailImage}
+                              resizeMode="cover"
+                            />
+                            <View style={styles.playOverlay}>
+                              <IconSymbol
+                                ios_icon_name="play.circle.fill"
+                                android_material_icon_name="play-circle"
+                                size={40}
+                                color={colors.card}
+                              />
+                            </View>
+                          </View>
+                        ) : (
+                          <View style={styles.lectureThumbnail}>
+                            <IconSymbol
+                              ios_icon_name="play.circle.fill"
+                              android_material_icon_name="play-circle"
+                              size={40}
+                              color={colors.primary}
+                            />
+                          </View>
+                        )}
+                        <View style={styles.lectureInfo}>
+                          <Text style={styles.lectureTitle} numberOfLines={2}>
+                            {lecture.title}
+                          </Text>
+                          {lecture.scholar_name && (
+                            <Text style={styles.lectureScholar} numberOfLines={1}>
+                              {lecture.scholar_name}
+                            </Text>
+                          )}
+                          <Text style={styles.lectureViews}>{lecture.views || 0} views</Text>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
+
+            {/* Show categorized lectures */}
             {categories.map((category, catIndex) => {
               const lectures = lecturesByCategory[category] || [];
               if (lectures.length === 0) return null;
@@ -742,6 +877,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     ...shadows.small,
   },
+  categorizeButtonActive: {
+    opacity: 0.6,
+  },
   importButton: {
     width: 44,
     height: 44,
@@ -956,6 +1094,41 @@ const styles = StyleSheet.create({
   emptyButtonText: {
     ...typography.bodyBold,
     color: colors.card,
+  },
+  uncategorizedBanner: {
+    marginHorizontal: spacing.xl,
+    marginBottom: spacing.lg,
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  uncategorizedBannerGradient: {
+    padding: spacing.md,
+  },
+  uncategorizedBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  uncategorizedBannerIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: spacing.md,
+  },
+  uncategorizedBannerText: {
+    flex: 1,
+  },
+  uncategorizedBannerTitle: {
+    ...typography.bodyBold,
+    color: '#FFFFFF',
+    marginBottom: spacing.xs,
+  },
+  uncategorizedBannerSubtitle: {
+    ...typography.caption,
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   categorySection: {
     marginBottom: spacing.xxl,

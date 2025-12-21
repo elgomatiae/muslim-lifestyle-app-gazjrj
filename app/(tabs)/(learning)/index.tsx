@@ -41,7 +41,7 @@ export default function LearningScreen() {
       iosIcon: 'questionmark.circle.fill',
       androidIcon: 'quiz',
       gradientColors: colors.gradientInfo,
-      route: '',
+      route: '/(tabs)/(learning)/quizzes',
     },
     {
       title: 'Daily Duas',

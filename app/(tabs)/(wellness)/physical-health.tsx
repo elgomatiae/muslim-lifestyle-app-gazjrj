@@ -33,6 +33,7 @@ interface PhysicalWellnessGoals {
   daily_sleep_hours_goal: number;
   daily_sleep_hours_completed: number;
   workout_type: string;
+  workout_types: string[];
 }
 
 export default function PhysicalHealthScreen() {
@@ -50,7 +51,7 @@ export default function PhysicalHealthScreen() {
   const [tempWorkoutGoal, setTempWorkoutGoal] = useState('30');
   const [tempWaterGoal, setTempWaterGoal] = useState('8');
   const [tempSleepGoal, setTempSleepGoal] = useState('7');
-  const [tempWorkoutType, setTempWorkoutType] = useState('general');
+  const [tempWorkoutTypes, setTempWorkoutTypes] = useState<string[]>(['general']);
   const [tempWorkoutEnabled, setTempWorkoutEnabled] = useState(true);
   const [tempWaterEnabled, setTempWaterEnabled] = useState(true);
   const [tempSleepEnabled, setTempSleepEnabled] = useState(true);
@@ -115,6 +116,7 @@ export default function PhysicalHealthScreen() {
           workout_enabled: true,
           sleep_enabled: true,
           water_enabled: true,
+          workout_types: ['general'],
         })
         .select()
         .single();
@@ -126,7 +128,7 @@ export default function PhysicalHealthScreen() {
       setTempWorkoutGoal(data.daily_exercise_minutes_goal.toString());
       setTempWaterGoal(data.daily_water_glasses_goal.toString());
       setTempSleepGoal(data.daily_sleep_hours_goal.toString());
-      setTempWorkoutType(data.workout_type || 'general');
+      setTempWorkoutTypes(data.workout_types || [data.workout_type || 'general']);
       setTempWorkoutEnabled(data.workout_enabled ?? true);
       setTempWaterEnabled(data.water_enabled ?? true);
       setTempSleepEnabled(data.sleep_enabled ?? true);
@@ -193,13 +195,16 @@ export default function PhysicalHealthScreen() {
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
+    const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    
     const { error } = await supabase
       .from('physical_activities')
       .insert({
         user_id: user.id,
-        activity_type: goals.workout_type || 'general',
+        activity_type: workoutTypes[0] || 'general',
         duration_minutes: minutes,
-        workout_type: goals.workout_type || 'general',
+        workout_type: workoutTypes[0] || 'general',
+        workout_types: workoutTypes,
       });
 
     if (!error) {
@@ -258,8 +263,30 @@ export default function PhysicalHealthScreen() {
     await loadGoals();
   };
 
+  const toggleWorkoutType = (type: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    setTempWorkoutTypes(prev => {
+      if (prev.includes(type)) {
+        // Don't allow removing the last type
+        if (prev.length === 1) {
+          Alert.alert('Notice', 'You must have at least one workout type selected.');
+          return prev;
+        }
+        return prev.filter(t => t !== type);
+      } else {
+        return [...prev, type];
+      }
+    });
+  };
+
   const saveGoalSettings = async () => {
     if (!user) return;
+    
+    if (tempWorkoutTypes.length === 0) {
+      Alert.alert('Error', 'Please select at least one workout type.');
+      return;
+    }
     
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     
@@ -269,7 +296,8 @@ export default function PhysicalHealthScreen() {
         daily_exercise_minutes_goal: parseInt(tempWorkoutGoal) || 30,
         daily_water_glasses_goal: parseInt(tempWaterGoal) || 8,
         daily_sleep_hours_goal: parseFloat(tempSleepGoal) || 7,
-        workout_type: tempWorkoutType,
+        workout_type: tempWorkoutTypes[0], // Keep for backward compatibility
+        workout_types: tempWorkoutTypes,
         workout_enabled: tempWorkoutEnabled,
         water_enabled: tempWaterEnabled,
         sleep_enabled: tempSleepEnabled,
@@ -285,7 +313,8 @@ export default function PhysicalHealthScreen() {
         amanah_daily_exercise_goal: tempWorkoutEnabled ? parseInt(tempWorkoutGoal) || 30 : 0,
         amanah_daily_water_goal: tempWaterEnabled ? parseInt(tempWaterGoal) || 8 : 0,
         amanah_daily_sleep_goal: tempSleepEnabled ? parseFloat(tempSleepGoal) || 7 : 0,
-        amanah_workout_type: tempWorkoutType,
+        amanah_workout_type: tempWorkoutTypes[0], // Keep for backward compatibility
+        amanah_workout_types: tempWorkoutTypes,
         amanah_workout_enabled: tempWorkoutEnabled,
         amanah_sleep_enabled: tempSleepEnabled,
         amanah_water_enabled: tempWaterEnabled,
@@ -302,9 +331,20 @@ export default function PhysicalHealthScreen() {
     }
   };
 
-  const getWorkoutIcon = () => {
-    const type = WORKOUT_TYPES.find(t => t.value === (goals?.workout_type || 'general'));
-    return type?.icon || WORKOUT_TYPES[0].icon;
+  const getWorkoutIcons = () => {
+    const types = goals?.workout_types || [goals?.workout_type || 'general'];
+    return types.map(type => {
+      const workoutType = WORKOUT_TYPES.find(t => t.value === type);
+      return workoutType?.icon || WORKOUT_TYPES[0].icon;
+    });
+  };
+
+  const getWorkoutLabels = () => {
+    const types = goals?.workout_types || [goals?.workout_type || 'general'];
+    return types.map(type => {
+      const workoutType = WORKOUT_TYPES.find(t => t.value === type);
+      return workoutType?.label || 'General Fitness';
+    }).join(', ');
   };
 
   if (loading) {
@@ -405,13 +445,26 @@ export default function PhysicalHealthScreen() {
       <View style={styles.goalSection}>
         <View style={styles.goalSectionHeader}>
           <View style={styles.goalSectionTitleRow}>
-            <IconSymbol
-              ios_icon_name={getWorkoutIcon().ios}
-              android_material_icon_name={getWorkoutIcon().android}
-              size={32}
-              color={colors.warning}
-            />
-            <Text style={styles.goalSectionTitle}>Workout</Text>
+            <View style={styles.workoutIconsContainer}>
+              {getWorkoutIcons().slice(0, 3).map((icon, index) => (
+                <React.Fragment key={index}>
+                  <View style={[styles.workoutIconWrapper, index > 0 && styles.workoutIconOverlap]}>
+                    <IconSymbol
+                      ios_icon_name={icon.ios}
+                      android_material_icon_name={icon.android}
+                      size={24}
+                      color={colors.warning}
+                    />
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+            <View style={styles.goalSectionTitleContainer}>
+              <Text style={styles.goalSectionTitle}>Workout</Text>
+              {!editingGoals && (
+                <Text style={styles.goalSectionSubtitle}>{getWorkoutLabels()}</Text>
+              )}
+            </View>
           </View>
           {editingGoals && (
             <Switch
@@ -428,20 +481,20 @@ export default function PhysicalHealthScreen() {
 
         {editingGoals ? (
           <View style={styles.editingContainer}>
-            <Text style={styles.editLabel}>Workout Type</Text>
+            <Text style={styles.editLabel}>Workout Types (Select Multiple)</Text>
+            <Text style={styles.editHint}>Choose all workout types you want to track</Text>
             <View style={styles.workoutTypesGrid}>
               {WORKOUT_TYPES.map((type, index) => (
                 <React.Fragment key={index}>
                   <TouchableOpacity
                     style={[
                       styles.workoutTypeCard,
-                      tempWorkoutType === type.value && styles.workoutTypeCardActive,
+                      tempWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,
                       !tempWorkoutEnabled && styles.workoutTypeCardDisabled,
                     ]}
                     onPress={() => {
                       if (tempWorkoutEnabled) {
-                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                        setTempWorkoutType(type.value);
+                        toggleWorkoutType(type.value);
                       }
                     }}
                     activeOpacity={0.7}
@@ -451,14 +504,24 @@ export default function PhysicalHealthScreen() {
                       ios_icon_name={type.icon.ios}
                       android_material_icon_name={type.icon.android}
                       size={24}
-                      color={tempWorkoutType === type.value && tempWorkoutEnabled ? colors.warning : colors.textSecondary}
+                      color={tempWorkoutTypes.includes(type.value) && tempWorkoutEnabled ? colors.warning : colors.textSecondary}
                     />
                     <Text style={[
                       styles.workoutTypeLabel,
-                      tempWorkoutType === type.value && tempWorkoutEnabled && styles.workoutTypeLabelActive,
+                      tempWorkoutTypes.includes(type.value) && tempWorkoutEnabled && styles.workoutTypeLabelActive,
                     ]}>
                       {type.label}
                     </Text>
+                    {tempWorkoutTypes.includes(type.value) && tempWorkoutEnabled && (
+                      <View style={styles.checkmarkBadge}>
+                        <IconSymbol
+                          ios_icon_name="checkmark"
+                          android_material_icon_name="check"
+                          size={12}
+                          color={colors.card}
+                        />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </React.Fragment>
               ))}
@@ -930,10 +993,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
+    flex: 1,
+  },
+  goalSectionTitleContainer: {
+    flex: 1,
   },
   goalSectionTitle: {
     ...typography.h3,
     color: colors.text,
+  },
+  goalSectionSubtitle: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginTop: 2,
+  },
+  workoutIconsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  workoutIconWrapper: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.card,
+  },
+  workoutIconOverlap: {
+    marginLeft: -8,
   },
   editingContainer: {
     marginTop: spacing.md,
@@ -978,6 +1067,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.border,
+    position: 'relative',
   },
   workoutTypeCardActive: {
     borderColor: colors.warning,
@@ -996,6 +1086,17 @@ const styles = StyleSheet.create({
   workoutTypeLabelActive: {
     color: colors.warning,
     fontWeight: '700',
+  },
+  checkmarkBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.warning,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   goalProgress: {
     borderRadius: borderRadius.lg,

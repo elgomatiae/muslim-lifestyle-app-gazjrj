@@ -48,37 +48,57 @@ export default function GoalsSettingsScreen() {
   const [localIbadahGoals, setLocalIbadahGoals] = useState<IbadahGoals | null>(null);
   const [localIlmGoals, setLocalIlmGoals] = useState<IlmGoals | null>(null);
   const [localAmanahGoals, setLocalAmanahGoals] = useState<AmanahGoals | null>(null);
-  const [selectedWorkoutType, setSelectedWorkoutType] = useState('general');
+  const [selectedWorkoutTypes, setSelectedWorkoutTypes] = useState<string[]>(['general']);
 
   useEffect(() => {
     if (ibadahGoals) setLocalIbadahGoals({ ...ibadahGoals });
     if (ilmGoals) setLocalIlmGoals({ ...ilmGoals });
     if (amanahGoals) setLocalAmanahGoals({ ...amanahGoals });
-    loadWorkoutType();
+    loadWorkoutTypes();
   }, [ibadahGoals, ilmGoals, amanahGoals]);
 
-  const loadWorkoutType = async () => {
+  const loadWorkoutTypes = async () => {
     if (!user) return;
     
     const { data } = await supabase
       .from('physical_wellness_goals')
-      .select('workout_type')
+      .select('workout_types, workout_type')
       .eq('user_id', user.id)
       .single();
     
-    if (data?.workout_type) {
-      setSelectedWorkoutType(data.workout_type);
+    if (data?.workout_types && data.workout_types.length > 0) {
+      setSelectedWorkoutTypes(data.workout_types);
+    } else if (data?.workout_type) {
+      setSelectedWorkoutTypes([data.workout_type]);
     }
   };
 
-  const saveWorkoutType = async (type: string) => {
-    if (!user) return;
+  const toggleWorkoutType = (type: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    
+    setSelectedWorkoutTypes(prev => {
+      if (prev.includes(type)) {
+        // Don't allow removing the last type
+        if (prev.length === 1) {
+          Alert.alert('Notice', 'You must have at least one workout type selected.');
+          return prev;
+        }
+        return prev.filter(t => t !== type);
+      } else {
+        return [...prev, type];
+      }
+    });
+  };
+
+  const saveWorkoutTypes = async (types: string[]) => {
+    if (!user || types.length === 0) return;
     
     await supabase
       .from('physical_wellness_goals')
       .upsert({
         user_id: user.id,
-        workout_type: type,
+        workout_type: types[0], // Keep for backward compatibility
+        workout_types: types,
         updated_at: new Date().toISOString(),
       });
     
@@ -87,7 +107,8 @@ export default function GoalsSettingsScreen() {
       .from('iman_tracker_goals')
       .upsert({
         user_id: user.id,
-        amanah_workout_type: type,
+        amanah_workout_type: types[0], // Keep for backward compatibility
+        amanah_workout_types: types,
         updated_at: new Date().toISOString(),
       });
   };
@@ -435,6 +456,11 @@ export default function GoalsSettingsScreen() {
 
   const saveGoals = async () => {
     try {
+      if (selectedWorkoutTypes.length === 0) {
+        Alert.alert('Error', 'Please select at least one workout type.');
+        return;
+      }
+
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
       if (localIbadahGoals) await updateIbadahGoals(localIbadahGoals);
@@ -459,8 +485,8 @@ export default function GoalsSettingsScreen() {
         }
       }
       
-      // Save workout type
-      await saveWorkoutType(selectedWorkoutType);
+      // Save workout types
+      await saveWorkoutTypes(selectedWorkoutTypes);
       
       Alert.alert('Success', 'Your goals have been saved!', [
         { text: 'OK', onPress: () => router.back() }
@@ -718,10 +744,10 @@ export default function GoalsSettingsScreen() {
                 size={24}
                 color={colors.accent}
               />
-              <Text style={styles.workoutTypeTitle}>Workout Type Preference</Text>
+              <Text style={styles.workoutTypeTitle}>Workout Types (Select Multiple)</Text>
             </View>
             <Text style={styles.workoutTypeDescription}>
-              Select your preferred workout type. This will help track your physical wellness goals.
+              Select all workout types you want to track. You can choose multiple types to match your fitness routine.
             </Text>
             <View style={styles.workoutTypesGrid}>
               {WORKOUT_TYPES.map((type, index) => (
@@ -729,29 +755,47 @@ export default function GoalsSettingsScreen() {
                   <TouchableOpacity
                     style={[
                       styles.workoutTypeCard,
-                      selectedWorkoutType === type.value && styles.workoutTypeCardActive,
+                      selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,
                     ]}
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedWorkoutType(type.value);
-                    }}
+                    onPress={() => toggleWorkoutType(type.value)}
                     activeOpacity={0.7}
                   >
                     <IconSymbol
                       ios_icon_name={type.icon.ios}
                       android_material_icon_name={type.icon.android}
                       size={32}
-                      color={selectedWorkoutType === type.value ? colors.accent : colors.textSecondary}
+                      color={selectedWorkoutTypes.includes(type.value) ? colors.accent : colors.textSecondary}
                     />
                     <Text style={[
                       styles.workoutTypeLabel,
-                      selectedWorkoutType === type.value && styles.workoutTypeLabelActive,
+                      selectedWorkoutTypes.includes(type.value) && styles.workoutTypeLabelActive,
                     ]}>
                       {type.label}
                     </Text>
+                    {selectedWorkoutTypes.includes(type.value) && (
+                      <View style={styles.checkmarkBadge}>
+                        <IconSymbol
+                          ios_icon_name="checkmark"
+                          android_material_icon_name="check"
+                          size={12}
+                          color={colors.card}
+                        />
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </React.Fragment>
               ))}
+            </View>
+            <View style={styles.selectedTypesInfo}>
+              <IconSymbol
+                ios_icon_name="info.circle"
+                android_material_icon_name="info"
+                size={16}
+                color={colors.accent}
+              />
+              <Text style={styles.selectedTypesText}>
+                {selectedWorkoutTypes.length} type{selectedWorkoutTypes.length !== 1 ? 's' : ''} selected
+              </Text>
             </View>
           </View>
         )}
@@ -943,6 +987,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: spacing.sm,
+    marginBottom: spacing.sm,
   },
   workoutTypeCard: {
     width: '31%',
@@ -952,6 +997,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: colors.border,
+    position: 'relative',
   },
   workoutTypeCardActive: {
     borderColor: colors.accent,
@@ -966,6 +1012,30 @@ const styles = StyleSheet.create({
   workoutTypeLabelActive: {
     color: colors.accent,
     fontWeight: '700',
+  },
+  checkmarkBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  selectedTypesInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingTop: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.accent + '30',
+  },
+  selectedTypesText: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '600',
   },
   goalsSection: {
     marginBottom: spacing.xl,

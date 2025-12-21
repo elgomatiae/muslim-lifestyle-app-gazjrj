@@ -1,49 +1,57 @@
 
 import React from 'react';
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
-import { colors } from '@/styles/commonStyles';
+import { DynamicColorIOS } from 'react-native';
 
 export default function TabLayout() {
   return (
     <NativeTabs
-      backgroundColor="rgba(255, 255, 255, 0.9)"
-      tintColor={colors.primary}
-      iconColor={colors.textSecondary}
+      backgroundColor="rgba(255, 255, 255, 0.95)"
+      tintColor={DynamicColorIOS({
+        dark: '#A78BFA',
+        light: '#8B5CF6',
+      })}
+      iconColor={DynamicColorIOS({
+        dark: '#94A3B8',
+        light: '#64748B',
+      })}
       labelStyle={{
-        color: colors.textSecondary,
+        color: DynamicColorIOS({
+          dark: '#94A3B8',
+          light: '#64748B',
+        }),
         fontSize: 11,
         fontWeight: '500',
       }}
       disableTransparentOnScrollEdge
       blurEffect="systemChromeMaterial"
     >
-      <NativeTabs.Trigger key="home" name="(home)">
-        <Icon sf="house.fill" />
+      <NativeTabs.Trigger name="(home)">
+        <Icon sf={{ default: 'house', selected: 'house.fill' }} />
         <Label>Home</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="learning" name="(learning)">
-        <Icon sf="book.fill" />
+      
+      <NativeTabs.Trigger name="(learning)">
+        <Icon sf={{ default: 'book', selected: 'book.fill' }} />
         <Label>Learn</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="iman" name="(iman)">
-        <Icon sf="chart.pie.fill" />
+      
+      <NativeTabs.Trigger name="(iman)">
+        <Icon sf={{ default: 'chart.pie', selected: 'chart.pie.fill' }} />
         <Label>Iman</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="wellness" name="(wellness)">
-        <Icon sf="heart.fill" />
+      
+      <NativeTabs.Trigger name="(wellness)">
+        <Icon sf={{ default: 'heart', selected: 'heart.fill' }} />
         <Label>Wellness</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger key="profile" name="profile">
-        <Icon sf="person.fill" />
+      
+      <NativeTabs.Trigger name="profile">
+        <Icon sf={{ default: 'person', selected: 'person.fill' }} />
         <Label>Profile</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Screen 
-        key="admin-panel" 
-        name="admin-panel"
-        options={{
-          presentation: 'modal',
-        }}
-      />
+      
+      <NativeTabs.Trigger name="admin-panel" hidden />
     </NativeTabs>
   );
 }

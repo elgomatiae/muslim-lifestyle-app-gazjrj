@@ -37,52 +37,37 @@ export default function MeditationScreen() {
   const [showSessionModal, setShowSessionModal] = useState(false);
   const [selectedPractice, setSelectedPractice] = useState<MeditationPractice | null>(null);
   const [sessionNotes, setSessionNotes] = useState('');
+  const [isTimerActive, setIsTimerActive] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null);
 
   const practices: MeditationPractice[] = [
     {
+      title: '1 Minute Guided Meditation',
+      description: 'Quick mindful breathing exercise',
+      duration: 1,
+      iosIcon: 'timer',
+      androidIcon: 'timer',
+      color: colors.gradientInfo,
+      type: '1min_guided',
+    },
+    {
+      title: '5 Minute Meditation',
+      description: 'Deep relaxation and mindfulness practice',
+      duration: 5,
+      iosIcon: 'leaf.fill',
+      androidIcon: 'spa',
+      color: colors.gradientOcean,
+      type: '5min_meditation',
+    },
+    {
       title: 'Dhikr Meditation',
-      description: 'Repeat SubhanAllah, Alhamdulillah, Allahu Akbar',
-      duration: 10,
+      description: 'Remembrance of Allah through repetitive phrases',
+      duration: 5,
       iosIcon: 'sparkles',
       androidIcon: 'auto-awesome',
       color: colors.gradientPrimary,
       type: 'dhikr',
-    },
-    {
-      title: 'Breath Awareness',
-      description: 'Focus on your breathing, as taught by the Prophet ﷺ',
-      duration: 5,
-      iosIcon: 'wind',
-      androidIcon: 'air',
-      color: colors.gradientInfo,
-      type: 'breath',
-    },
-    {
-      title: 'Gratitude Reflection',
-      description: 'Reflect on Allah&apos;s blessings in your life',
-      duration: 10,
-      iosIcon: 'heart.fill',
-      androidIcon: 'favorite',
-      color: colors.gradientPink,
-      type: 'gratitude',
-    },
-    {
-      title: 'Quran Contemplation',
-      description: 'Slowly recite and reflect on Quranic verses',
-      duration: 15,
-      iosIcon: 'book.fill',
-      androidIcon: 'menu-book',
-      color: colors.gradientSecondary,
-      type: 'quran',
-    },
-    {
-      title: 'Nature Connection',
-      description: 'Observe Allah&apos;s creation mindfully',
-      duration: 15,
-      iosIcon: 'leaf.fill',
-      androidIcon: 'spa',
-      color: colors.gradientOcean,
-      type: 'nature',
     },
   ];
 
@@ -90,7 +75,6 @@ export default function MeditationScreen() {
     if (!user) return;
 
     try {
-      // Load today's sessions
       const today = new Date().toISOString().split('T')[0];
       const { data: sessionsData } = await supabase
         .from('meditation_sessions')
@@ -104,7 +88,6 @@ export default function MeditationScreen() {
         setTodayCount(sessionsData.length);
       }
 
-      // Load goal from iman_tracker_goals
       const { data: goalsData } = await supabase
         .from('iman_tracker_goals')
         .select('meditation_daily_goal, meditation_daily_completed')
@@ -124,9 +107,73 @@ export default function MeditationScreen() {
     loadMeditationData();
   }, [loadMeditationData]);
 
+  useEffect(() => {
+    return () => {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    };
+  }, [timerInterval]);
+
   const handleStartPractice = (practice: MeditationPractice) => {
     setSelectedPractice(practice);
+    setTimeRemaining(practice.duration * 60);
+    setIsTimerActive(false);
     setShowSessionModal(true);
+  };
+
+  const startTimer = () => {
+    if (!selectedPractice) return;
+
+    setIsTimerActive(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    const interval = setInterval(() => {
+      setTimeRemaining((prev) => {
+        if (prev <= 1) {
+          clearInterval(interval);
+          setIsTimerActive(false);
+          handleTimerComplete();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    setTimerInterval(interval);
+  };
+
+  const pauseTimer = () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+    setIsTimerActive(false);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const resetTimer = () => {
+    if (timerInterval) {
+      clearInterval(timerInterval);
+      setTimerInterval(null);
+    }
+    setIsTimerActive(false);
+    setTimeRemaining(selectedPractice ? selectedPractice.duration * 60 : 0);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  };
+
+  const handleTimerComplete = async () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    Alert.alert(
+      'Meditation Complete! 🎉',
+      'Great job! Your session has been completed.',
+      [
+        {
+          text: 'Save Session',
+          onPress: () => handleCompletePractice(),
+        },
+      ]
+    );
   };
 
   const handleCompletePractice = async () => {
@@ -135,7 +182,6 @@ export default function MeditationScreen() {
     try {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
-      // Save meditation session
       const { error: sessionError } = await supabase
         .from('meditation_sessions')
         .insert({
@@ -151,19 +197,20 @@ export default function MeditationScreen() {
         return;
       }
 
-      // Update meditation count in iman_tracker_goals
       const { data: currentGoals } = await supabase
         .from('iman_tracker_goals')
-        .select('meditation_daily_completed, meditation_daily_goal')
+        .select('meditation_daily_completed, meditation_daily_goal, amanah_weekly_mental_health_completed, amanah_weekly_mental_health_goal')
         .eq('user_id', user.id)
         .single();
 
-      const newCompleted = (currentGoals?.meditation_daily_completed || 0) + 1;
+      const newMeditationCompleted = (currentGoals?.meditation_daily_completed || 0) + 1;
+      const newMentalHealthCompleted = (currentGoals?.amanah_weekly_mental_health_completed || 0) + 1;
 
       const { error: updateError } = await supabase
         .from('iman_tracker_goals')
         .update({
-          meditation_daily_completed: newCompleted,
+          meditation_daily_completed: newMeditationCompleted,
+          amanah_weekly_mental_health_completed: newMentalHealthCompleted,
           last_updated: new Date().toISOString(),
         })
         .eq('user_id', user.id);
@@ -172,9 +219,8 @@ export default function MeditationScreen() {
         console.error('Error updating goals:', updateError);
       }
 
-      // Also increment dhikr if it's a dhikr meditation
       if (selectedPractice.type === 'dhikr' && dhikrGoals) {
-        const dhikrIncrement = 33; // Standard tasbih count
+        const dhikrIncrement = 33;
         const updatedDhikrGoals = {
           ...dhikrGoals,
           dailyCompleted: dhikrGoals.dailyCompleted + dhikrIncrement,
@@ -183,24 +229,40 @@ export default function MeditationScreen() {
         await updateDhikrGoals(updatedDhikrGoals);
       }
 
-      // Refresh data
       await loadMeditationData();
       await refreshData();
 
-      // Close modal and reset
       setShowSessionModal(false);
       setSelectedPractice(null);
       setSessionNotes('');
+      setTimeRemaining(0);
+      setIsTimerActive(false);
+      if (timerInterval) {
+        clearInterval(timerInterval);
+        setTimerInterval(null);
+      }
 
       Alert.alert(
         'Great Job! 🎉',
-        `You completed ${selectedPractice.title}. Keep up the mindful practice!`,
+        `You completed ${selectedPractice.title}. Your Iman Tracker has been updated!`,
         [{ text: 'OK' }]
       );
     } catch (error) {
       console.error('Error completing practice:', error);
       Alert.alert('Error', 'Failed to complete meditation session');
     }
+  };
+
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const getTimerProgress = (): number => {
+    if (!selectedPractice) return 0;
+    const totalSeconds = selectedPractice.duration * 60;
+    return ((totalSeconds - timeRemaining) / totalSeconds) * 100;
   };
 
   return (
@@ -210,7 +272,6 @@ export default function MeditationScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
         <View style={styles.headerContainer}>
           <LinearGradient
             colors={colors.gradientOcean}
@@ -229,7 +290,6 @@ export default function MeditationScreen() {
           </LinearGradient>
         </View>
 
-        {/* Progress Card */}
         {user && (
           <View style={styles.progressCard}>
             <View style={styles.progressHeader}>
@@ -256,7 +316,6 @@ export default function MeditationScreen() {
           </View>
         )}
 
-        {/* Info Card */}
         <View style={styles.infoCard}>
           <IconSymbol
             ios_icon_name="info.circle.fill"
@@ -265,13 +324,12 @@ export default function MeditationScreen() {
             color={colors.primary}
           />
           <Text style={styles.infoText}>
-            Islamic mindfulness combines remembrance of Allah with present-moment awareness, bringing peace to the heart and mind. Your meditation sessions are tracked in the Iman Tracker!
+            Choose a meditation practice below. Each completed session will be tracked in your Iman Tracker under the Amanah (Well-Being) ring!
           </Text>
         </View>
 
-        {/* Practices List */}
         <View style={styles.practicesContainer}>
-          <Text style={styles.sectionTitle}>Mindfulness Practices</Text>
+          <Text style={styles.sectionTitle}>Meditation Practices</Text>
           {practices.map((practice, index) => (
             <React.Fragment key={index}>
               <TouchableOpacity
@@ -318,7 +376,6 @@ export default function MeditationScreen() {
           ))}
         </View>
 
-        {/* Tips Section */}
         <View style={styles.tipsCard}>
           <Text style={styles.tipsTitle}>Mindfulness Tips</Text>
           <View style={styles.tipsList}>
@@ -338,7 +395,7 @@ export default function MeditationScreen() {
                 size={20}
                 color={colors.success}
               />
-              <Text style={styles.tipText}>Start with just 5 minutes daily</Text>
+              <Text style={styles.tipText}>Start with just 1 minute daily</Text>
             </View>
             <View style={styles.tipItem}>
               <IconSymbol
@@ -364,12 +421,16 @@ export default function MeditationScreen() {
         <View style={styles.bottomPadding} />
       </ScrollView>
 
-      {/* Session Completion Modal */}
       <Modal
         visible={showSessionModal}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setShowSessionModal(false)}
+        onRequestClose={() => {
+          if (timerInterval) {
+            clearInterval(timerInterval);
+          }
+          setShowSessionModal(false);
+        }}
       >
         {selectedPractice && (
           <SafeAreaView style={styles.modalContainer} edges={['top']}>
@@ -380,7 +441,14 @@ export default function MeditationScreen() {
             >
               <View style={styles.modalHeader}>
                 <TouchableOpacity
-                  onPress={() => setShowSessionModal(false)}
+                  onPress={() => {
+                    if (timerInterval) {
+                      clearInterval(timerInterval);
+                    }
+                    setShowSessionModal(false);
+                    setIsTimerActive(false);
+                    setTimeRemaining(0);
+                  }}
                   style={styles.closeButton}
                 >
                   <IconSymbol
@@ -410,8 +478,103 @@ export default function MeditationScreen() {
                 </LinearGradient>
 
                 <View style={styles.sessionContent}>
+                  <View style={styles.timerContainer}>
+                    <View style={styles.timerCircle}>
+                      <Text style={styles.timerText}>{formatTime(timeRemaining)}</Text>
+                      <Text style={styles.timerLabel}>
+                        {isTimerActive ? 'In Progress' : timeRemaining === 0 ? 'Complete' : 'Ready'}
+                      </Text>
+                    </View>
+                    <View style={styles.progressRing}>
+                      <View 
+                        style={[
+                          styles.progressRingFill,
+                          { 
+                            width: `${getTimerProgress()}%`,
+                            backgroundColor: selectedPractice.color[0],
+                          }
+                        ]} 
+                      />
+                    </View>
+                  </View>
+
+                  <View style={styles.timerControls}>
+                    {!isTimerActive && timeRemaining > 0 && (
+                      <TouchableOpacity
+                        style={styles.controlButton}
+                        onPress={startTimer}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={colors.gradientSuccess}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.controlButtonGradient}
+                        >
+                          <IconSymbol
+                            ios_icon_name="play.fill"
+                            android_material_icon_name="play-arrow"
+                            size={24}
+                            color={colors.card}
+                          />
+                          <Text style={styles.controlButtonText}>Start</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+
+                    {isTimerActive && (
+                      <TouchableOpacity
+                        style={styles.controlButton}
+                        onPress={pauseTimer}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={colors.gradientWarning}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.controlButtonGradient}
+                        >
+                          <IconSymbol
+                            ios_icon_name="pause.fill"
+                            android_material_icon_name="pause"
+                            size={24}
+                            color={colors.card}
+                          />
+                          <Text style={styles.controlButtonText}>Pause</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+
+                    {!isTimerActive && timeRemaining < selectedPractice.duration * 60 && timeRemaining > 0 && (
+                      <TouchableOpacity
+                        style={styles.controlButton}
+                        onPress={resetTimer}
+                        activeOpacity={0.8}
+                      >
+                        <LinearGradient
+                          colors={colors.gradientSecondary}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.controlButtonGradient}
+                        >
+                          <IconSymbol
+                            ios_icon_name="arrow.clockwise"
+                            android_material_icon_name="refresh"
+                            size={24}
+                            color={colors.card}
+                          />
+                          <Text style={styles.controlButtonText}>Reset</Text>
+                        </LinearGradient>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
                   <Text style={styles.sessionInstructions}>
-                    Take your time with this practice. When you&apos;re done, mark it as complete below.
+                    {selectedPractice.type === 'dhikr' 
+                      ? 'Repeat: SubhanAllah (33x), Alhamdulillah (33x), Allahu Akbar (33x)'
+                      : selectedPractice.type === '1min_guided'
+                      ? 'Take slow, deep breaths. Focus on your breathing and let go of distracting thoughts.'
+                      : 'Find a comfortable position. Close your eyes and focus on your breath. Let your mind settle into the present moment.'}
                   </Text>
 
                   <View style={styles.notesSection}>
@@ -692,12 +855,71 @@ const styles = StyleSheet.create({
   sessionContent: {
     padding: spacing.xl,
   },
+  timerContainer: {
+    alignItems: 'center',
+    marginBottom: spacing.xxl,
+  },
+  timerCircle: {
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.lg,
+    ...shadows.medium,
+  },
+  timerText: {
+    ...typography.h1,
+    fontSize: 48,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  timerLabel: {
+    ...typography.body,
+    color: colors.textSecondary,
+    marginTop: spacing.xs,
+  },
+  progressRing: {
+    width: 220,
+    height: 8,
+    backgroundColor: colors.highlight,
+    borderRadius: borderRadius.sm,
+    overflow: 'hidden',
+  },
+  progressRingFill: {
+    height: '100%',
+    borderRadius: borderRadius.sm,
+  },
+  timerControls: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.xxl,
+  },
+  controlButton: {
+    flex: 1,
+    borderRadius: borderRadius.md,
+    overflow: 'hidden',
+    ...shadows.medium,
+  },
+  controlButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    paddingVertical: spacing.lg,
+  },
+  controlButtonText: {
+    ...typography.h4,
+    color: colors.card,
+  },
   sessionInstructions: {
     ...typography.body,
     color: colors.text,
     textAlign: 'center',
     marginBottom: spacing.xxl,
     lineHeight: 24,
+    paddingHorizontal: spacing.md,
   },
   notesSection: {
     marginBottom: spacing.xxl,

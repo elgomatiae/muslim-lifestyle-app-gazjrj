@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 type SectionType = 'ibadah' | 'ilm' | 'amanah';
+type FrequencyType = 'daily' | 'weekly';
 
 interface GoalConfig {
   id: string;
@@ -20,6 +21,7 @@ interface GoalConfig {
   description: string;
   goalField: string;
   completedField?: string;
+  frequencyField?: string;
   min: number;
   max: number;
   step: number;
@@ -27,6 +29,8 @@ interface GoalConfig {
   enabled: boolean;
   canDisable: boolean;
   isRequired?: boolean;
+  defaultFrequency: FrequencyType;
+  currentFrequency?: FrequencyType;
 }
 
 const WORKOUT_TYPES = [
@@ -49,13 +53,50 @@ export default function GoalsSettingsScreen() {
   const [localIlmGoals, setLocalIlmGoals] = useState<IlmGoals | null>(null);
   const [localAmanahGoals, setLocalAmanahGoals] = useState<AmanahGoals | null>(null);
   const [selectedWorkoutTypes, setSelectedWorkoutTypes] = useState<string[]>(['general']);
+  const [goalFrequencies, setGoalFrequencies] = useState<{ [key: string]: FrequencyType }>({});
 
   useEffect(() => {
     if (ibadahGoals) setLocalIbadahGoals({ ...ibadahGoals });
     if (ilmGoals) setLocalIlmGoals({ ...ilmGoals });
     if (amanahGoals) setLocalAmanahGoals({ ...amanahGoals });
     loadWorkoutTypes();
+    loadGoalFrequencies();
   }, [ibadahGoals, ilmGoals, amanahGoals]);
+
+  const loadGoalFrequencies = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('iman_tracker_goals')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    if (data) {
+      const frequencies: { [key: string]: FrequencyType } = {};
+      
+      // Load all frequency fields
+      if (data.sunnah_goal_frequency) frequencies.sunnah = data.sunnah_goal_frequency;
+      if (data.tahajjud_goal_frequency) frequencies.tahajjud = data.tahajjud_goal_frequency;
+      if (data.quran_pages_goal_frequency) frequencies.quranPages = data.quran_pages_goal_frequency;
+      if (data.quran_verses_goal_frequency) frequencies.quranVerses = data.quran_verses_goal_frequency;
+      if (data.quran_memorization_goal_frequency) frequencies.memorization = data.quran_memorization_goal_frequency;
+      if (data.dhikr_goal_frequency) frequencies.dhikrDaily = data.dhikr_goal_frequency;
+      if (data.dua_goal_frequency) frequencies.dua = data.dua_goal_frequency;
+      if (data.fasting_goal_frequency) frequencies.fasting = data.fasting_goal_frequency;
+      if (data.lectures_goal_frequency) frequencies.lectures = data.lectures_goal_frequency;
+      if (data.recitations_goal_frequency) frequencies.recitations = data.recitations_goal_frequency;
+      if (data.quizzes_goal_frequency) frequencies.quizzes = data.quizzes_goal_frequency;
+      if (data.reflection_goal_frequency) frequencies.reflection = data.reflection_goal_frequency;
+      if (data.exercise_goal_frequency) frequencies.exercise = data.exercise_goal_frequency;
+      if (data.water_goal_frequency) frequencies.water = data.water_goal_frequency;
+      if (data.workout_goal_frequency) frequencies.workout = data.workout_goal_frequency;
+      if (data.meditation_goal_frequency) frequencies.meditation = data.meditation_goal_frequency;
+      if (data.sleep_goal_frequency) frequencies.sleep = data.sleep_goal_frequency;
+      
+      setGoalFrequencies(frequencies);
+    }
+  };
 
   const loadWorkoutTypes = async () => {
     if (!user) return;
@@ -78,7 +119,6 @@ export default function GoalsSettingsScreen() {
     
     setSelectedWorkoutTypes(prev => {
       if (prev.includes(type)) {
-        // Don't allow removing the last type
         if (prev.length === 1) {
           Alert.alert('Notice', 'You must have at least one workout type selected.');
           return prev;
@@ -97,139 +137,157 @@ export default function GoalsSettingsScreen() {
       .from('physical_wellness_goals')
       .upsert({
         user_id: user.id,
-        workout_type: types[0], // Keep for backward compatibility
+        workout_type: types[0],
         workout_types: types,
         updated_at: new Date().toISOString(),
       });
     
-    // Also update iman_tracker_goals
     await supabase
       .from('iman_tracker_goals')
       .upsert({
         user_id: user.id,
-        amanah_workout_type: types[0], // Keep for backward compatibility
+        amanah_workout_type: types[0],
         amanah_workout_types: types,
         updated_at: new Date().toISOString(),
       });
+  };
+
+  const toggleFrequency = (goalId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setGoalFrequencies(prev => ({
+      ...prev,
+      [goalId]: prev[goalId] === 'daily' ? 'weekly' : 'daily',
+    }));
   };
 
   const ibadahGoalConfigs: GoalConfig[] = [
     {
       id: 'sunnah',
       label: 'Sunnah Prayers',
-      description: 'Daily Sunnah prayer goal',
+      description: 'Sunnah prayer goal',
       goalField: 'sunnahDailyGoal',
       completedField: 'sunnahCompleted',
+      frequencyField: 'sunnah_goal_frequency',
       min: 0,
       max: 20,
       step: 1,
       unit: 'prayers',
       enabled: (localIbadahGoals?.sunnahDailyGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.sunnah || 'daily',
     },
     {
       id: 'tahajjud',
       label: 'Tahajjud (Night Prayer)',
-      description: 'Weekly Tahajjud goal',
+      description: 'Tahajjud goal',
       goalField: 'tahajjudWeeklyGoal',
       completedField: 'tahajjudCompleted',
+      frequencyField: 'tahajjud_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'times/week',
+      unit: 'times',
       enabled: (localIbadahGoals?.tahajjudWeeklyGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.tahajjud || 'weekly',
     },
     {
       id: 'quranPages',
       label: 'Quran Pages',
-      description: 'Daily Quran reading goal',
+      description: 'Quran reading goal',
       goalField: 'quranDailyPagesGoal',
       completedField: 'quranDailyPagesCompleted',
+      frequencyField: 'quran_pages_goal_frequency',
       min: 0,
       max: 20,
       step: 1,
-      unit: 'pages/day',
+      unit: 'pages',
       enabled: (localIbadahGoals?.quranDailyPagesGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.quranPages || 'daily',
     },
     {
       id: 'quranVerses',
       label: 'Quran Verses',
-      description: 'Daily Quran verses goal',
+      description: 'Quran verses goal',
       goalField: 'quranDailyVersesGoal',
       completedField: 'quranDailyVersesCompleted',
+      frequencyField: 'quran_verses_goal_frequency',
       min: 0,
       max: 50,
       step: 5,
-      unit: 'verses/day',
+      unit: 'verses',
       enabled: (localIbadahGoals?.quranDailyVersesGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.quranVerses || 'daily',
     },
     {
       id: 'memorization',
       label: 'Quran Memorization',
-      description: 'Weekly memorization goal',
+      description: 'Memorization goal',
       goalField: 'quranWeeklyMemorizationGoal',
       completedField: 'quranWeeklyMemorizationCompleted',
+      frequencyField: 'quran_memorization_goal_frequency',
       min: 0,
       max: 20,
       step: 1,
-      unit: 'verses/week',
+      unit: 'verses',
       enabled: (localIbadahGoals?.quranWeeklyMemorizationGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.memorization || 'weekly',
     },
     {
       id: 'dhikrDaily',
-      label: 'Daily Dhikr',
-      description: 'Daily dhikr count goal',
+      label: 'Dhikr',
+      description: 'Dhikr count goal',
       goalField: 'dhikrDailyGoal',
       completedField: 'dhikrDailyCompleted',
-      min: 0,
-      max: 500,
-      step: 10,
-      unit: 'times/day',
-      enabled: (localIbadahGoals?.dhikrDailyGoal ?? 0) > 0,
-      canDisable: true,
-    },
-    {
-      id: 'dhikrWeekly',
-      label: 'Weekly Dhikr',
-      description: 'Weekly dhikr count goal',
-      goalField: 'dhikrWeeklyGoal',
-      completedField: 'dhikrWeeklyCompleted',
+      frequencyField: 'dhikr_goal_frequency',
       min: 0,
       max: 5000,
-      step: 100,
-      unit: 'times/week',
-      enabled: (localIbadahGoals?.dhikrWeeklyGoal ?? 0) > 0,
+      step: 10,
+      unit: 'times',
+      enabled: (localIbadahGoals?.dhikrDailyGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.dhikrDaily || 'daily',
     },
     {
       id: 'dua',
       label: 'Daily Duʿāʾ',
-      description: 'Daily dua goal',
+      description: 'Dua goal',
       goalField: 'duaDailyGoal',
       completedField: 'duaDailyCompleted',
+      frequencyField: 'dua_goal_frequency',
       min: 0,
       max: 10,
       step: 1,
-      unit: 'duas/day',
+      unit: 'duas',
       enabled: (localIbadahGoals?.duaDailyGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.dua || 'daily',
     },
     {
       id: 'fasting',
       label: 'Voluntary Fasting',
-      description: 'Weekly fasting goal',
+      description: 'Fasting goal',
       goalField: 'fastingWeeklyGoal',
       completedField: 'fastingWeeklyCompleted',
+      frequencyField: 'fasting_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'days/week',
+      unit: 'days',
       enabled: (localIbadahGoals?.fastingWeeklyGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.fasting || 'weekly',
     },
   ];
 
@@ -237,135 +295,149 @@ export default function GoalsSettingsScreen() {
     {
       id: 'lectures',
       label: 'Islamic Lectures',
-      description: 'Weekly lecture goal',
+      description: 'Lecture goal',
       goalField: 'weeklyLecturesGoal',
       completedField: 'weeklyLecturesCompleted',
+      frequencyField: 'lectures_goal_frequency',
       min: 0,
       max: 10,
       step: 1,
-      unit: 'lectures/week',
+      unit: 'lectures',
       enabled: (localIlmGoals?.weeklyLecturesGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.lectures || 'weekly',
     },
     {
       id: 'recitations',
       label: 'Quran Recitations',
-      description: 'Weekly recitation listening goal',
+      description: 'Recitation listening goal',
       goalField: 'weeklyRecitationsGoal',
       completedField: 'weeklyRecitationsCompleted',
+      frequencyField: 'recitations_goal_frequency',
       min: 0,
       max: 10,
       step: 1,
-      unit: 'recitations/week',
+      unit: 'recitations',
       enabled: (localIlmGoals?.weeklyRecitationsGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.recitations || 'weekly',
     },
     {
       id: 'quizzes',
       label: 'Knowledge Quizzes',
-      description: 'Weekly quiz goal',
+      description: 'Quiz goal',
       goalField: 'weeklyQuizzesGoal',
       completedField: 'weeklyQuizzesCompleted',
+      frequencyField: 'quizzes_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'quizzes/week',
+      unit: 'quizzes',
       enabled: (localIlmGoals?.weeklyQuizzesGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.quizzes || 'weekly',
     },
     {
       id: 'reflection',
       label: 'Reflection Prompts',
-      description: 'Weekly reflection goal',
+      description: 'Reflection goal',
       goalField: 'weeklyReflectionGoal',
       completedField: 'weeklyReflectionCompleted',
+      frequencyField: 'reflection_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'reflections/week',
+      unit: 'reflections',
       enabled: (localIlmGoals?.weeklyReflectionGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.reflection || 'weekly',
     },
   ];
 
   const amanahGoalConfigs: GoalConfig[] = [
     {
       id: 'exercise',
-      label: 'Daily Exercise',
-      description: 'Daily exercise duration goal',
+      label: 'Exercise',
+      description: 'Exercise duration goal',
       goalField: 'dailyExerciseGoal',
       completedField: 'dailyExerciseCompleted',
+      frequencyField: 'exercise_goal_frequency',
       min: 0,
       max: 120,
       step: 5,
-      unit: 'minutes/day',
+      unit: 'minutes',
       enabled: (localAmanahGoals?.dailyExerciseGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.exercise || 'daily',
     },
     {
       id: 'water',
-      label: 'Daily Water Intake',
-      description: 'Daily water consumption goal',
+      label: 'Water Intake',
+      description: 'Water consumption goal',
       goalField: 'dailyWaterGoal',
       completedField: 'dailyWaterCompleted',
+      frequencyField: 'water_goal_frequency',
       min: 0,
       max: 15,
       step: 1,
-      unit: 'glasses/day',
+      unit: 'glasses',
       enabled: (localAmanahGoals?.dailyWaterGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.water || 'daily',
     },
     {
       id: 'workout',
-      label: 'Weekly Workouts',
-      description: 'Weekly workout sessions goal',
+      label: 'Workouts',
+      description: 'Workout sessions goal',
       goalField: 'weeklyWorkoutGoal',
       completedField: 'weeklyWorkoutCompleted',
+      frequencyField: 'workout_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'sessions/week',
+      unit: 'sessions',
       enabled: (localAmanahGoals?.weeklyWorkoutGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.workout || 'weekly',
     },
     {
-      id: 'mentalHealth',
-      label: 'Mental Health Activities',
-      description: 'Weekly mental health activities goal',
+      id: 'meditation',
+      label: 'Meditation Sessions',
+      description: 'Meditation & mindfulness goal',
       goalField: 'weeklyMentalHealthGoal',
       completedField: 'weeklyMentalHealthCompleted',
+      frequencyField: 'meditation_goal_frequency',
       min: 0,
       max: 7,
       step: 1,
-      unit: 'activities/week',
+      unit: 'sessions',
       enabled: (localAmanahGoals?.weeklyMentalHealthGoal ?? 0) > 0,
       canDisable: true,
+      defaultFrequency: 'weekly',
+      currentFrequency: goalFrequencies.meditation || 'weekly',
     },
     {
       id: 'sleep',
-      label: 'Daily Sleep',
-      description: 'Daily sleep duration goal',
+      label: 'Sleep',
+      description: 'Sleep duration goal',
       goalField: 'dailySleepGoal',
       completedField: 'dailySleepCompleted',
+      frequencyField: 'sleep_goal_frequency',
       min: 0,
       max: 12,
       step: 0.5,
-      unit: 'hours/day',
+      unit: 'hours',
       enabled: (localAmanahGoals?.dailySleepGoal ?? 0) > 0,
       canDisable: true,
-    },
-    {
-      id: 'stress',
-      label: 'Stress Management',
-      description: 'Weekly stress management activities goal',
-      goalField: 'weeklyStressManagementGoal',
-      completedField: 'weeklyStressManagementCompleted',
-      min: 0,
-      max: 7,
-      step: 1,
-      unit: 'activities/week',
-      enabled: (localAmanahGoals?.weeklyStressManagementGoal ?? 0) > 0,
-      canDisable: true,
+      defaultFrequency: 'daily',
+      currentFrequency: goalFrequencies.sleep || 'daily',
     },
   ];
 
@@ -468,7 +540,6 @@ export default function GoalsSettingsScreen() {
       if (localAmanahGoals) {
         await updateAmanahGoals(localAmanahGoals);
         
-        // Also update physical_wellness_goals table
         if (user) {
           await supabase
             .from('physical_wellness_goals')
@@ -488,6 +559,27 @@ export default function GoalsSettingsScreen() {
       // Save workout types
       await saveWorkoutTypes(selectedWorkoutTypes);
       
+      // Save goal frequencies
+      if (user) {
+        const frequencyUpdates: any = {};
+        Object.entries(goalFrequencies).forEach(([key, value]) => {
+          const config = [...ibadahGoalConfigs, ...ilmGoalConfigs, ...amanahGoalConfigs].find(c => c.id === key);
+          if (config?.frequencyField) {
+            frequencyUpdates[config.frequencyField] = value;
+          }
+        });
+        
+        if (Object.keys(frequencyUpdates).length > 0) {
+          await supabase
+            .from('iman_tracker_goals')
+            .update({
+              ...frequencyUpdates,
+              updated_at: new Date().toISOString(),
+            })
+            .eq('user_id', user.id);
+        }
+      }
+      
       Alert.alert('Success', 'Your goals have been saved!', [
         { text: 'OK', onPress: () => router.back() }
       ]);
@@ -503,6 +595,7 @@ export default function GoalsSettingsScreen() {
 
     const currentValue = currentGoals[config.goalField as keyof typeof currentGoals] as number;
     const isEnabled = currentValue > 0;
+    const currentFreq = config.currentFrequency || config.defaultFrequency;
 
     return (
       <View key={config.id} style={styles.goalItem}>
@@ -523,9 +616,46 @@ export default function GoalsSettingsScreen() {
 
         {isEnabled && (
           <View style={styles.goalControls}>
+            {/* Frequency Toggle */}
+            <View style={styles.frequencyToggle}>
+              <Text style={styles.frequencyLabel}>Frequency:</Text>
+              <View style={styles.frequencyButtons}>
+                <TouchableOpacity
+                  style={[
+                    styles.frequencyButton,
+                    currentFreq === 'daily' && styles.frequencyButtonActive,
+                  ]}
+                  onPress={() => toggleFrequency(config.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.frequencyButtonText,
+                    currentFreq === 'daily' && styles.frequencyButtonTextActive,
+                  ]}>
+                    Daily
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.frequencyButton,
+                    currentFreq === 'weekly' && styles.frequencyButtonActive,
+                  ]}
+                  onPress={() => toggleFrequency(config.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[
+                    styles.frequencyButtonText,
+                    currentFreq === 'weekly' && styles.frequencyButtonTextActive,
+                  ]}>
+                    Weekly
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+
             <View style={styles.valueDisplay}>
               <Text style={styles.valueText}>{currentValue}</Text>
-              <Text style={styles.unitText}>{config.unit}</Text>
+              <Text style={styles.unitText}>{config.unit}/{currentFreq}</Text>
             </View>
 
             <View style={styles.controlButtons}>
@@ -646,7 +776,7 @@ export default function GoalsSettingsScreen() {
           color={colors.info}
         />
         <Text style={styles.infoText}>
-          Customize your spiritual and wellness goals. Toggle any goal off to exclude it from your Iman Tracker score.
+          Customize your spiritual and wellness goals. Toggle any goal off to exclude it from your Iman Tracker score. Switch between daily and weekly frequencies for each goal.
         </Text>
       </View>
 
@@ -1078,6 +1208,41 @@ const styles = StyleSheet.create({
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
+  },
+  frequencyToggle: {
+    marginBottom: spacing.md,
+  },
+  frequencyLabel: {
+    ...typography.small,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  frequencyButtons: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+  },
+  frequencyButton: {
+    flex: 1,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.highlight,
+    borderWidth: 2,
+    borderColor: colors.border,
+    alignItems: 'center',
+  },
+  frequencyButtonActive: {
+    backgroundColor: colors.primary + '20',
+    borderColor: colors.primary,
+  },
+  frequencyButtonText: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  frequencyButtonTextActive: {
+    color: colors.primary,
+    fontWeight: '700',
   },
   valueDisplay: {
     flexDirection: 'row',

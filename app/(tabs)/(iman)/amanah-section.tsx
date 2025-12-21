@@ -28,12 +28,12 @@ export default function AmanahSection() {
                            amanahGoals.dailyWaterGoal > 0 || 
                            amanahGoals.weeklyWorkoutGoal > 0;
   
-  const hasMentalGoals = amanahGoals.weeklyMentalHealthGoal > 0 || 
-                         amanahGoals.weeklyStressManagementGoal > 0;
+  // Updated to check for meditation goals instead of mental health activities
+  const hasMeditationGoals = amanahGoals.weeklyMentalHealthGoal > 0;
   
   const hasSleepGoals = amanahGoals.dailySleepGoal > 0;
 
-  const hasAnyGoals = hasPhysicalGoals || hasMentalGoals || hasSleepGoals;
+  const hasAnyGoals = hasPhysicalGoals || hasMeditationGoals || hasSleepGoals;
 
   return (
     <View style={styles.container}>
@@ -268,103 +268,62 @@ export default function AmanahSection() {
         </View>
       )}
 
-      {/* Mental Health Section */}
-      {hasMentalGoals && (
+      {/* Meditation Section - Replaces Mental Health Activities and Stress Management */}
+      {hasMeditationGoals && (
         <View style={styles.subsection}>
           <View style={styles.subsectionHeader}>
             <IconSymbol
-              ios_icon_name="brain.head.profile"
-              android_material_icon_name="psychology"
+              ios_icon_name="leaf.fill"
+              android_material_icon_name="spa"
               size={18}
               color="#F59E0B"
             />
-            <Text style={styles.subsectionTitle}>Mental Health</Text>
+            <Text style={styles.subsectionTitle}>Meditation & Mindfulness</Text>
           </View>
 
           <View style={styles.subsectionContent}>
-            {amanahGoals.weeklyMentalHealthGoal > 0 && (
-              <View style={styles.goalItem}>
-                <Text style={styles.goalLabel}>
-                  Weekly Mental Health Activities ({amanahGoals.weeklyMentalHealthCompleted}/{amanahGoals.weeklyMentalHealthGoal})
-                </Text>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill,
-                      { 
-                        width: `${amanahGoals.weeklyMentalHealthGoal > 0 ? (amanahGoals.weeklyMentalHealthCompleted / amanahGoals.weeklyMentalHealthGoal) * 100 : 0}%`,
-                        backgroundColor: '#F59E0B',
-                      }
-                    ]} 
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.incrementButton}
-                  onPress={() => incrementCounter('weeklyMentalHealthCompleted', 1, 'weeklyMentalHealthGoal')}
-                  activeOpacity={0.7}
-                >
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.incrementGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name="plus"
-                      android_material_icon_name="add"
-                      size={14}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.incrementText}>Mark Activity</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
+            <View style={styles.goalItem}>
+              <Text style={styles.goalLabel}>
+                Weekly Meditation Sessions ({amanahGoals.weeklyMentalHealthCompleted}/{amanahGoals.weeklyMentalHealthGoal})
+              </Text>
+              <View style={styles.progressBar}>
+                <View 
+                  style={[
+                    styles.progressFill,
+                    { 
+                      width: `${amanahGoals.weeklyMentalHealthGoal > 0 ? (amanahGoals.weeklyMentalHealthCompleted / amanahGoals.weeklyMentalHealthGoal) * 100 : 0}%`,
+                      backgroundColor: '#F59E0B',
+                    }
+                  ]} 
+                />
               </View>
-            )}
-
-            {amanahGoals.weeklyStressManagementGoal > 0 && (
-              <View style={styles.goalItem}>
-                <Text style={styles.goalLabel}>
-                  Weekly Stress Management ({amanahGoals.weeklyStressManagementCompleted}/{amanahGoals.weeklyStressManagementGoal})
-                </Text>
-                <View style={styles.progressBar}>
-                  <View 
-                    style={[
-                      styles.progressFill,
-                      { 
-                        width: `${amanahGoals.weeklyStressManagementGoal > 0 ? (amanahGoals.weeklyStressManagementCompleted / amanahGoals.weeklyStressManagementGoal) * 100 : 0}%`,
-                        backgroundColor: '#F59E0B',
-                      }
-                    ]} 
-                  />
-                </View>
-                <TouchableOpacity
-                  style={styles.incrementButton}
-                  onPress={() => incrementCounter('weeklyStressManagementCompleted', 1, 'weeklyStressManagementGoal')}
-                  activeOpacity={0.7}
+              <TouchableOpacity
+                style={styles.incrementButton}
+                onPress={() => incrementCounter('weeklyMentalHealthCompleted', 1, 'weeklyMentalHealthGoal')}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={['#F59E0B', '#D97706']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.incrementGradient}
                 >
-                  <LinearGradient
-                    colors={['#F59E0B', '#D97706']}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 0 }}
-                    style={styles.incrementGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name="plus"
-                      android_material_icon_name="add"
-                      size={14}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.incrementText}>Mark Activity</Text>
-                  </LinearGradient>
-                </TouchableOpacity>
-              </View>
-            )}
+                  <IconSymbol
+                    ios_icon_name="plus"
+                    android_material_icon_name="add"
+                    size={14}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.incrementText}>Mark Session</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
 
             <TouchableOpacity
               style={styles.actionButton}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push('/(tabs)/(wellness)/mental-health' as any);
+                router.push('/(tabs)/(wellness)/meditation' as any);
               }}
               activeOpacity={0.7}
             >
@@ -380,7 +339,7 @@ export default function AmanahSection() {
                   size={18}
                   color="#FFFFFF"
                 />
-                <Text style={styles.actionText}>Go to Mental Health</Text>
+                <Text style={styles.actionText}>Go to Meditation</Text>
               </LinearGradient>
             </TouchableOpacity>
           </View>

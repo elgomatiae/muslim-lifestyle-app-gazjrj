@@ -207,7 +207,7 @@ export default function ProfileScreen() {
 
   const handleNotifications = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Notifications', 'Notification settings coming soon!');
+    router.push('/notification-settings');
   };
 
   const handlePrayerSettings = () => {

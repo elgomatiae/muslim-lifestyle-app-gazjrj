@@ -6,7 +6,10 @@ import { DynamicColorIOS } from 'react-native';
 export default function TabLayout() {
   return (
     <NativeTabs
-      backgroundColor="rgba(255, 255, 255, 0.95)"
+      backgroundColor={DynamicColorIOS({
+        dark: 'rgba(0, 0, 0, 0.95)',
+        light: 'rgba(255, 255, 255, 0.95)',
+      })}
       tintColor={DynamicColorIOS({
         dark: '#A78BFA',
         light: '#8B5CF6',
@@ -17,12 +20,13 @@ export default function TabLayout() {
       })}
       labelStyle={{
         color: DynamicColorIOS({
-          dark: '#94A3B8',
-          light: '#64748B',
+          dark: '#E2E8F0',
+          light: '#475569',
         }),
-        fontSize: 11,
-        fontWeight: '500',
+        fontSize: 10,
+        fontWeight: '600',
       }}
+      labelVisibilityMode="labeled"
       disableTransparentOnScrollEdge
       blurEffect="systemChromeMaterial"
     >

@@ -9,8 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { router } from "expo-router";
 
-const HEADER_MAX_HEIGHT = 200;
-const HEADER_MIN_HEIGHT = 70;
+const HEADER_MAX_HEIGHT = 160;
+const HEADER_MIN_HEIGHT = 60;
 const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
 type WellnessTab = 'mental' | 'physical';
@@ -121,7 +121,7 @@ export default function WellnessScreen() {
                 <IconSymbol
                   ios_icon_name="heart.circle.fill"
                   android_material_icon_name="favorite"
-                  size={32}
+                  size={28}
                   color={colors.card}
                 />
               </Animated.View>
@@ -145,7 +145,7 @@ export default function WellnessScreen() {
         </LinearGradient>
       </Animated.View>
 
-      {/* Tab Switcher - Now positioned dynamically below the header */}
+      {/* Tab Switcher - Now positioned dynamically below the header with REDUCED SPACING */}
       <Animated.View style={[styles.tabSwitcherContainer, { top: headerHeight }]}>
         <View style={styles.tabSwitcher}>
           <TouchableOpacity
@@ -227,7 +227,7 @@ export default function WellnessScreen() {
           { useNativeDriver: false }
         )}
       >
-        {/* Add padding at the top to account for header + tabs */}
+        {/* Add padding at the top to account for header + tabs - REDUCED SPACING */}
         <View style={styles.contentTopPadding} />
 
         {activeTab === 'mental' ? (
@@ -536,8 +536,8 @@ const styles = StyleSheet.create({
   headerGradient: {
     flex: 1,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.sm,
   },
   collapsedHeader: {
     position: 'absolute',
@@ -562,7 +562,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   headerTextContainer: {
     flex: 1,
@@ -582,13 +582,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: borderRadius.md,
-    padding: spacing.md,
-    gap: spacing.md,
+    padding: spacing.sm,
+    gap: spacing.sm,
   },
   amanahScoreCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
@@ -597,6 +597,7 @@ const styles = StyleSheet.create({
     ...typography.h4,
     color: colors.primary,
     fontWeight: '800',
+    fontSize: 16,
   },
   amanahInfo: {
     flex: 1,
@@ -605,11 +606,13 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: colors.card,
     marginBottom: 2,
+    fontSize: 13,
   },
   amanahInfoText: {
     ...typography.caption,
     color: colors.card,
     opacity: 0.9,
+    fontSize: 11,
   },
   tabSwitcherContainer: {
     position: 'absolute',
@@ -617,7 +620,7 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 9,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.xs,
   },
   tabSwitcher: {
     flexDirection: 'row',
@@ -665,7 +668,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
   },
   contentTopPadding: {
-    height: HEADER_MAX_HEIGHT + 60,
+    height: HEADER_MAX_HEIGHT + 50,
   },
   section: {
     marginBottom: spacing.xl,

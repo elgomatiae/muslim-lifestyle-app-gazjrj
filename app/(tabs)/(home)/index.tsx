@@ -208,24 +208,31 @@ export default function HomeScreen() {
     const centerX = 100;
     const centerY = 100;
     
+    // Safely get section scores with fallback to 0
+    const prayerScore = typeof sectionScores.prayer === 'number' && !isNaN(sectionScores.prayer) ? sectionScores.prayer : 0;
+    const quranScore = typeof sectionScores.quran === 'number' && !isNaN(sectionScores.quran) ? sectionScores.quran : 0;
+    const dhikrScore = typeof sectionScores.dhikr === 'number' && !isNaN(sectionScores.dhikr) ? sectionScores.dhikr : 0;
+    
+    console.log('Home Screen - Section Scores:', { prayer: prayerScore, quran: quranScore, dhikr: dhikrScore });
+    
     // Prayer ring (outer) - Green
     const prayerRadius = 85;
     const prayerStroke = 12;
-    const prayerProgressValue = sectionScores.prayer / 100;
+    const prayerProgressValue = prayerScore / 100;
     const prayerCircumference = 2 * Math.PI * prayerRadius;
     const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
     
     // Quran ring (middle) - Amber
     const quranRadius = 62;
     const quranStroke = 10;
-    const quranProgressValue = sectionScores.quran / 100;
+    const quranProgressValue = quranScore / 100;
     const quranCircumference = 2 * Math.PI * quranRadius;
     const quranOffset = quranCircumference * (1 - quranProgressValue);
     
     // Dhikr ring (inner) - Blue
     const dhikrRadius = 39;
     const dhikrStroke = 8;
-    const dhikrProgressValue = sectionScores.dhikr / 100;
+    const dhikrProgressValue = dhikrScore / 100;
     const dhikrCircumference = 2 * Math.PI * dhikrRadius;
     const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
 
@@ -318,17 +325,17 @@ export default function HomeScreen() {
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.primary }]} />
             <Text style={styles.ringLabelText}>Prayer</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.prayer)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(prayerScore)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.accent }]} />
             <Text style={styles.ringLabelText}>Quran</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.quran)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(quranScore)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: colors.info }]} />
             <Text style={styles.ringLabelText}>Dhikr</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(sectionScores.dhikr)}%</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(dhikrScore)}%</Text>
           </View>
         </View>
       </View>

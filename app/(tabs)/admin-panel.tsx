@@ -571,9 +571,43 @@ export default function AdminPanelScreen() {
                       color={colors.card}
                     />
                   </View>
-                  <Text style={styles.optionTitle}>AI Recategorize</Text>
+                  <Text style={styles.optionTitle}>AI Recategorize Lectures</Text>
                   <Text style={styles.optionDescription}>
                     Use AI to automatically categorize all lectures
+                  </Text>
+                  <View style={styles.optionArrow}>
+                    <IconSymbol
+                      ios_icon_name="arrow.right.circle.fill"
+                      android_material_icon_name="arrow-circle-right"
+                      size={32}
+                      color={colors.card}
+                    />
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.optionCard}
+                onPress={() => router.push('/(tabs)/(learning)/migrate-recitations')}
+                activeOpacity={0.7}
+              >
+                <LinearGradient
+                  colors={['#EC4899', '#DB2777']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.optionGradient}
+                >
+                  <View style={styles.optionIconContainer}>
+                    <IconSymbol
+                      ios_icon_name="arrow.triangle.2.circlepath"
+                      android_material_icon_name="sync"
+                      size={48}
+                      color={colors.card}
+                    />
+                  </View>
+                  <Text style={styles.optionTitle}>Migrate Recitations</Text>
+                  <Text style={styles.optionDescription}>
+                    Migrate Quran recitations from quran_recitations table with AI categorization
                   </Text>
                   <View style={styles.optionArrow}>
                     <IconSymbol

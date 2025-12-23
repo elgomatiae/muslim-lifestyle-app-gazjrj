@@ -126,9 +126,37 @@ export async function fetchLecturesByCategory(category: string): Promise<Lecture
 
 export async function fetchRecitations(): Promise<Recitation[]> {
   try {
+    // Get recitation category IDs
+    const { data: categories, error: catError } = await supabase
+      .from('video_categories')
+      .select('id')
+      .eq('type', 'recitation');
+
+    if (catError || !categories || categories.length === 0) {
+      console.error('Error fetching recitation categories:', catError);
+      return [];
+    }
+
+    const categoryIds = categories.map(cat => cat.id);
+
+    // Fetch videos with recitation categories
     const { data, error } = await supabase
-      .from('recitations')
-      .select('*')
+      .from('videos')
+      .select(`
+        id,
+        title,
+        description,
+        thumbnail_url,
+        video_url,
+        duration,
+        reciter_name,
+        views,
+        order_index,
+        created_at,
+        category_id,
+        video_categories!inner(name)
+      `)
+      .in('category_id', categoryIds)
       .order('order_index', { ascending: true });
 
     if (error) {
@@ -136,19 +164,58 @@ export async function fetchRecitations(): Promise<Recitation[]> {
       return [];
     }
 
-    return data || [];
+    // Map to Recitation interface
+    return (data || []).map(video => ({
+      id: video.id,
+      title: video.title,
+      url: video.video_url,
+      image_url: video.thumbnail_url || '',
+      category: (video.video_categories as any)?.name || '',
+      description: video.description || '',
+      reciter_name: video.reciter_name || '',
+      duration: video.duration || 0,
+      views: video.views || 0,
+      order_index: video.order_index || 0,
+      created_at: video.created_at || '',
+      updated_at: video.created_at || '',
+    }));
   } catch (error) {
     console.error('Error fetching recitations:', error);
     return [];
   }
 }
 
-export async function fetchRecitationsByCategory(category: string): Promise<Recitation[]> {
+export async function fetchRecitationsByCategory(categoryName: string): Promise<Recitation[]> {
   try {
+    // Get category ID by name
+    const { data: category, error: catError } = await supabase
+      .from('video_categories')
+      .select('id')
+      .eq('type', 'recitation')
+      .eq('name', categoryName)
+      .single();
+
+    if (catError || !category) {
+      console.error('Error fetching category:', catError);
+      return [];
+    }
+
+    // Fetch videos with this category
     const { data, error } = await supabase
-      .from('recitations')
-      .select('*')
-      .eq('category', category)
+      .from('videos')
+      .select(`
+        id,
+        title,
+        description,
+        thumbnail_url,
+        video_url,
+        duration,
+        reciter_name,
+        views,
+        order_index,
+        created_at
+      `)
+      .eq('category_id', category.id)
       .order('order_index', { ascending: true });
 
     if (error) {
@@ -156,7 +223,21 @@ export async function fetchRecitationsByCategory(category: string): Promise<Reci
       return [];
     }
 
-    return data || [];
+    // Map to Recitation interface
+    return (data || []).map(video => ({
+      id: video.id,
+      title: video.title,
+      url: video.video_url,
+      image_url: video.thumbnail_url || '',
+      category: categoryName,
+      description: video.description || '',
+      reciter_name: video.reciter_name || '',
+      duration: video.duration || 0,
+      views: video.views || 0,
+      order_index: video.order_index || 0,
+      created_at: video.created_at || '',
+      updated_at: video.created_at || '',
+    }));
   } catch (error) {
     console.error('Error fetching recitations by category:', error);
     return [];
@@ -188,18 +269,17 @@ export async function getLectureCategories(): Promise<string[]> {
 export async function getRecitationCategories(): Promise<string[]> {
   try {
     const { data, error } = await supabase
-      .from('recitations')
-      .select('category')
-      .order('category');
+      .from('video_categories')
+      .select('name')
+      .eq('type', 'recitation')
+      .order('order_index', { ascending: true });
 
     if (error) {
       console.error('Error fetching recitation categories:', error);
       return [];
     }
 
-    // Get unique categories
-    const categories = [...new Set(data.map(item => item.category))];
-    return categories;
+    return (data || []).map(cat => cat.name);
   } catch (error) {
     console.error('Error fetching recitation categories:', error);
     return [];
@@ -236,10 +316,26 @@ export async function searchLectures(query: string): Promise<Lecture[]> {
 
 export async function searchRecitations(query: string): Promise<Recitation[]> {
   try {
+    // Get recitation category IDs
+    const { data: categories, error: catError } = await supabase
+      .from('video_categories')
+      .select('id, name')
+      .eq('type', 'recitation');
+
+    if (catError || !categories || categories.length === 0) {
+      console.error('Error fetching recitation categories:', catError);
+      return [];
+    }
+
+    const categoryIds = categories.map(cat => cat.id);
+    const categoryMap = new Map(categories.map(cat => [cat.id, cat.name]));
+
+    // Search videos with recitation categories
     const { data, error } = await supabase
-      .from('recitations')
+      .from('videos')
       .select('*')
-      .or(`title.ilike.%${query}%,description.ilike.%${query}%,reciter_name.ilike.%${query}%,category.ilike.%${query}%`)
+      .in('category_id', categoryIds)
+      .or(`title.ilike.%${query}%,description.ilike.%${query}%,reciter_name.ilike.%${query}%`)
       .order('views', { ascending: false })
       .limit(20);
 
@@ -248,7 +344,21 @@ export async function searchRecitations(query: string): Promise<Recitation[]> {
       return [];
     }
 
-    return data || [];
+    // Map to Recitation interface
+    return (data || []).map(video => ({
+      id: video.id,
+      title: video.title,
+      url: video.video_url,
+      image_url: video.thumbnail_url || '',
+      category: categoryMap.get(video.category_id) || '',
+      description: video.description || '',
+      reciter_name: video.reciter_name || '',
+      duration: video.duration || 0,
+      views: video.views || 0,
+      order_index: video.order_index || 0,
+      created_at: video.created_at || '',
+      updated_at: video.created_at || '',
+    }));
   } catch (error) {
     console.error('Error searching recitations:', error);
     return [];
@@ -281,22 +391,17 @@ export async function incrementLectureViews(id: string): Promise<void> {
 
 export async function incrementRecitationViews(id: string): Promise<void> {
   try {
-    const { error } = await supabase.rpc('increment_recitation_views', { recitation_id: id });
-    
-    if (error) {
-      // If RPC doesn't exist, use a simple update
-      const { data: recitation } = await supabase
-        .from('recitations')
-        .select('views')
-        .eq('id', id)
-        .single();
-      
-      if (recitation) {
-        await supabase
-          .from('recitations')
-          .update({ views: recitation.views + 1 })
-          .eq('id', id);
-      }
+    const { data: video } = await supabase
+      .from('videos')
+      .select('views')
+      .eq('id', id)
+      .single();
+
+    if (video) {
+      await supabase
+        .from('videos')
+        .update({ views: video.views + 1 })
+        .eq('id', id);
     }
   } catch (error) {
     console.error('Error incrementing recitation views:', error);

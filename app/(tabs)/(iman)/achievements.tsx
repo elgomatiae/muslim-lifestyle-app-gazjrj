@@ -51,60 +51,60 @@ export default function AchievementsScreen() {
     try {
       setLoading(true);
 
-      // Check and unlock any new achievements
-      await checkAndUnlockAchievements(user.id);
+      // Run achievement check in background (don't await)
+      checkAndUnlockAchievements(user.id).catch(err => 
+        console.log('Background achievement check error:', err)
+      );
 
-      // Load all achievements
-      const { data: allAchievements, error: achievementsError } = await supabase
-        .from('achievements')
-        .select('*')
-        .eq('is_active', true)
-        .order('order_index', { ascending: true });
+      // Load all data in parallel for better performance
+      const [achievementsResult, userAchievementsResult, progressResult] = await Promise.all([
+        supabase
+          .from('achievements')
+          .select('*')
+          .eq('is_active', true)
+          .order('order_index', { ascending: true }),
+        supabase
+          .from('user_achievements')
+          .select('achievement_id, unlocked_at')
+          .eq('user_id', user.id),
+        supabase
+          .from('achievement_progress')
+          .select('achievement_id, current_value')
+          .eq('user_id', user.id)
+      ]);
 
-      if (achievementsError) {
-        console.log('Error loading achievements:', achievementsError);
+      if (achievementsResult.error) {
+        console.log('Error loading achievements:', achievementsResult.error);
         return;
       }
 
-      // Load user's unlocked achievements
-      const { data: userAchievements, error: userError } = await supabase
-        .from('user_achievements')
-        .select('achievement_id, unlocked_at')
-        .eq('user_id', user.id);
+      const allAchievements = achievementsResult.data || [];
+      const userAchievements = userAchievementsResult.data || [];
+      const progressData = progressResult.data || [];
 
-      if (userError) {
-        console.log('Error loading user achievements:', userError);
-      }
-
-      // Load progress for locked achievements
-      const { data: progressData, error: progressError } = await supabase
-        .from('achievement_progress')
-        .select('achievement_id, current_value')
-        .eq('user_id', user.id);
-
-      if (progressError) {
-        console.log('Error loading progress:', progressError);
-      }
-
-      // Merge data
-      const unlockedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || []);
-      const progressMap = new Map(progressData?.map(p => [p.achievement_id, p.current_value]) || []);
-
-      const mergedAchievements = await Promise.all(
-        (allAchievements || []).map(async (achievement) => {
-          const unlocked = unlockedIds.has(achievement.id);
-          const currentValue = progressMap.get(achievement.id) || 0;
-          const progress = unlocked ? 100 : Math.min(100, (currentValue / achievement.requirement_value) * 100);
-
-          return {
-            ...achievement,
-            unlocked,
-            unlocked_at: userAchievements?.find(ua => ua.achievement_id === achievement.id)?.unlocked_at,
-            progress,
-            current_value: currentValue,
-          };
-        })
+      // Create lookup maps for O(1) access
+      const unlockedMap = new Map(
+        userAchievements.map(ua => [ua.achievement_id, ua.unlocked_at])
       );
+      const progressMap = new Map(
+        progressData.map(p => [p.achievement_id, p.current_value])
+      );
+
+      // Merge data synchronously (no async operations in map)
+      const mergedAchievements = allAchievements.map((achievement) => {
+        const unlockedAt = unlockedMap.get(achievement.id);
+        const unlocked = !!unlockedAt;
+        const currentValue = progressMap.get(achievement.id) || 0;
+        const progress = unlocked ? 100 : Math.min(100, (currentValue / achievement.requirement_value) * 100);
+
+        return {
+          ...achievement,
+          unlocked,
+          unlocked_at: unlockedAt,
+          progress,
+          current_value: currentValue,
+        };
+      });
 
       setAchievements(mergedAchievements);
     } catch (error) {

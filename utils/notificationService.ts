@@ -280,3 +280,142 @@ export async function loadNotificationPreferences(userId: string): Promise<any> 
     };
   }
 }
+
+// Notification settings interface
+export interface NotificationSettings {
+  prayerNotifications: boolean;
+  dailyContentNotifications: boolean;
+  imanScoreNotifications: boolean;
+  imanTrackerNotifications: boolean;
+  goalReminderNotifications: boolean;
+  achievementNotifications: boolean;
+  locationPermissionGranted: boolean;
+  notificationPermissionGranted: boolean;
+}
+
+// Get notification settings
+export async function getNotificationSettings(userId?: string): Promise<NotificationSettings> {
+  try {
+    // Check permissions
+    const { status: notificationStatus } = await Notifications.getPermissionsAsync();
+    const notificationPermissionGranted = notificationStatus === 'granted';
+
+    // Load preferences from Supabase if user is logged in
+    if (userId) {
+      const preferences = await loadNotificationPreferences(userId);
+      return {
+        prayerNotifications: preferences.prayer_notifications ?? true,
+        dailyContentNotifications: preferences.daily_content_notifications ?? true,
+        imanScoreNotifications: preferences.iman_score_notifications ?? true,
+        imanTrackerNotifications: preferences.iman_tracker_notifications ?? true,
+        goalReminderNotifications: preferences.goal_reminder_notifications ?? true,
+        achievementNotifications: preferences.achievement_notifications ?? true,
+        locationPermissionGranted: false, // Location not used for notifications
+        notificationPermissionGranted,
+      };
+    }
+
+    // Return defaults if no user
+    return {
+      prayerNotifications: true,
+      dailyContentNotifications: true,
+      imanScoreNotifications: true,
+      imanTrackerNotifications: true,
+      goalReminderNotifications: true,
+      achievementNotifications: true,
+      locationPermissionGranted: false,
+      notificationPermissionGranted,
+    };
+  } catch (error) {
+    console.log('Error getting notification settings:', error);
+    return {
+      prayerNotifications: true,
+      dailyContentNotifications: true,
+      imanScoreNotifications: true,
+      imanTrackerNotifications: true,
+      goalReminderNotifications: true,
+      achievementNotifications: true,
+      locationPermissionGranted: false,
+      notificationPermissionGranted: false,
+    };
+  }
+}
+
+// Update notification settings
+export async function updateNotificationSettings(
+  settings: Partial<NotificationSettings>,
+  userId?: string
+): Promise<void> {
+  try {
+    if (userId) {
+      // Convert to database format
+      const dbPreferences: any = {};
+      if (settings.prayerNotifications !== undefined) {
+        dbPreferences.prayer_notifications = settings.prayerNotifications;
+      }
+      if (settings.dailyContentNotifications !== undefined) {
+        dbPreferences.daily_content_notifications = settings.dailyContentNotifications;
+      }
+      if (settings.imanScoreNotifications !== undefined) {
+        dbPreferences.iman_score_notifications = settings.imanScoreNotifications;
+      }
+      if (settings.imanTrackerNotifications !== undefined) {
+        dbPreferences.iman_tracker_notifications = settings.imanTrackerNotifications;
+      }
+      if (settings.goalReminderNotifications !== undefined) {
+        dbPreferences.goal_reminder_notifications = settings.goalReminderNotifications;
+      }
+      if (settings.achievementNotifications !== undefined) {
+        dbPreferences.achievement_notifications = settings.achievementNotifications;
+      }
+
+      await updateNotificationPreferences(userId, dbPreferences);
+    }
+
+    // Save locally
+    await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
+  } catch (error) {
+    console.log('Error updating notification settings:', error);
+  }
+}
+
+// Initialize notifications
+export async function initializeNotifications(): Promise<void> {
+  try {
+    await registerForPushNotificationsAsync();
+  } catch (error) {
+    console.log('Error initializing notifications:', error);
+  }
+}
+
+// Request notification permissions
+export async function requestNotificationPermissions(): Promise<boolean> {
+  try {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    return finalStatus === 'granted';
+  } catch (error) {
+    console.log('Error requesting notification permissions:', error);
+    return false;
+  }
+}
+
+// Request location permissions (placeholder - not used for notifications)
+export async function requestLocationPermissions(): Promise<boolean> {
+  // Location permissions are handled separately for prayer times
+  return false;
+}
+
+// Send achievement notification
+export async function sendAchievementNotification(
+  title: string,
+  description: string
+): Promise<void> {
+  await sendAchievementUnlocked(title, description);
+}

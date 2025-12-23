@@ -20,66 +20,58 @@ interface UserStats {
   meditation_sessions: number;
 }
 
-// Calculate user stats from various sources
+// Calculate user stats from various sources (optimized with parallel queries)
 export async function calculateUserStats(userId: string): Promise<UserStats> {
   try {
-    // Get user stats from user_stats table
-    const { data: userStats } = await supabase
-      .from('user_stats')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    // Get streak data
-    const { data: streakData } = await supabase
-      .from('user_streaks')
-      .select('current_streak, total_days_active')
-      .eq('user_id', userId)
-      .single();
-
-    // Get iman tracker goals for additional stats
-    const { data: imanGoals } = await supabase
-      .from('iman_tracker_goals')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    // Count lectures watched
-    const { count: lecturesCount } = await supabase
-      .from('tracked_content')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId)
-      .eq('content_type', 'lecture')
-      .eq('completed', true);
-
-    // Count quizzes completed
-    const { count: quizzesCount } = await supabase
-      .from('user_quiz_attempts')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    // Count workouts
-    const { count: workoutsCount } = await supabase
-      .from('physical_activities')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
-
-    // Count meditation sessions
-    const { count: meditationCount } = await supabase
-      .from('meditation_sessions')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', userId);
+    // Execute all queries in parallel for better performance
+    const [
+      userStatsResult,
+      streakResult,
+      lecturesResult,
+      quizzesResult,
+      workoutsResult,
+      meditationResult
+    ] = await Promise.all([
+      supabase
+        .from('user_stats')
+        .select('*')
+        .eq('user_id', userId)
+        .single(),
+      supabase
+        .from('user_streaks')
+        .select('current_streak, total_days_active')
+        .eq('user_id', userId)
+        .single(),
+      supabase
+        .from('tracked_content')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('content_type', 'lecture')
+        .eq('completed', true),
+      supabase
+        .from('user_quiz_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      supabase
+        .from('physical_activities')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId),
+      supabase
+        .from('meditation_sessions')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+    ]);
 
     return {
-      total_prayers: userStats?.total_prayers || 0,
-      total_dhikr: userStats?.total_dhikr || 0,
-      total_quran_pages: userStats?.total_quran_pages || 0,
-      current_streak: streakData?.current_streak || 0,
-      days_active: streakData?.total_days_active || 0,
-      lectures_watched: lecturesCount || 0,
-      quizzes_completed: quizzesCount || 0,
-      workouts_completed: workoutsCount || 0,
-      meditation_sessions: meditationCount || 0,
+      total_prayers: userStatsResult.data?.total_prayers || 0,
+      total_dhikr: userStatsResult.data?.total_dhikr || 0,
+      total_quran_pages: userStatsResult.data?.total_quran_pages || 0,
+      current_streak: streakResult.data?.current_streak || 0,
+      days_active: streakResult.data?.total_days_active || 0,
+      lectures_watched: lecturesResult.count || 0,
+      quizzes_completed: quizzesResult.count || 0,
+      workouts_completed: workoutsResult.count || 0,
+      meditation_sessions: meditationResult.count || 0,
     };
   } catch (error) {
     console.log('Error calculating user stats:', error);
@@ -123,7 +115,7 @@ export async function updateAchievementProgress(
   }
 }
 
-// Check and unlock achievements
+// Check and unlock achievements (optimized)
 export async function checkAndUnlockAchievements(userId: string): Promise<string[]> {
   try {
     const unlockedAchievements: string[] = [];
@@ -131,24 +123,31 @@ export async function checkAndUnlockAchievements(userId: string): Promise<string
     // Get user stats
     const stats = await calculateUserStats(userId);
 
-    // Get all active achievements
-    const { data: achievements, error: achievementsError } = await supabase
-      .from('achievements')
-      .select('*')
-      .eq('is_active', true);
+    // Load all data in parallel
+    const [achievementsResult, userAchievementsResult] = await Promise.all([
+      supabase
+        .from('achievements')
+        .select('*')
+        .eq('is_active', true),
+      supabase
+        .from('user_achievements')
+        .select('achievement_id')
+        .eq('user_id', userId)
+    ]);
 
-    if (achievementsError || !achievements) {
-      console.log('Error loading achievements:', achievementsError);
+    if (achievementsResult.error || !achievementsResult.data) {
+      console.log('Error loading achievements:', achievementsResult.error);
       return [];
     }
 
-    // Get already unlocked achievements
-    const { data: userAchievements } = await supabase
-      .from('user_achievements')
-      .select('achievement_id')
-      .eq('user_id', userId);
+    const achievements = achievementsResult.data;
+    const unlockedIds = new Set(
+      (userAchievementsResult.data || []).map(ua => ua.achievement_id)
+    );
 
-    const unlockedIds = new Set(userAchievements?.map(ua => ua.achievement_id) || []);
+    // Batch progress updates
+    const progressUpdates: any[] = [];
+    const achievementsToUnlock: any[] = [];
 
     // Check each achievement
     for (const achievement of achievements) {
@@ -191,66 +190,65 @@ export async function checkAndUnlockAchievements(userId: string): Promise<string
           currentValue = 0;
       }
 
-      // Update progress
-      await updateAchievementProgress(userId, achievement.id, currentValue);
+      // Add to batch progress update
+      progressUpdates.push({
+        user_id: userId,
+        achievement_id: achievement.id,
+        current_value: currentValue,
+        last_updated: new Date().toISOString(),
+      });
 
       // Check if achievement should be unlocked
       if (currentValue >= achievement.requirement_value) {
-        // Unlock achievement
-        const { error: unlockError } = await supabase
-          .from('user_achievements')
-          .insert({
-            user_id: userId,
-            achievement_id: achievement.id,
-            unlocked_at: new Date().toISOString(),
-          });
+        achievementsToUnlock.push({
+          user_id: userId,
+          achievement_id: achievement.id,
+          unlocked_at: new Date().toISOString(),
+        });
+        unlockedAchievements.push(achievement.id);
+      }
+    }
 
-        if (!unlockError) {
-          unlockedAchievements.push(achievement.id);
-          
-          // Send notification
-          await sendAchievementUnlocked(
-            achievement.title,
-            achievement.unlock_message || achievement.description
-          );
+    // Batch update progress (upsert all at once)
+    if (progressUpdates.length > 0) {
+      const { error: progressError } = await supabase
+        .from('achievement_progress')
+        .upsert(progressUpdates, {
+          onConflict: 'user_id,achievement_id'
+        });
 
-          // Store locally for celebration
-          const celebrationKey = `achievement_celebration_${achievement.id}`;
-          await AsyncStorage.setItem(celebrationKey, JSON.stringify({
-            achievement,
-            unlockedAt: new Date().toISOString(),
-          }));
-        }
-      } else {
-        // Check for milestone celebrations (25%, 50%, 75%)
-        const progress = (currentValue / achievement.requirement_value) * 100;
-        const milestones = [25, 50, 75];
-        
-        for (const milestone of milestones) {
-          if (progress >= milestone) {
-            // Check if milestone already celebrated
-            const { data: existingMilestone } = await supabase
-              .from('achievement_milestones')
-              .select('*')
-              .eq('user_id', userId)
-              .eq('achievement_id', achievement.id)
-              .eq('milestone_percentage', milestone)
-              .single();
+      if (progressError) {
+        console.log('Error batch updating progress:', progressError);
+      }
+    }
 
-            if (!existingMilestone) {
-              // Record milestone
-              await supabase
-                .from('achievement_milestones')
-                .insert({
-                  user_id: userId,
-                  achievement_id: achievement.id,
-                  milestone_percentage: milestone,
-                  reached_at: new Date().toISOString(),
-                  celebrated: false,
-                });
-            }
+    // Batch unlock achievements
+    if (achievementsToUnlock.length > 0) {
+      const { error: unlockError } = await supabase
+        .from('user_achievements')
+        .insert(achievementsToUnlock);
+
+      if (!unlockError) {
+        // Send notifications for newly unlocked achievements
+        for (const unlock of achievementsToUnlock) {
+          const achievement = achievements.find(a => a.id === unlock.achievement_id);
+          if (achievement) {
+            // Send notification (don't await to avoid blocking)
+            sendAchievementUnlocked(
+              achievement.title,
+              achievement.unlock_message || achievement.description
+            ).catch(err => console.log('Error sending notification:', err));
+
+            // Store locally for celebration
+            const celebrationKey = `achievement_celebration_${achievement.id}`;
+            AsyncStorage.setItem(celebrationKey, JSON.stringify({
+              achievement,
+              unlockedAt: unlock.unlocked_at,
+            })).catch(err => console.log('Error storing celebration:', err));
           }
         }
+      } else {
+        console.log('Error batch unlocking achievements:', unlockError);
       }
     }
 

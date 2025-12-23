@@ -9,8 +9,8 @@ import * as Haptics from 'expo-haptics';
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { router } from "expo-router";
 
-const HEADER_MAX_HEIGHT = 280;
-const HEADER_MIN_HEIGHT = 80;
+const HEADER_MAX_HEIGHT = 200;
+const HEADER_MIN_HEIGHT = 70;
 const HEADER_SCROLL_DISTANCE = HEADER_MAX_HEIGHT - HEADER_MIN_HEIGHT;
 
 type WellnessTab = 'mental' | 'physical';
@@ -95,7 +95,7 @@ export default function WellnessScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Collapsing Header */}
+      {/* Collapsing Header - REDUCED HEIGHT */}
       <Animated.View style={[styles.header, { height: headerHeight }]}>
         <LinearGradient
           colors={colors.gradientOcean}
@@ -108,55 +108,37 @@ export default function WellnessScreen() {
             <IconSymbol
               ios_icon_name="heart.circle.fill"
               android_material_icon_name="favorite"
-              size={28}
+              size={24}
               color={colors.card}
             />
             <Text style={styles.collapsedTitle}>Wellness Hub</Text>
           </Animated.View>
 
-          {/* Expanded Header Content (visible when not scrolled) */}
+          {/* Expanded Header Content (visible when not scrolled) - SIMPLIFIED */}
           <Animated.View style={[styles.expandedHeader, { opacity: headerOpacity }]}>
-            <Animated.View style={{ transform: [{ scale: iconScale }] }}>
-              <IconSymbol
-                ios_icon_name="heart.circle.fill"
-                android_material_icon_name="favorite"
-                size={40}
-                color={colors.card}
-              />
-            </Animated.View>
-            <View style={styles.headerTextContainer}>
-              <Text style={styles.headerTitle}>Wellness Hub</Text>
-              <Text style={styles.headerSubtitle}>Nurture mind, body, and soul</Text>
+            <View style={styles.headerRow}>
+              <Animated.View style={{ transform: [{ scale: iconScale }] }}>
+                <IconSymbol
+                  ios_icon_name="heart.circle.fill"
+                  android_material_icon_name="favorite"
+                  size={32}
+                  color={colors.card}
+                />
+              </Animated.View>
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerTitle}>Wellness Hub</Text>
+                <Text style={styles.headerSubtitle}>Nurture mind, body & soul</Text>
+              </View>
             </View>
 
-            {/* Amanah Ring Reflection */}
-            <View style={styles.amanahReflection}>
-              <View style={styles.amanahRingContainer}>
-                <View style={styles.amanahRingBackground}>
-                  <View 
-                    style={[
-                      styles.amanahRingFill,
-                      { 
-                        transform: [{ 
-                          rotate: `${(amanahScore / 100) * 360}deg` 
-                        }] 
-                      }
-                    ]} 
-                  />
-                </View>
-                <View style={styles.amanahRingCenter}>
-                  <Text style={styles.amanahScore}>{Math.round(amanahScore)}</Text>
-                  <Text style={styles.amanahLabel}>Amanah</Text>
-                </View>
+            {/* Compact Amanah Score */}
+            <View style={styles.amanahCompact}>
+              <View style={styles.amanahScoreCircle}>
+                <Text style={styles.amanahScoreText}>{Math.round(amanahScore)}</Text>
               </View>
-              <View style={styles.amanahStats}>
-                <Text style={styles.amanahStatsTitle}>Well-Being Score</Text>
-                <Text style={styles.amanahStatsText}>
-                  {amanahCompletion}% of goals completed
-                </Text>
-                <Text style={styles.amanahStatsSubtext}>
-                  Linked to your Iman Tracker
-                </Text>
+              <View style={styles.amanahInfo}>
+                <Text style={styles.amanahInfoTitle}>Well-Being Score</Text>
+                <Text style={styles.amanahInfoText}>{amanahCompletion}% goals completed</Text>
               </View>
             </View>
           </Animated.View>
@@ -181,20 +163,20 @@ export default function WellnessScreen() {
                 <IconSymbol
                   ios_icon_name="brain.head.profile"
                   android_material_icon_name="psychology"
-                  size={20}
+                  size={18}
                   color={colors.card}
                 />
-                <Text style={styles.tabTextActive}>Mental Wellness</Text>
+                <Text style={styles.tabTextActive}>Mental</Text>
               </LinearGradient>
             ) : (
               <View style={styles.tabContent}>
                 <IconSymbol
                   ios_icon_name="brain.head.profile"
                   android_material_icon_name="psychology"
-                  size={20}
+                  size={18}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.tabText}>Mental Wellness</Text>
+                <Text style={styles.tabText}>Mental</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -214,20 +196,20 @@ export default function WellnessScreen() {
                 <IconSymbol
                   ios_icon_name="figure.run"
                   android_material_icon_name="directions-run"
-                  size={20}
+                  size={18}
                   color={colors.card}
                 />
-                <Text style={styles.tabTextActive}>Physical Wellness</Text>
+                <Text style={styles.tabTextActive}>Physical</Text>
               </LinearGradient>
             ) : (
               <View style={styles.tabContent}>
                 <IconSymbol
                   ios_icon_name="figure.run"
                   android_material_icon_name="directions-run"
-                  size={20}
+                  size={18}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.tabText}>Physical Wellness</Text>
+                <Text style={styles.tabText}>Physical</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -268,11 +250,11 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="book.fill"
                     android_material_icon_name="menu-book"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Journal</Text>
-                  <Text style={styles.cardSubtitle}>Express your thoughts</Text>
+                  <Text style={styles.cardSubtitle}>Express thoughts</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -293,11 +275,11 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="leaf.fill"
                     android_material_icon_name="spa"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Meditation</Text>
-                  <Text style={styles.cardSubtitle}>Find inner peace</Text>
+                  <Text style={styles.cardSubtitle}>Find peace</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -318,7 +300,7 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="hands.sparkles.fill"
                     android_material_icon_name="self-improvement"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Healing Duas</Text>
@@ -343,11 +325,11 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="heart.fill"
                     android_material_icon_name="favorite"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Support</Text>
-                  <Text style={styles.cardSubtitle}>Get help & guidance</Text>
+                  <Text style={styles.cardSubtitle}>Get guidance</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -368,7 +350,7 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="book.pages.fill"
                     android_material_icon_name="auto-stories"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Prophet Stories</Text>
@@ -397,11 +379,11 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="figure.mixed.cardio"
                     android_material_icon_name="fitness-center"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
-                  <Text style={styles.cardTitle}>Activity Tracker</Text>
-                  <Text style={styles.cardSubtitle}>Log your workouts</Text>
+                  <Text style={styles.cardTitle}>Activity</Text>
+                  <Text style={styles.cardSubtitle}>Log workouts</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -422,11 +404,11 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="moon.stars.fill"
                     android_material_icon_name="bedtime"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
-                  <Text style={styles.cardTitle}>Sleep Tracker</Text>
-                  <Text style={styles.cardSubtitle}>Monitor your rest</Text>
+                  <Text style={styles.cardTitle}>Sleep</Text>
+                  <Text style={styles.cardSubtitle}>Monitor rest</Text>
                 </LinearGradient>
               </TouchableOpacity>
 
@@ -447,7 +429,7 @@ export default function WellnessScreen() {
                   <IconSymbol
                     ios_icon_name="target"
                     android_material_icon_name="track-changes"
-                    size={36}
+                    size={32}
                     color={colors.card}
                   />
                   <Text style={styles.cardTitle}>Goals</Text>
@@ -477,18 +459,18 @@ export default function WellnessScreen() {
               <IconSymbol
                 ios_icon_name="exclamationmark.triangle.fill"
                 android_material_icon_name="warning"
-                size={32}
+                size={28}
                 color={colors.card}
               />
               <View style={styles.crisisText}>
-                <Text style={styles.crisisTitle}>Need Immediate Help?</Text>
-                <Text style={styles.crisisSubtitle}>Crisis support resources available 24/7</Text>
+                <Text style={styles.crisisTitle}>Need Help?</Text>
+                <Text style={styles.crisisSubtitle}>24/7 crisis support</Text>
               </View>
             </View>
             <IconSymbol
               ios_icon_name="arrow.right.circle.fill"
               android_material_icon_name="arrow-forward"
-              size={28}
+              size={24}
               color={colors.card}
             />
           </LinearGradient>
@@ -505,7 +487,7 @@ export default function WellnessScreen() {
             <IconSymbol
               ios_icon_name="quote.opening"
               android_material_icon_name="format-quote"
-              size={32}
+              size={28}
               color={colors.card}
             />
             <Text style={styles.quoteText}>
@@ -520,7 +502,7 @@ export default function WellnessScreen() {
           <IconSymbol
             ios_icon_name="info.circle.fill"
             android_material_icon_name="info"
-            size={20}
+            size={18}
             color={colors.primary}
           />
           <Text style={styles.disclaimerText}>
@@ -546,15 +528,15 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 10,
     overflow: 'hidden',
-    marginHorizontal: spacing.xl,
-    marginTop: spacing.lg,
-    borderRadius: borderRadius.xl,
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
+    borderRadius: borderRadius.lg,
     ...shadows.large,
   },
   headerGradient: {
     flex: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
     paddingBottom: spacing.md,
   },
   collapsedHeader: {
@@ -565,113 +547,85 @@ const styles = StyleSheet.create({
     height: HEADER_MIN_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.xl,
-    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.sm,
   },
   collapsedTitle: {
-    ...typography.h3,
+    ...typography.h4,
     color: colors.card,
   },
   expandedHeader: {
     flex: 1,
+    justifyContent: 'space-between',
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginBottom: spacing.md,
   },
   headerTextContainer: {
-    alignItems: 'center',
-    marginTop: spacing.md,
-    marginBottom: spacing.lg,
+    flex: 1,
   },
   headerTitle: {
-    ...typography.h2,
+    ...typography.h3,
     color: colors.card,
     marginBottom: spacing.xs,
   },
   headerSubtitle: {
-    ...typography.body,
+    ...typography.caption,
     color: colors.card,
     opacity: 0.95,
   },
-  amanahReflection: {
+  amanahCompact: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
-    gap: spacing.lg,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    gap: spacing.md,
   },
-  amanahRingContainer: {
-    width: 80,
-    height: 80,
-    position: 'relative',
-  },
-  amanahRingBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    overflow: 'hidden',
-  },
-  amanahRingFill: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 8,
-    borderColor: colors.card,
-    borderStyle: 'solid',
-    position: 'absolute',
-  },
-  amanahRingCenter: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
+  amanahScoreCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  amanahScore: {
-    ...typography.h3,
-    color: colors.card,
+  amanahScoreText: {
+    ...typography.h4,
+    color: colors.primary,
     fontWeight: '800',
   },
-  amanahLabel: {
-    ...typography.small,
-    color: colors.card,
-    opacity: 0.9,
-  },
-  amanahStats: {
+  amanahInfo: {
     flex: 1,
   },
-  amanahStatsTitle: {
-    ...typography.h4,
+  amanahInfoTitle: {
+    ...typography.bodyBold,
     color: colors.card,
-    marginBottom: spacing.xs,
+    marginBottom: 2,
   },
-  amanahStatsText: {
-    ...typography.body,
-    color: colors.card,
-    opacity: 0.95,
-    marginBottom: spacing.xs,
-  },
-  amanahStatsSubtext: {
+  amanahInfoText: {
     ...typography.caption,
     color: colors.card,
-    opacity: 0.8,
+    opacity: 0.9,
   },
   tabSwitcherContainer: {
     position: 'absolute',
     left: 0,
     right: 0,
     zIndex: 9,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   tabSwitcher: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   tab: {
     flex: 1,
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.border,
@@ -683,36 +637,38 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
   },
   tabContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
+    gap: spacing.xs,
+    paddingVertical: spacing.sm,
     backgroundColor: colors.card,
   },
   tabText: {
     ...typography.bodyBold,
+    fontSize: 14,
     color: colors.textSecondary,
   },
   tabTextActive: {
     ...typography.bodyBold,
+    fontSize: 14,
     color: colors.card,
   },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
-    paddingHorizontal: spacing.xl,
+    paddingHorizontal: spacing.lg,
   },
   contentTopPadding: {
-    height: HEADER_MAX_HEIGHT + 80,
+    height: HEADER_MAX_HEIGHT + 60,
   },
   section: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
   },
   cardsGrid: {
     flexDirection: 'row',
@@ -721,32 +677,33 @@ const styles = StyleSheet.create({
   },
   card: {
     width: '48%',
-    borderRadius: borderRadius.lg,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
     ...shadows.medium,
   },
   cardGradient: {
     padding: spacing.lg,
-    minHeight: 140,
+    minHeight: 120,
     justifyContent: 'center',
     alignItems: 'center',
   },
   cardTitle: {
-    ...typography.h4,
+    ...typography.bodyBold,
+    fontSize: 16,
     color: colors.card,
-    marginTop: spacing.md,
+    marginTop: spacing.sm,
     marginBottom: spacing.xs,
     textAlign: 'center',
   },
   cardSubtitle: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.card,
     opacity: 0.9,
     textAlign: 'center',
   },
   crisisCard: {
-    marginBottom: spacing.xxl,
-    borderRadius: borderRadius.lg,
+    marginBottom: spacing.xl,
+    borderRadius: borderRadius.md,
     overflow: 'hidden',
     ...shadows.large,
   },
@@ -766,7 +723,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   crisisTitle: {
-    ...typography.h4,
+    ...typography.bodyBold,
     color: colors.card,
     marginBottom: spacing.xs,
   },
@@ -776,21 +733,21 @@ const styles = StyleSheet.create({
     opacity: 0.9,
   },
   quoteSection: {
-    marginBottom: spacing.xxl,
-    borderRadius: borderRadius.xl,
+    marginBottom: spacing.xl,
+    borderRadius: borderRadius.lg,
     overflow: 'hidden',
     ...shadows.medium,
   },
   quoteGradient: {
-    padding: spacing.xxl,
+    padding: spacing.xl,
     alignItems: 'center',
   },
   quoteText: {
-    ...typography.h3,
+    ...typography.h4,
     color: colors.card,
     textAlign: 'center',
-    marginTop: spacing.lg,
-    marginBottom: spacing.md,
+    marginTop: spacing.md,
+    marginBottom: spacing.sm,
     fontStyle: 'italic',
   },
   quoteSource: {
@@ -800,21 +757,432 @@ const styles = StyleSheet.create({
   },
   disclaimerCard: {
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: spacing.lg,
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     ...shadows.small,
   },
   disclaimerText: {
-    ...typography.caption,
+    ...typography.small,
     color: colors.textSecondary,
     flex: 1,
-    lineHeight: 20,
+    lineHeight: 18,
   },
   bottomPadding: {
-    height: 120,
+    height: 100,
+  },
+});
+</write file>
+
+<write file="components/FloatingTabBar.tsx">
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Platform,
+} from 'react-native';
+import { useRouter, usePathname } from 'expo-router';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { IconSymbol } from '@/components/IconSymbol';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  interpolate,
+} from 'react-native-reanimated';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { Href } from 'expo-router';
+import { colors } from '@/styles/commonStyles';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
+
+export interface TabBarItem {
+  name: string;
+  route: Href;
+  icon: keyof typeof MaterialIcons.glyphMap;
+  iosIcon?: string;
+  label: string;
+}
+
+interface FloatingTabBarProps {
+  tabs: TabBarItem[];
+}
+
+export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  
+  // Initialize animation value at the top level
+  const animatedValue = useSharedValue(0);
+  
+  // Create scale values for each tab - moved outside useMemo
+  const scaleValue0 = useSharedValue(1);
+  const scaleValue1 = useSharedValue(1);
+  const scaleValue2 = useSharedValue(1);
+  const scaleValue3 = useSharedValue(1);
+  const scaleValue4 = useSharedValue(1);
+  
+  // Store scale values in an array using useMemo (without calling hooks inside)
+  const scaleValues = React.useMemo(() => {
+    return [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4].slice(0, tabs.length);
+  }, [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4, tabs]);
+
+  // Find the center tab index (should be Iman)
+  const centerTabIndex = Math.floor(tabs.length / 2);
+
+  // Improved active tab detection with better path matching
+  const activeTabIndex = React.useMemo(() => {
+    console.log('Current pathname:', pathname);
+    
+    // Find the best matching tab based on the current pathname
+    let bestMatch = -1;
+    let bestMatchScore = 0;
+
+    tabs.forEach((tab, index) => {
+      let score = 0;
+      const tabRoute = tab.route as string;
+
+      // Exact route match gets highest score
+      if (pathname === tabRoute) {
+        score = 100;
+      }
+      // Check if pathname starts with tab route (for nested routes)
+      else if (pathname.startsWith(tabRoute)) {
+        score = 80;
+      }
+      // Check if pathname contains the tab name
+      else if (pathname.includes(tab.name)) {
+        score = 60;
+      }
+      // Check for partial matches in the route
+      else if (tabRoute.includes('/(tabs)/') && pathname.includes(tabRoute.split('/(tabs)/')[1])) {
+        score = 40;
+      }
+
+      console.log(`Tab ${tab.name} (${tabRoute}) score: ${score}`);
+
+      if (score > bestMatchScore) {
+        bestMatchScore = score;
+        bestMatch = index;
+      }
+    });
+
+    console.log('Active tab index:', bestMatch);
+    // Default to first tab if no match found
+    return bestMatch >= 0 ? bestMatch : 0;
+  }, [pathname, tabs]);
+
+  React.useEffect(() => {
+    if (activeTabIndex >= 0) {
+      animatedValue.value = withSpring(activeTabIndex, {
+        damping: 20,
+        stiffness: 120,
+        mass: 1,
+      });
+
+      // Animate scale for active tab
+      scaleValues.forEach((scale, index) => {
+        if (index === activeTabIndex) {
+          scale.value = withSpring(1.1, {
+            damping: 15,
+            stiffness: 150,
+          });
+        } else {
+          scale.value = withSpring(1, {
+            damping: 15,
+            stiffness: 150,
+          });
+        }
+      });
+    }
+  }, [activeTabIndex, animatedValue, scaleValues]);
+
+  const handleTabPress = (route: Href, index: number) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    router.push(route);
+  };
+
+  const tabWidth = 100 / tabs.length;
+
+  const indicatorStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        {
+          translateX: interpolate(
+            animatedValue.value,
+            [0, tabs.length - 1],
+            [0, tabWidth * (tabs.length - 1)]
+          ),
+        },
+      ],
+      width: `${tabWidth}%`,
+    };
+  });
+
+  return (
+    <View style={styles.wrapper}>
+      <BlurView intensity={80} tint="light" style={styles.blurContainer}>
+        <View style={styles.container}>
+          <View style={styles.tabsContainer}>
+            {tabs.map((tab, index) => {
+              const isActive = activeTabIndex === index;
+              const isCenterTab = index === centerTabIndex;
+
+              // Center tab (Iman) gets special treatment - SMALLER and FITS IN TAB BAR
+              if (isCenterTab) {
+                return (
+                  <React.Fragment key={index}>
+                    <TouchableOpacity
+                      style={styles.centerTabWrapper}
+                      onPress={() => handleTabPress(tab.route, index)}
+                      activeOpacity={0.8}
+                    >
+                      <AnimatedCenterTab
+                        scaleValue={scaleValues[index]}
+                        isActive={isActive}
+                        tab={tab}
+                      />
+                      <Text
+                        style={[
+                          styles.centerTabLabel,
+                          isActive && styles.centerTabLabelActive,
+                        ]}
+                        numberOfLines={1}
+                      >
+                        {tab.label}
+                      </Text>
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              }
+
+              // Regular tabs
+              return (
+                <React.Fragment key={index}>
+                  <TouchableOpacity
+                    style={styles.tab}
+                    onPress={() => handleTabPress(tab.route, index)}
+                    activeOpacity={0.7}
+                  >
+                    <AnimatedRegularTab
+                      scaleValue={scaleValues[index]}
+                      isActive={isActive}
+                      tab={tab}
+                    />
+                  </TouchableOpacity>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        </View>
+      </BlurView>
+    </View>
+  );
+}
+
+// Separate component for animated center tab to avoid hooks in callbacks
+function AnimatedCenterTab({ 
+  scaleValue, 
+  isActive, 
+  tab 
+}: { 
+  scaleValue: Animated.SharedValue<number>; 
+  isActive: boolean; 
+  tab: TabBarItem;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.centerTab, animatedStyle]}>
+      <LinearGradient
+        colors={isActive ? colors.gradientOcean : colors.gradientPrimary}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.centerTabGradient}
+      >
+        <View style={styles.centerIconContainer}>
+          <IconSymbol
+            android_material_icon_name={tab.icon}
+            ios_icon_name={tab.iosIcon || tab.icon}
+            size={28}
+            color="#FFFFFF"
+          />
+        </View>
+      </LinearGradient>
+    </Animated.View>
+  );
+}
+
+// Separate component for animated regular tab to avoid hooks in callbacks
+function AnimatedRegularTab({ 
+  scaleValue, 
+  isActive, 
+  tab 
+}: { 
+  scaleValue: Animated.SharedValue<number>; 
+  isActive: boolean; 
+  tab: TabBarItem;
+}) {
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scaleValue.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.tabContent, animatedStyle]}>
+      <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
+        <IconSymbol
+          android_material_icon_name={tab.icon}
+          ios_icon_name={tab.iosIcon || tab.icon}
+          size={24}
+          color={isActive ? colors.primary : colors.textSecondary}
+        />
+      </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          isActive && styles.tabLabelActive,
+        ]}
+        numberOfLines={1}
+      >
+        {tab.label}
+      </Text>
+    </Animated.View>
+  );
+}
+
+const styles = StyleSheet.create({
+  wrapper: {
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.15,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 12,
+      },
+      web: {
+        boxShadow: '0px -4px 12px rgba(139, 92, 246, 0.15)',
+      },
+    }),
+    marginBottom: 8,
+  },
+  blurContainer: {
+    overflow: 'hidden',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  container: {
+    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    width: '100%',
+    position: 'relative',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    height: 72,
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    paddingHorizontal: 8,
+    paddingTop: 8,
+    paddingBottom: 8,
+  },
+  tab: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+  },
+  tabContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  iconContainer: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 18,
+    backgroundColor: 'transparent',
+  },
+  iconContainerActive: {
+    backgroundColor: colors.highlight,
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '500',
+    marginTop: 2,
+    textAlign: 'center',
+    color: colors.textSecondary,
+  },
+  tabLabelActive: {
+    color: colors.primary,
+    fontWeight: '700',
+  },
+  // Center tab (Iman) special styles - SMALLER SIZE TO FIT IN TAB BAR
+  centerTabWrapper: {
+    flex: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 4,
+  },
+  centerTab: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    marginBottom: 4,
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 8,
+      },
+      web: {
+        boxShadow: '0px 4px 8px rgba(139, 92, 246, 0.3)',
+      },
+    }),
+  },
+  centerTabGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+  },
+  centerIconContainer: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerTabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: colors.textSecondary,
+  },
+  centerTabLabelActive: {
+    color: colors.primary,
+    fontWeight: '800',
   },
 });

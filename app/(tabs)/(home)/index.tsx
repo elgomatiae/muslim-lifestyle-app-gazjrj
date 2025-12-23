@@ -165,8 +165,8 @@ export default function HomeScreen() {
   });
 
   const renderProgressCircle = () => {
-    const size = 140;
-    const strokeWidth = 12;
+    const size = 120;
+    const strokeWidth = 10;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
     const strokeDashoffset = circumference * (1 - completedCount / prayers.length);
@@ -205,26 +205,26 @@ export default function HomeScreen() {
   };
 
   const renderImanRings = () => {
-    const centerX = 120;
-    const centerY = 120;
+    const centerX = 100;
+    const centerY = 100;
     
     // Prayer ring (outer) - Green
-    const prayerRadius = 100;
-    const prayerStroke = 14;
+    const prayerRadius = 85;
+    const prayerStroke = 12;
     const prayerProgressValue = sectionScores.prayer / 100;
     const prayerCircumference = 2 * Math.PI * prayerRadius;
     const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
     
     // Quran ring (middle) - Amber
-    const quranRadius = 72;
-    const quranStroke = 12;
+    const quranRadius = 62;
+    const quranStroke = 10;
     const quranProgressValue = sectionScores.quran / 100;
     const quranCircumference = 2 * Math.PI * quranRadius;
     const quranOffset = quranCircumference * (1 - quranProgressValue);
     
     // Dhikr ring (inner) - Blue
-    const dhikrRadius = 44;
-    const dhikrStroke = 10;
+    const dhikrRadius = 39;
+    const dhikrStroke = 8;
     const dhikrProgressValue = sectionScores.dhikr / 100;
     const dhikrCircumference = 2 * Math.PI * dhikrRadius;
     const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
@@ -232,7 +232,7 @@ export default function HomeScreen() {
     return (
       <View style={styles.imanRingsContainer}>
         <View style={styles.ringsWrapper}>
-          <Svg width={240} height={240}>
+          <Svg width={200} height={200}>
             {/* Prayer Ring (Outer) */}
             <Circle
               cx={centerX}
@@ -345,33 +345,37 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Header with Gradient */}
+        {/* Header with Gradient - IMPROVED DESIGN */}
         <LinearGradient
           colors={colors.gradientPrimary}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
-          <View style={styles.headerIconContainer}>
-            <IconSymbol
-              ios_icon_name="moon.fill"
-              android_material_icon_name="nightlight"
-              size={32}
-              color={colors.card}
-            />
+          <View style={styles.headerContent}>
+            <View style={styles.headerIconContainer}>
+              <IconSymbol
+                ios_icon_name="moon.stars.fill"
+                android_material_icon_name="nightlight"
+                size={28}
+                color={colors.card}
+              />
+            </View>
+            <View style={styles.headerTextSection}>
+              <Text style={styles.greeting}>As-Salamu Alaykum</Text>
+              <Text style={styles.date}>{currentDate}</Text>
+            </View>
           </View>
-          <Text style={styles.greeting}>As-Salamu Alaykum</Text>
-          <Text style={styles.date}>{currentDate}</Text>
         </LinearGradient>
 
-        {/* Daily Quran Verse Section - MOVED ABOVE IMAN SCORE */}
+        {/* Daily Quran Verse Section - ENHANCED DESIGN */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
               <IconSymbol
                 ios_icon_name="book.closed.fill"
                 android_material_icon_name="book"
-                size={20}
+                size={18}
                 color={colors.primary}
               />
             </View>
@@ -400,14 +404,14 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Iman Score Rings */}
+        {/* Iman Score Rings - IMPROVED LAYOUT */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
               <IconSymbol
                 ios_icon_name="chart.pie.fill"
                 android_material_icon_name="pie-chart"
-                size={20}
+                size={18}
                 color={colors.primary}
               />
             </View>
@@ -418,14 +422,14 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        {/* Prayer Tracker Section with Progress Circle */}
+        {/* Prayer Tracker Section - IMPROVED DESIGN */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
               <IconSymbol
                 ios_icon_name="clock.fill"
                 android_material_icon_name="schedule"
-                size={20}
+                size={18}
                 color={colors.primary}
               />
             </View>
@@ -447,7 +451,7 @@ export default function HomeScreen() {
             </Text>
           </LinearGradient>
 
-          {/* Prayer List */}
+          {/* Prayer List - IMPROVED SPACING */}
           <View style={styles.prayerList}>
             {prayers.map((prayer, index) => (
               <React.Fragment key={index}>
@@ -467,7 +471,7 @@ export default function HomeScreen() {
                       <IconSymbol
                         ios_icon_name="moon.fill"
                         android_material_icon_name="brightness-3"
-                        size={16}
+                        size={14}
                         color={prayer.completed ? colors.card : colors.primary}
                       />
                     </View>
@@ -500,7 +504,7 @@ export default function HomeScreen() {
                       <IconSymbol
                         ios_icon_name="checkmark"
                         android_material_icon_name="check"
-                        size={16}
+                        size={14}
                         color={colors.card}
                       />
                     )}
@@ -511,14 +515,14 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        {/* Daily Hadith Section */}
+        {/* Daily Hadith Section - IMPROVED DESIGN */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
               <IconSymbol
                 ios_icon_name="book.fill"
                 android_material_icon_name="menu-book"
-                size={20}
+                size={18}
                 color={colors.accent}
               />
             </View>
@@ -534,7 +538,7 @@ export default function HomeScreen() {
                 <IconSymbol
                   ios_icon_name="quote.opening"
                   android_material_icon_name="format-quote"
-                  size={28}
+                  size={24}
                   color={colors.accent}
                 />
               </View>
@@ -575,19 +579,25 @@ const styles = StyleSheet.create({
   },
   headerGradient: {
     borderRadius: borderRadius.lg,
-    padding: spacing.xxl,
-    alignItems: 'center',
-    marginBottom: spacing.xxl,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
     ...shadows.colored,
   },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
   headerIconContainer: {
-    width: 56,
-    height: 56,
+    width: 48,
+    height: 48,
     borderRadius: borderRadius.round,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+  },
+  headerTextSection: {
+    flex: 1,
   },
   greeting: {
     ...typography.h3,
@@ -600,7 +610,7 @@ const styles = StyleSheet.create({
     opacity: 0.95,
   },
   section: {
-    marginBottom: spacing.xxl,
+    marginBottom: spacing.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -609,21 +619,22 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   sectionIconContainer: {
-    width: 32,
-    height: 32,
+    width: 28,
+    height: 28,
     borderRadius: borderRadius.sm,
     backgroundColor: colors.highlight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   sectionTitle: {
-    ...typography.h4,
+    ...typography.bodyBold,
+    fontSize: 18,
     color: colors.text,
   },
   imanScoreCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
     ...shadows.medium,
     borderWidth: 1,
     borderColor: colors.border,
@@ -635,9 +646,9 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    width: 240,
-    height: 240,
-    marginBottom: spacing.lg,
+    width: 200,
+    height: 200,
+    marginBottom: spacing.md,
   },
   ringsCenterContent: {
     position: 'absolute',
@@ -651,13 +662,13 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xs,
   },
   ringsCenterPercentage: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: 'bold',
     color: colors.primary,
   },
   ringsLabels: {
     width: '100%',
-    gap: spacing.sm,
+    gap: spacing.xs,
   },
   ringLabelItem: {
     flexDirection: 'row',
@@ -666,9 +677,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   ringLabelDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   ringLabelText: {
     ...typography.caption,
@@ -681,7 +692,7 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     borderRadius: borderRadius.lg,
-    padding: spacing.xl,
+    padding: spacing.lg,
     marginBottom: spacing.md,
     alignItems: 'center',
     ...shadows.colored,
@@ -690,7 +701,7 @@ const styles = StyleSheet.create({
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
   },
   progressContent: {
     position: 'absolute',
@@ -698,7 +709,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   progressNumber: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     color: colors.card,
   },
@@ -739,8 +750,8 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   prayerIconContainer: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: borderRadius.round,
     backgroundColor: colors.highlight,
     alignItems: 'center',
@@ -779,8 +790,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   checkbox: {
-    width: 28,
-    height: 28,
+    width: 24,
+    height: 24,
     borderRadius: borderRadius.sm,
     borderWidth: 2,
     borderColor: colors.textSecondary,
@@ -794,7 +805,7 @@ const styles = StyleSheet.create({
   contentCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
-    padding: spacing.xl,
+    padding: spacing.lg,
     ...shadows.medium,
     borderWidth: 1,
     borderColor: colors.border,
@@ -802,7 +813,7 @@ const styles = StyleSheet.create({
   loadingCard: {
     backgroundColor: colors.card,
     borderRadius: borderRadius.md,
-    padding: spacing.xl,
+    padding: spacing.lg,
     ...shadows.medium,
     borderWidth: 1,
     borderColor: colors.border,
@@ -814,20 +825,20 @@ const styles = StyleSheet.create({
   },
   quoteIconContainer: {
     alignSelf: 'flex-start',
-    marginBottom: spacing.md,
+    marginBottom: spacing.sm,
     opacity: 0.3,
   },
   hadithArabic: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'right',
     marginBottom: spacing.md,
-    lineHeight: 30,
+    lineHeight: 26,
   },
   contentText: {
     ...typography.body,
-    lineHeight: 24,
+    lineHeight: 22,
     color: colors.text,
     fontStyle: 'italic',
     marginBottom: spacing.md,
@@ -835,10 +846,10 @@ const styles = StyleSheet.create({
   sourceContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   sourceDivider: {
-    width: 36,
+    width: 32,
     height: 3,
     backgroundColor: colors.accent,
     borderRadius: borderRadius.sm,
@@ -849,16 +860,16 @@ const styles = StyleSheet.create({
   },
   verseCard: {
     borderRadius: borderRadius.md,
-    padding: spacing.xl,
+    padding: spacing.lg,
     ...shadows.colored,
   },
   verseArabic: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: colors.card,
     textAlign: 'center',
     marginBottom: spacing.md,
-    lineHeight: 36,
+    lineHeight: 32,
   },
   verseDivider: {
     height: 1,
@@ -867,7 +878,7 @@ const styles = StyleSheet.create({
   },
   verseText: {
     ...typography.body,
-    lineHeight: 24,
+    lineHeight: 22,
     color: colors.card,
     fontStyle: 'italic',
     textAlign: 'center',

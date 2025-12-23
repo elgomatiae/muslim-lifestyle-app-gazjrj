@@ -423,6 +423,38 @@ export default function IbadahSection() {
                     ]} 
                   />
                 </View>
+
+                {/* OPEN DHIKR WINDOW BUTTON */}
+                <TouchableOpacity
+                  style={styles.dhikrWindowButton}
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    router.push('/(tabs)/(iman)/dhikr-window' as any);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={styles.dhikrWindowGradient}
+                  >
+                    <IconSymbol
+                      ios_icon_name="hand.raised.fingers.spread.fill"
+                      android_material_icon_name="back-hand"
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.dhikrWindowText}>Open Tasbih Counter</Text>
+                    <IconSymbol
+                      ios_icon_name="arrow.right"
+                      android_material_icon_name="arrow-forward"
+                      size={20}
+                      color="#FFFFFF"
+                    />
+                  </LinearGradient>
+                </TouchableOpacity>
+
                 <View style={styles.counterButtons}>
                   <TouchableOpacity
                     style={styles.counterButton}
@@ -717,6 +749,27 @@ const styles = StyleSheet.create({
   progressFill: {
     height: '100%',
     borderRadius: borderRadius.sm,
+  },
+  dhikrWindowButton: {
+    borderRadius: borderRadius.lg,
+    overflow: 'hidden',
+    ...shadows.large,
+    marginBottom: spacing.sm,
+  },
+  dhikrWindowGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
+  },
+  dhikrWindowText: {
+    ...typography.bodyBold,
+    color: '#FFFFFF',
+    fontSize: 16,
+    flex: 1,
+    textAlign: 'center',
   },
   incrementButton: {
     borderRadius: borderRadius.md,

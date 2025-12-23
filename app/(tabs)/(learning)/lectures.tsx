@@ -116,32 +116,63 @@ export default function LecturesScreen() {
     }
 
     try {
-      const { error } = await supabase
+      // Check if this lecture is already tracked
+      const { data: existingTracking, error: checkError } = await supabase
         .from('tracked_content')
-        .upsert({
-          user_id: user.id,
-          content_type: 'lecture',
-          video_id: lecture.id,
-          video_title: lecture.title,
-          video_url: lecture.url,
-          scholar_name: lecture.scholar_name,
-          tracked_at: new Date().toISOString(),
-        }, {
-          onConflict: 'user_id,video_id'
-        });
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('content_type', 'lecture')
+        .eq('video_url', lecture.url)
+        .maybeSingle();
 
-      if (error) {
-        console.error('Error tracking lecture:', error);
+      if (checkError) {
+        console.error('Error checking existing tracking:', checkError);
         Alert.alert('Error', 'Failed to track lecture. Please try again.');
         return;
       }
 
+      if (existingTracking) {
+        // Already tracked, just update the timestamp
+        const { error: updateError } = await supabase
+          .from('tracked_content')
+          .update({
+            tracked_at: new Date().toISOString(),
+          })
+          .eq('id', existingTracking.id);
+
+        if (updateError) {
+          console.error('Error updating tracking:', updateError);
+          Alert.alert('Error', 'Failed to update tracking. Please try again.');
+          return;
+        }
+      } else {
+        // Not tracked yet, insert new record
+        const { error: insertError } = await supabase
+          .from('tracked_content')
+          .insert({
+            user_id: user.id,
+            content_type: 'lecture',
+            video_id: null, // Lectures table is separate, so we don't have a video_id
+            video_title: lecture.title,
+            video_url: lecture.url,
+            scholar_name: lecture.scholar_name,
+            tracked_at: new Date().toISOString(),
+          });
+
+        if (insertError) {
+          console.error('Error inserting tracking:', insertError);
+          Alert.alert('Error', 'Failed to track lecture. Please try again.');
+          return;
+        }
+      }
+
+      // Update ilm goals
       if (ilmGoals) {
         const updatedGoals = {
           ...ilmGoals,
-          weeklyLecturesCompleted: Math.min(
-            ilmGoals.weeklyLecturesCompleted + 1,
-            ilmGoals.weeklyLecturesGoal
+          ilm_weekly_lectures_completed: Math.min(
+            ilmGoals.ilm_weekly_lectures_completed + 1,
+            ilmGoals.ilm_weekly_lectures_goal
           ),
         };
         await updateIlmGoals(updatedGoals);
@@ -151,6 +182,7 @@ export default function LecturesScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (error) {
       console.error('Error tracking lecture:', error);
+      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
     }
   };
 

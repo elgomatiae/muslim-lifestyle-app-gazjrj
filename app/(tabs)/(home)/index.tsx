@@ -209,134 +209,110 @@ export default function HomeScreen() {
     const centerX = 100;
     const centerY = 100;
     
-    // Calculate individual ring percentages from ibadahGoals
-    let prayerScore = 0;
-    let quranScore = 0;
-    let dhikrScore = 0;
+    // Use sectionScores directly from context - SAME AS IMAN TRACKER
+    const ibadahScore = typeof sectionScores.ibadah === 'number' && !isNaN(sectionScores.ibadah) ? sectionScores.ibadah : 0;
+    const ilmScore = typeof sectionScores.ilm === 'number' && !isNaN(sectionScores.ilm) ? sectionScores.ilm : 0;
+    const amanahScore = typeof sectionScores.amanah === 'number' && !isNaN(sectionScores.amanah) ? sectionScores.amanah : 0;
+    
+    console.log('Home Screen - Ring Scores from Context:', { ibadah: ibadahScore, ilm: ilmScore, amanah: amanahScore });
+    
+    // ʿIbādah ring (outer) - Green
+    const ibadahRadius = 85;
+    const ibadahStroke = 12;
+    const ibadahProgressValue = ibadahScore / 100;
+    const ibadahCircumference = 2 * Math.PI * ibadahRadius;
+    const ibadahOffset = ibadahCircumference * (1 - ibadahProgressValue);
+    
+    // ʿIlm ring (middle) - Blue
+    const ilmRadius = 62;
+    const ilmStroke = 10;
+    const ilmProgressValue = ilmScore / 100;
+    const ilmCircumference = 2 * Math.PI * ilmRadius;
+    const ilmOffset = ilmCircumference * (1 - ilmProgressValue);
+    
+    // Amanah ring (inner) - Amber/Gold
+    const amanahRadius = 39;
+    const amanahStroke = 8;
+    const amanahProgressValue = amanahScore / 100;
+    const amanahCircumference = 2 * Math.PI * amanahRadius;
+    const amanahOffset = amanahCircumference * (1 - amanahProgressValue);
 
-    if (ibadahGoals) {
-      // Prayer score (based on fard prayers + sunnah)
-      const fardCount = Object.values(ibadahGoals.fardPrayers).filter(Boolean).length;
-      const fardPercentage = (fardCount / 5) * 100;
-      const sunnahPercentage = ibadahGoals.sunnahDailyGoal > 0 
-        ? Math.min(100, (ibadahGoals.sunnahCompleted / ibadahGoals.sunnahDailyGoal) * 100)
-        : 100;
-      prayerScore = (fardPercentage * 0.75 + sunnahPercentage * 0.25); // 75% fard, 25% sunnah
-
-      // Quran score (based on pages and verses)
-      const pagesPercentage = ibadahGoals.quranDailyPagesGoal > 0
-        ? Math.min(100, (ibadahGoals.quranDailyPagesCompleted / ibadahGoals.quranDailyPagesGoal) * 100)
-        : 0;
-      const versesPercentage = ibadahGoals.quranDailyVersesGoal > 0
-        ? Math.min(100, (ibadahGoals.quranDailyVersesCompleted / ibadahGoals.quranDailyVersesGoal) * 100)
-        : 0;
-      quranScore = (pagesPercentage + versesPercentage) / 2;
-
-      // Dhikr score (based on daily dhikr)
-      dhikrScore = ibadahGoals.dhikrDailyGoal > 0
-        ? Math.min(100, (ibadahGoals.dhikrDailyCompleted / ibadahGoals.dhikrDailyGoal) * 100)
-        : 0;
-    }
-    
-    // Ensure scores are valid numbers
-    prayerScore = typeof prayerScore === 'number' && !isNaN(prayerScore) ? prayerScore : 0;
-    quranScore = typeof quranScore === 'number' && !isNaN(quranScore) ? quranScore : 0;
-    dhikrScore = typeof dhikrScore === 'number' && !isNaN(dhikrScore) ? dhikrScore : 0;
-    
-    console.log('Home Screen - Individual Ring Scores:', { prayer: prayerScore, quran: quranScore, dhikr: dhikrScore });
-    
-    // Prayer ring (outer) - Green
-    const prayerRadius = 85;
-    const prayerStroke = 12;
-    const prayerProgressValue = prayerScore / 100;
-    const prayerCircumference = 2 * Math.PI * prayerRadius;
-    const prayerOffset = prayerCircumference * (1 - prayerProgressValue);
-    
-    // Quran ring (middle) - Amber
-    const quranRadius = 62;
-    const quranStroke = 10;
-    const quranProgressValue = quranScore / 100;
-    const quranCircumference = 2 * Math.PI * quranRadius;
-    const quranOffset = quranCircumference * (1 - quranProgressValue);
-    
-    // Dhikr ring (inner) - Blue
-    const dhikrRadius = 39;
-    const dhikrStroke = 8;
-    const dhikrProgressValue = dhikrScore / 100;
-    const dhikrCircumference = 2 * Math.PI * dhikrRadius;
-    const dhikrOffset = dhikrCircumference * (1 - dhikrProgressValue);
+    // Ring colors - SAME AS IMAN TRACKER
+    const ibadahColor = '#10B981'; // Green
+    const ilmColor = '#3B82F6'; // Blue
+    const amanahColor = '#F59E0B'; // Amber/Gold
 
     return (
       <View style={styles.imanRingsContainer}>
         <View style={styles.ringsWrapper}>
           <Svg width={200} height={200}>
-            {/* Prayer Ring (Outer) */}
+            {/* ʿIbādah Ring (Outer) - GREEN */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={prayerRadius}
+              r={ibadahRadius}
               stroke="#808080"
-              strokeWidth={prayerStroke}
+              strokeWidth={ibadahStroke}
               fill="none"
               opacity={0.6}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={prayerRadius}
-              stroke={colors.primary}
-              strokeWidth={prayerStroke}
+              r={ibadahRadius}
+              stroke={ibadahColor}
+              strokeWidth={ibadahStroke}
               fill="none"
-              strokeDasharray={prayerCircumference}
-              strokeDashoffset={prayerOffset}
+              strokeDasharray={ibadahCircumference}
+              strokeDashoffset={ibadahOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
             />
             
-            {/* Quran Ring (Middle) */}
+            {/* ʿIlm Ring (Middle) - BLUE */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={quranRadius}
+              r={ilmRadius}
               stroke="#808080"
-              strokeWidth={quranStroke}
+              strokeWidth={ilmStroke}
               fill="none"
               opacity={0.6}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={quranRadius}
-              stroke={colors.accent}
-              strokeWidth={quranStroke}
+              r={ilmRadius}
+              stroke={ilmColor}
+              strokeWidth={ilmStroke}
               fill="none"
-              strokeDasharray={quranCircumference}
-              strokeDashoffset={quranOffset}
+              strokeDasharray={ilmCircumference}
+              strokeDashoffset={ilmOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
             />
             
-            {/* Dhikr Ring (Inner) */}
+            {/* Amanah Ring (Inner) - GOLD */}
             <Circle
               cx={centerX}
               cy={centerY}
-              r={dhikrRadius}
+              r={amanahRadius}
               stroke="#808080"
-              strokeWidth={dhikrStroke}
+              strokeWidth={amanahStroke}
               fill="none"
               opacity={0.6}
             />
             <Circle
               cx={centerX}
               cy={centerY}
-              r={dhikrRadius}
-              stroke={colors.info}
-              strokeWidth={dhikrStroke}
+              r={amanahRadius}
+              stroke={amanahColor}
+              strokeWidth={amanahStroke}
               fill="none"
-              strokeDasharray={dhikrCircumference}
-              strokeDashoffset={dhikrOffset}
+              strokeDasharray={amanahCircumference}
+              strokeDashoffset={amanahOffset}
               strokeLinecap="round"
               rotation="-90"
               origin={`${centerX}, ${centerY}`}
@@ -350,22 +326,22 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        {/* Ring Labels */}
+        {/* Ring Labels - SAME AS IMAN TRACKER */}
         <View style={styles.ringsLabels}>
           <View style={styles.ringLabelItem}>
-            <View style={[styles.ringLabelDot, { backgroundColor: colors.primary }]} />
-            <Text style={styles.ringLabelText}>Prayer</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(prayerScore)}%</Text>
+            <View style={[styles.ringLabelDot, { backgroundColor: ibadahColor }]} />
+            <Text style={styles.ringLabelText}>ʿIbādah</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(ibadahScore)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
-            <View style={[styles.ringLabelDot, { backgroundColor: colors.accent }]} />
-            <Text style={styles.ringLabelText}>Quran</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(quranScore)}%</Text>
+            <View style={[styles.ringLabelDot, { backgroundColor: ilmColor }]} />
+            <Text style={styles.ringLabelText}>ʿIlm</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(ilmScore)}%</Text>
           </View>
           <View style={styles.ringLabelItem}>
-            <View style={[styles.ringLabelDot, { backgroundColor: colors.info }]} />
-            <Text style={styles.ringLabelText}>Dhikr</Text>
-            <Text style={styles.ringLabelValue}>{Math.round(dhikrScore)}%</Text>
+            <View style={[styles.ringLabelDot, { backgroundColor: amanahColor }]} />
+            <Text style={styles.ringLabelText}>Amanah</Text>
+            <Text style={styles.ringLabelValue}>{Math.round(amanahScore)}%</Text>
           </View>
         </View>
       </View>

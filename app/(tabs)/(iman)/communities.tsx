@@ -40,26 +40,34 @@ export default function CommunitiesScreen() {
     if (!user) return;
 
     try {
-      // Fetch communities where user is a member
+      // Step 1: Fetch user's memberships
       const { data: memberData, error: memberError } = await supabase
         .from('community_members')
-        .select(`
-          community_id,
-          is_admin,
-          communities (
-            id,
-            name,
-            created_by,
-            created_at
-          )
-        `)
+        .select('community_id, is_admin')
         .eq('user_id', user.id);
 
       if (memberError) throw memberError;
 
-      // Get member counts for each community
-      const communityIds = memberData?.map(m => m.community_id) || [];
-      const { data: countData, error: countError } = await supabase
+      if (!memberData || memberData.length === 0) {
+        setCommunities([]);
+        setLoading(false);
+        setRefreshing(false);
+        return;
+      }
+
+      const communityIds = memberData.map(m => m.community_id);
+      const membershipMap = new Map(memberData.map(m => [m.community_id, m.is_admin]));
+
+      // Step 2: Fetch community details
+      const { data: communityData, error: communityError } = await supabase
+        .from('communities')
+        .select('id, name, created_by, created_at')
+        .in('id', communityIds);
+
+      if (communityError) throw communityError;
+
+      // Step 3: Get member counts for each community
+      const { data: allMembers, error: countError } = await supabase
         .from('community_members')
         .select('community_id')
         .in('community_id', communityIds);
@@ -68,18 +76,18 @@ export default function CommunitiesScreen() {
 
       // Count members per community
       const memberCounts: Record<string, number> = {};
-      countData?.forEach(item => {
+      allMembers?.forEach(item => {
         memberCounts[item.community_id] = (memberCounts[item.community_id] || 0) + 1;
       });
 
       // Format communities
-      const formattedCommunities: Community[] = memberData?.map(m => ({
-        id: m.communities.id,
-        name: m.communities.name,
-        created_by: m.communities.created_by,
-        created_at: m.communities.created_at,
-        member_count: memberCounts[m.community_id] || 0,
-        is_admin: m.is_admin,
+      const formattedCommunities: Community[] = communityData?.map(c => ({
+        id: c.id,
+        name: c.name,
+        created_by: c.created_by,
+        created_at: c.created_at,
+        member_count: memberCounts[c.id] || 0,
+        is_admin: membershipMap.get(c.id) || false,
       })) || [];
 
       setCommunities(formattedCommunities);
@@ -362,6 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    ...shadows.small,
   },
   backButton: {
     padding: spacing.sm,

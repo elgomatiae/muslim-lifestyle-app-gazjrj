@@ -1,6 +1,7 @@
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getPrayerTimes } from './prayerTimeService';
+import { updateScoresWithDecay, recordActivity } from './imanDecaySystem';
 
 // ʿIbādah (Worship) Goals Interface
 export interface IbadahGoals {
@@ -534,38 +535,23 @@ export async function saveAmanahGoals(goals: AmanahGoals): Promise<void> {
   await updateSectionScores();
 }
 
-// Get current section scores with decay applied
+// Get current section scores with NEW DECAY SYSTEM applied
 export async function getCurrentSectionScores(): Promise<SectionScores> {
   try {
     const ibadahGoals = await loadIbadahGoals();
     const ilmGoals = await loadIlmGoals();
     const amanahGoals = await loadAmanahGoals();
     
+    // Calculate fresh scores based on current goals
     const freshScores = await calculateAllSectionScores(ibadahGoals, ilmGoals, amanahGoals);
     
-    const lastUpdated = await AsyncStorage.getItem('sectionScoresLastUpdated');
-    const storedScores = await AsyncStorage.getItem('sectionScores');
+    // Apply the new momentum-based decay system
+    const finalScores = await updateScoresWithDecay(
+      { ibadah: ibadahGoals, ilm: ilmGoals, amanah: amanahGoals },
+      freshScores
+    );
     
-    if (!lastUpdated || !storedScores) {
-      await AsyncStorage.setItem('sectionScores', JSON.stringify(freshScores));
-      await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
-      return freshScores;
-    }
-    
-    const stored: SectionScores = JSON.parse(storedScores);
-    
-    const decayedScores: SectionScores = {
-      ibadah: applyDecayToSection(stored.ibadah, lastUpdated, freshScores.ibadah),
-      ilm: applyDecayToSection(stored.ilm, lastUpdated, freshScores.ilm),
-      amanah: applyDecayToSection(stored.amanah, lastUpdated, freshScores.amanah),
-    };
-    
-    const finalScores: SectionScores = {
-      ibadah: Math.max(decayedScores.ibadah, freshScores.ibadah),
-      ilm: Math.max(decayedScores.ilm, freshScores.ilm),
-      amanah: Math.max(decayedScores.amanah, freshScores.amanah),
-    };
-    
+    // Store the final scores
     await AsyncStorage.setItem('sectionScores', JSON.stringify(finalScores));
     await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
     
@@ -639,18 +625,6 @@ export async function resetDailyGoals(): Promise<void> {
   try {
     console.log('Resetting daily goals...');
     
-    const goalsMet = await checkDailyGoalsMet();
-    
-    const currentScores = await getCurrentSectionScores();
-    const penalizedScores: SectionScores = {
-      ibadah: applyDailyGoalPenalty(currentScores.ibadah, goalsMet.ibadah),
-      ilm: applyDailyGoalPenalty(currentScores.ilm, goalsMet.ilm),
-      amanah: applyDailyGoalPenalty(currentScores.amanah, goalsMet.amanah),
-    };
-    
-    await AsyncStorage.setItem('sectionScores', JSON.stringify(penalizedScores));
-    await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
-    
     const ibadahGoals = await loadIbadahGoals();
     const ilmGoals = await loadIlmGoals();
     const amanahGoals = await loadAmanahGoals();
@@ -679,7 +653,7 @@ export async function resetDailyGoals(): Promise<void> {
     await AsyncStorage.setItem('ilmGoals', JSON.stringify(ilmGoals));
     await AsyncStorage.setItem('amanahGoals', JSON.stringify(amanahGoals));
     
-    console.log('Daily goals reset.');
+    console.log('Daily goals reset. Decay system will handle score adjustments.');
   } catch (error) {
     console.log('Error resetting daily goals:', error);
   }
@@ -689,18 +663,6 @@ export async function resetDailyGoals(): Promise<void> {
 export async function resetWeeklyGoals(): Promise<void> {
   try {
     console.log('Resetting weekly goals...');
-    
-    const goalsMet = await checkWeeklyGoalsMet();
-    
-    const currentScores = await getCurrentSectionScores();
-    const penalizedScores: SectionScores = {
-      ibadah: applyWeeklyGoalPenalty(currentScores.ibadah, goalsMet.ibadah),
-      ilm: applyWeeklyGoalPenalty(currentScores.ilm, goalsMet.ilm),
-      amanah: applyWeeklyGoalPenalty(currentScores.amanah, goalsMet.amanah),
-    };
-    
-    await AsyncStorage.setItem('sectionScores', JSON.stringify(penalizedScores));
-    await AsyncStorage.setItem('sectionScoresLastUpdated', new Date().toISOString());
     
     const ibadahGoals = await loadIbadahGoals();
     const ilmGoals = await loadIlmGoals();
@@ -724,7 +686,7 @@ export async function resetWeeklyGoals(): Promise<void> {
     await AsyncStorage.setItem('ilmGoals', JSON.stringify(ilmGoals));
     await AsyncStorage.setItem('amanahGoals', JSON.stringify(amanahGoals));
     
-    console.log('Weekly goals reset.');
+    console.log('Weekly goals reset. Decay system will handle score adjustments.');
   } catch (error) {
     console.log('Error resetting weekly goals:', error);
   }

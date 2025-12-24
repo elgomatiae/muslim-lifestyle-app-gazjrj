@@ -18,6 +18,7 @@ import {
 } from '@/lib/supabase';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
+import * as Linking from 'expo-linking';
 import { supabase } from '@/app/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
@@ -191,15 +192,39 @@ export default function RecitationsScreen() {
     try {
       const youtubeUrl = getYouTubeWatchUrl(recitation.url);
       console.log('Opening YouTube video:', youtubeUrl);
-      await WebBrowser.openBrowserAsync(youtubeUrl);
+      
+      // Check if the URL can be opened
+      const canOpen = await Linking.canOpenURL(youtubeUrl);
+      console.log('Can open URL:', canOpen);
+      
+      if (canOpen) {
+        // Try to open with WebBrowser first (better UX with in-app browser)
+        const result = await WebBrowser.openBrowserAsync(youtubeUrl, {
+          dismissButtonStyle: 'close',
+          readerMode: false,
+          enableBarCollapsing: false,
+        });
+        console.log('WebBrowser result:', result);
+      } else {
+        // Fallback to Linking if WebBrowser fails
+        await Linking.openURL(youtubeUrl);
+      }
     } catch (error) {
       console.error('Error opening YouTube video:', error);
-      Alert.alert('Error', 'Could not open YouTube video. Please try again.');
+      // Try fallback method
+      try {
+        const youtubeUrl = getYouTubeWatchUrl(recitation.url);
+        await Linking.openURL(youtubeUrl);
+      } catch (fallbackError) {
+        console.error('Fallback error:', fallbackError);
+        Alert.alert('Error', 'Could not open YouTube video. Please try again.');
+      }
     }
   };
 
   const handleRecitationPress = async (recitation: Recitation) => {
     console.log('Recitation pressed:', recitation.title);
+    console.log('Recitation URL:', recitation.url);
     await incrementRecitationViews(recitation.id);
 
     if (isYouTubeUrl(recitation.url)) {
@@ -224,11 +249,9 @@ export default function RecitationsScreen() {
       // Track the recitation
       await trackRecitation(recitationToOpen);
       
-      // Add a delay to ensure modal is fully closed before opening browser
-      setTimeout(async () => {
-        console.log('Opening YouTube video after delay');
-        await openYouTubeVideo(recitationToOpen);
-      }, 500);
+      // Open the video immediately after tracking
+      console.log('Opening YouTube video');
+      await openYouTubeVideo(recitationToOpen);
     }
   };
 
@@ -241,11 +264,9 @@ export default function RecitationsScreen() {
       setShowTrackingModal(false);
       setPendingRecitation(null);
       
-      // Add a delay to ensure modal is fully closed before opening browser
-      setTimeout(async () => {
-        console.log('Opening YouTube video after delay');
-        await openYouTubeVideo(recitationToOpen);
-      }, 500);
+      // Open the video immediately
+      console.log('Opening YouTube video');
+      await openYouTubeVideo(recitationToOpen);
     }
   };
 

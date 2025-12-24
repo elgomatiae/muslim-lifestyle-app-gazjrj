@@ -217,9 +217,16 @@ function AnimatedCenterTab({
   isActive: boolean; 
   tab: TabBarItem;
 }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue.value }],
-  }));
+  // Guard against undefined scaleValue
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    if (!scaleValue || scaleValue.value === undefined) {
+      return { transform: [{ scale: 1 }] };
+    }
+    return {
+      transform: [{ scale: scaleValue.value }],
+    };
+  });
 
   return (
     <Animated.View style={[styles.centerTab, animatedStyle]}>
@@ -252,9 +259,16 @@ function AnimatedRegularTab({
   isActive: boolean; 
   tab: TabBarItem;
 }) {
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scaleValue.value }],
-  }));
+  // Guard against undefined scaleValue
+  const animatedStyle = useAnimatedStyle(() => {
+    'worklet';
+    if (!scaleValue || scaleValue.value === undefined) {
+      return { transform: [{ scale: 1 }] };
+    }
+    return {
+      transform: [{ scale: scaleValue.value }],
+    };
+  });
 
   return (
     <Animated.View style={[styles.tabContent, animatedStyle]}>

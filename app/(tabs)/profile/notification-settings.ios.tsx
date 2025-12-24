@@ -16,8 +16,9 @@ import { useNotifications } from '@/contexts/NotificationContext';
 import { router } from 'expo-router';
 
 export default function NotificationSettingsScreen() {
-  const { settings, loading, requestPermissions, updateSettings, scheduledCount } = useNotifications();
+  const { settings, loading, requestPermissions, updateSettings, scheduledCount, refreshPrayerTimesAndNotifications } = useNotifications();
   const [requesting, setRequesting] = useState(false);
+  const [refreshingPrayer, setRefreshingPrayer] = useState(false);
 
   const handleRequestPermissions = async () => {
     setRequesting(true);
@@ -51,6 +52,36 @@ export default function NotificationSettingsScreen() {
     }
 
     await updateSettings({ [key]: !settings[key] });
+  };
+
+  const handleRefreshPrayerTimes = async () => {
+    if (!settings.locationPermissionGranted) {
+      Alert.alert(
+        'Location Permission Required',
+        'Please enable location permissions to refresh prayer times.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    setRefreshingPrayer(true);
+    try {
+      await refreshPrayerTimesAndNotifications();
+      Alert.alert(
+        'Prayer Times Updated',
+        'Prayer times and notifications have been refreshed based on your current location.',
+        [{ text: 'OK' }]
+      );
+    } catch (error) {
+      console.error('Error refreshing prayer times:', error);
+      Alert.alert(
+        'Error',
+        'Failed to refresh prayer times. Please try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setRefreshingPrayer(false);
+    }
   };
 
   return (
@@ -158,6 +189,27 @@ export default function NotificationSettingsScreen() {
               </Text>
             </LinearGradient>
           </TouchableOpacity>
+
+          {settings.locationPermissionGranted && (
+            <TouchableOpacity
+              style={[styles.requestButton, styles.refreshButton]}
+              onPress={handleRefreshPrayerTimes}
+              disabled={refreshingPrayer || loading}
+              activeOpacity={0.7}
+            >
+              <View style={styles.refreshButtonContent}>
+                <IconSymbol
+                  ios_icon_name="arrow.clockwise"
+                  android_material_icon_name="refresh"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={styles.refreshButtonText}>
+                  {refreshingPrayer ? 'Refreshing...' : 'Refresh Prayer Times'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Notification Types Section */}
@@ -476,6 +528,24 @@ const styles = StyleSheet.create({
     ...typography.body,
     fontWeight: '600',
     color: colors.card,
+  },
+  refreshButton: {
+    marginTop: spacing.sm,
+    backgroundColor: colors.card,
+    borderWidth: 2,
+    borderColor: colors.primary,
+  },
+  refreshButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    gap: spacing.sm,
+  },
+  refreshButtonText: {
+    ...typography.body,
+    fontWeight: '600',
+    color: colors.primary,
   },
   settingRow: {
     flexDirection: 'row',

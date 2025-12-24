@@ -13,6 +13,7 @@ import {
   getScheduledNotifications,
   NotificationSettings,
 } from '@/utils/notificationService';
+import { initializePrayerTimes, refreshPrayerTimes } from '@/utils/prayerTimeService';
 import { useAuth } from './AuthContext';
 
 interface NotificationContextType {
@@ -24,6 +25,7 @@ interface NotificationContextType {
   sendMilestone: (milestone: string, message: string) => Promise<void>;
   refreshSettings: () => Promise<void>;
   scheduledCount: number;
+  refreshPrayerTimesAndNotifications: () => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -82,6 +84,12 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         await initializeNotifications();
       }
 
+      // Initialize prayer times if both permissions granted
+      if (notificationGranted && locationGranted) {
+        console.log('NotificationContext: Initializing prayer times...');
+        await initializePrayerTimes(settings.prayerNotifications);
+      }
+
       // Update scheduled count
       const scheduled = await getScheduledNotifications();
       setScheduledCount(scheduled.length);
@@ -92,7 +100,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [settings]);
+  }, [settings, user]);
 
   const updateSettings = useCallback(async (newSettings: Partial<NotificationSettings>) => {
     console.log('NotificationContext: Updating settings...', newSettings);
@@ -102,6 +110,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const updatedSettings = { ...settings, ...newSettings };
       await updateNotificationSettings(newSettings, user?.id);
       setSettings(updatedSettings);
+
+      // If prayer notifications were toggled, refresh prayer times
+      if (newSettings.prayerNotifications !== undefined) {
+        await refreshPrayerTimes(newSettings.prayerNotifications);
+      }
 
       // Update scheduled count
       const scheduled = await getScheduledNotifications();
@@ -127,9 +140,56 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     await loadSettings();
   }, [loadSettings]);
 
+  const refreshPrayerTimesAndNotifications = useCallback(async () => {
+    try {
+      console.log('NotificationContext: Refreshing prayer times and notifications...');
+      await refreshPrayerTimes(settings.prayerNotifications);
+      
+      // Update scheduled count
+      const scheduled = await getScheduledNotifications();
+      setScheduledCount(scheduled.length);
+      
+      console.log('NotificationContext: Prayer times refreshed');
+    } catch (error) {
+      console.error('NotificationContext: Error refreshing prayer times:', error);
+    }
+  }, [settings.prayerNotifications]);
+
   useEffect(() => {
     loadSettings();
   }, [loadSettings]);
+
+  // Initialize prayer times when permissions are granted
+  useEffect(() => {
+    if (settings.notificationPermissionGranted && settings.locationPermissionGranted) {
+      initializePrayerTimes(settings.prayerNotifications).catch(error => {
+        console.error('NotificationContext: Error initializing prayer times:', error);
+      });
+    }
+  }, [settings.notificationPermissionGranted, settings.locationPermissionGranted, settings.prayerNotifications]);
+
+  // Refresh prayer times daily at midnight
+  useEffect(() => {
+    const checkAndRefresh = async () => {
+      const now = new Date();
+      const midnight = new Date(now);
+      midnight.setHours(24, 0, 0, 0);
+      
+      const timeUntilMidnight = midnight.getTime() - now.getTime();
+      
+      setTimeout(async () => {
+        console.log('NotificationContext: Daily prayer time refresh');
+        await refreshPrayerTimesAndNotifications();
+        
+        // Set up daily interval
+        setInterval(async () => {
+          await refreshPrayerTimesAndNotifications();
+        }, 24 * 60 * 60 * 1000); // 24 hours
+      }, timeUntilMidnight);
+    };
+
+    checkAndRefresh();
+  }, [refreshPrayerTimesAndNotifications]);
 
   // Set up notification listeners
   useEffect(() => {
@@ -166,6 +226,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     sendMilestone,
     refreshSettings,
     scheduledCount,
+    refreshPrayerTimesAndNotifications,
   };
 
   return (

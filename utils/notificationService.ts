@@ -4,6 +4,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
+import * as Location from 'expo-location';
 
 // Configure notification handler
 Notifications.setNotificationHandler({
@@ -24,6 +25,15 @@ export async function registerForPushNotificationsAsync(): Promise<string | unde
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
+    });
+
+    // Create prayer channel
+    await Notifications.setNotificationChannelAsync('prayer', {
+      name: 'Prayer Times',
+      importance: Notifications.AndroidImportance.HIGH,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#10B981',
+      sound: 'default',
     });
 
     // Create achievement channel
@@ -300,6 +310,10 @@ export async function getNotificationSettings(userId?: string): Promise<Notifica
     const { status: notificationStatus } = await Notifications.getPermissionsAsync();
     const notificationPermissionGranted = notificationStatus === 'granted';
 
+    // Check location permission
+    const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
+    const locationPermissionGranted = locationStatus === 'granted';
+
     // Load preferences from Supabase if user is logged in
     if (userId) {
       const preferences = await loadNotificationPreferences(userId);
@@ -310,7 +324,7 @@ export async function getNotificationSettings(userId?: string): Promise<Notifica
         imanTrackerNotifications: preferences.iman_tracker_notifications ?? true,
         goalReminderNotifications: preferences.goal_reminder_notifications ?? true,
         achievementNotifications: preferences.achievement_notifications ?? true,
-        locationPermissionGranted: false, // Location not used for notifications
+        locationPermissionGranted,
         notificationPermissionGranted,
       };
     }
@@ -323,7 +337,7 @@ export async function getNotificationSettings(userId?: string): Promise<Notifica
       imanTrackerNotifications: true,
       goalReminderNotifications: true,
       achievementNotifications: true,
-      locationPermissionGranted: false,
+      locationPermissionGranted,
       notificationPermissionGranted,
     };
   } catch (error) {
@@ -374,6 +388,13 @@ export async function updateNotificationSettings(
 
     // Save locally
     await AsyncStorage.setItem('notificationSettings', JSON.stringify(settings));
+
+    // If prayer notifications were toggled, update prayer notification scheduling
+    if (settings.prayerNotifications !== undefined) {
+      const { schedulePrayerNotifications, getPrayerTimes } = await import('./prayerTimeService');
+      const prayerTimes = await getPrayerTimes();
+      await schedulePrayerNotifications(prayerTimes, settings.prayerNotifications);
+    }
   } catch (error) {
     console.log('Error updating notification settings:', error);
   }
@@ -406,10 +427,22 @@ export async function requestNotificationPermissions(): Promise<boolean> {
   }
 }
 
-// Request location permissions (placeholder - not used for notifications)
+// Request location permissions
 export async function requestLocationPermissions(): Promise<boolean> {
-  // Location permissions are handled separately for prayer times
-  return false;
+  try {
+    const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      finalStatus = status;
+    }
+    
+    return finalStatus === 'granted';
+  } catch (error) {
+    console.log('Error requesting location permissions:', error);
+    return false;
+  }
 }
 
 // Send achievement notification

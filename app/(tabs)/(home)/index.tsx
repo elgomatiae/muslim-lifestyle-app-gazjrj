@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, RefreshControl } from "react-native";
+import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, RefreshControl, Alert } from "react-native";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { LinearGradient } from "expo-linear-gradient";
@@ -8,13 +8,10 @@ import Svg, { Circle } from 'react-native-svg';
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotifications } from "@/contexts/NotificationContext";
+import { getPrayerTimes, refreshPrayerTimes, getNextPrayer, getTimeUntilPrayer, PrayerTime as PrayerTimeType } from "@/utils/prayerTimeService";
 
-interface PrayerTime {
-  name: string;
-  time: string;
-  arabicName: string;
-  completed: boolean;
-}
+interface PrayerTime extends PrayerTimeType {}
 
 interface DailyVerse {
   id: string;
@@ -42,33 +39,99 @@ export default function HomeScreen() {
     refreshData,
     updatePrayerGoals,
   } = useImanTracker();
+  const { settings, refreshPrayerTimesAndNotifications } = useNotifications();
 
-  const [prayers, setPrayers] = useState<PrayerTime[]>([
-    { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: false },
-    { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: false },
-    { name: 'Asr', time: '4:15 PM', arabicName: 'العصر', completed: false },
-    { name: 'Maghrib', time: '6:30 PM', arabicName: 'المغرب', completed: false },
-    { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: false },
-  ]);
-
+  const [prayers, setPrayers] = useState<PrayerTime[]>([]);
+  const [nextPrayer, setNextPrayer] = useState<PrayerTime | null>(null);
+  const [timeUntilNext, setTimeUntilNext] = useState<string>('');
   const [refreshing, setRefreshing] = useState(false);
   const [dailyVerse, setDailyVerse] = useState<DailyVerse | null>(null);
   const [dailyHadith, setDailyHadith] = useState<DailyHadith | null>(null);
   const [loading, setLoading] = useState(true);
+  const [prayerTimesLoading, setPrayerTimesLoading] = useState(true);
+
+  // Load prayer times
+  const loadPrayerTimes = async () => {
+    try {
+      setPrayerTimesLoading(true);
+      console.log('HomeScreen: Loading prayer times...');
+      
+      // Check if location permission is granted
+      if (!settings.locationPermissionGranted) {
+        console.log('HomeScreen: Location permission not granted, showing alert');
+        // Use default times but show alert
+        Alert.alert(
+          'Location Permission Required',
+          'To get accurate prayer times for your location, please enable location permissions in the notification settings.',
+          [{ text: 'OK' }]
+        );
+      }
+
+      const prayerTimes = await getPrayerTimes();
+      console.log('HomeScreen: Prayer times loaded:', prayerTimes);
+      
+      // Sync with prayer goals from context
+      if (prayerGoals) {
+        const updatedPrayers = prayerTimes.map((prayer) => {
+          const prayerKey = prayer.name.toLowerCase() as keyof typeof prayerGoals.fardPrayers;
+          return {
+            ...prayer,
+            completed: prayerGoals.fardPrayers[prayerKey] || false,
+          };
+        });
+        setPrayers(updatedPrayers);
+      } else {
+        setPrayers(prayerTimes);
+      }
+
+      // Get next prayer
+      const next = await getNextPrayer(prayerTimes);
+      setNextPrayer(next);
+      
+      if (next) {
+        setTimeUntilNext(getTimeUntilPrayer(next));
+      }
+    } catch (error) {
+      console.error('HomeScreen: Error loading prayer times:', error);
+      Alert.alert(
+        'Error Loading Prayer Times',
+        'Unable to load prayer times. Please check your location permissions and try again.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setPrayerTimesLoading(false);
+    }
+  };
+
+  // Load prayer times on mount and when location permission changes
+  useEffect(() => {
+    loadPrayerTimes();
+  }, [settings.locationPermissionGranted]);
 
   // Sync prayers with prayerGoals from context
   useEffect(() => {
-    if (prayerGoals) {
-      const updatedPrayers = [
-        { name: 'Fajr', time: '5:30 AM', arabicName: 'الفجر', completed: prayerGoals.fardPrayers.fajr },
-        { name: 'Dhuhr', time: '12:45 PM', arabicName: 'الظهر', completed: prayerGoals.fardPrayers.dhuhr },
-        { name: 'Asr', time: '4:15 PM', arabicName: 'العصر', completed: prayerGoals.fardPrayers.asr },
-        { name: 'Maghrib', time: '6:30 PM', arabicName: 'المغرب', completed: prayerGoals.fardPrayers.maghrib },
-        { name: 'Isha', time: '8:00 PM', arabicName: 'العشاء', completed: prayerGoals.fardPrayers.isha },
-      ];
+    if (prayerGoals && prayers.length > 0) {
+      const updatedPrayers = prayers.map((prayer) => {
+        const prayerKey = prayer.name.toLowerCase() as keyof typeof prayerGoals.fardPrayers;
+        return {
+          ...prayer,
+          completed: prayerGoals.fardPrayers[prayerKey] || false,
+        };
+      });
       setPrayers(updatedPrayers);
     }
   }, [prayerGoals]);
+
+  // Update time until next prayer every minute
+  useEffect(() => {
+    if (!nextPrayer) return;
+
+    const interval = setInterval(() => {
+      setTimeUntilNext(getTimeUntilPrayer(nextPrayer));
+    }, 60000); // Update every minute
+
+    return () => clearInterval(interval);
+  }, [nextPrayer]);
 
   useEffect(() => {
     loadDailyContent();
@@ -135,7 +198,12 @@ export default function HomeScreen() {
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([refreshData(), loadDailyContent()]);
+    await Promise.all([
+      refreshData(), 
+      loadDailyContent(), 
+      loadPrayerTimes(),
+      refreshPrayerTimesAndNotifications()
+    ]);
     setRefreshing(false);
   };
 
@@ -381,6 +449,48 @@ export default function HomeScreen() {
           </View>
         </LinearGradient>
 
+        {/* Next Prayer Card */}
+        {nextPrayer && !prayerTimesLoading && (
+          <View style={styles.nextPrayerCard}>
+            <View style={styles.nextPrayerHeader}>
+              <View style={styles.nextPrayerIconContainer}>
+                <IconSymbol
+                  ios_icon_name="bell.fill"
+                  android_material_icon_name="notifications-active"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={styles.nextPrayerLabel}>Next Prayer</Text>
+            </View>
+            <View style={styles.nextPrayerContent}>
+              <View style={styles.nextPrayerInfo}>
+                <Text style={styles.nextPrayerName}>{nextPrayer.name}</Text>
+                <Text style={styles.nextPrayerArabic}>{nextPrayer.arabicName}</Text>
+              </View>
+              <View style={styles.nextPrayerTimeContainer}>
+                <Text style={styles.nextPrayerTime}>{nextPrayer.time}</Text>
+                {timeUntilNext && timeUntilNext !== 'Passed' && (
+                  <Text style={styles.nextPrayerCountdown}>in {timeUntilNext}</Text>
+                )}
+              </View>
+            </View>
+            {!settings.locationPermissionGranted && (
+              <View style={styles.locationWarning}>
+                <IconSymbol
+                  ios_icon_name="exclamationmark.triangle.fill"
+                  android_material_icon_name="warning"
+                  size={14}
+                  color={colors.warning}
+                />
+                <Text style={styles.locationWarningText}>
+                  Enable location for accurate times
+                </Text>
+              </View>
+            )}
+          </View>
+        )}
+
         {/* Daily Quran Verse Section - ENHANCED DESIGN */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -465,8 +575,13 @@ export default function HomeScreen() {
           </LinearGradient>
 
           {/* Prayer List - IMPROVED SPACING */}
-          <View style={styles.prayerList}>
-            {prayers.map((prayer, index) => (
+          {prayerTimesLoading ? (
+            <View style={styles.loadingCard}>
+              <Text style={styles.loadingText}>Loading prayer times...</Text>
+            </View>
+          ) : (
+            <View style={styles.prayerList}>
+              {prayers.map((prayer, index) => (
               <React.Fragment key={index}>
                 <TouchableOpacity
                   style={[
@@ -524,8 +639,9 @@ export default function HomeScreen() {
                   </View>
                 </TouchableOpacity>
               </React.Fragment>
-            ))}
-          </View>
+              ))}
+            </View>
+          )}
         </View>
 
         {/* Daily Hadith Section - IMPROVED DESIGN */}
@@ -905,5 +1021,80 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  nextPrayerCard: {
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.xl,
+    ...shadows.medium,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  nextPrayerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+    gap: spacing.sm,
+  },
+  nextPrayerIconContainer: {
+    width: 28,
+    height: 28,
+    borderRadius: borderRadius.sm,
+    backgroundColor: colors.highlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nextPrayerLabel: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  nextPrayerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  nextPrayerInfo: {
+    flex: 1,
+  },
+  nextPrayerName: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  nextPrayerArabic: {
+    ...typography.body,
+    color: colors.textSecondary,
+  },
+  nextPrayerTimeContainer: {
+    alignItems: 'flex-end',
+  },
+  nextPrayerTime: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: colors.primary,
+    marginBottom: spacing.xs,
+  },
+  nextPrayerCountdown: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  locationWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    paddingTop: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    gap: spacing.xs,
+  },
+  locationWarningText: {
+    ...typography.small,
+    color: colors.warning,
+    flex: 1,
   },
 });

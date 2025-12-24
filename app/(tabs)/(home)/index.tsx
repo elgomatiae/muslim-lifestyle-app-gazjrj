@@ -9,9 +9,13 @@ import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
-import { getPrayerTimes, refreshPrayerTimes, getNextPrayer, getTimeUntilPrayer, PrayerTime as PrayerTimeType } from "@/utils/prayerTimeService";
-
-interface PrayerTime extends PrayerTimeType {}
+import { 
+  getPrayerTimes, 
+  getNextPrayer, 
+  getTimeUntilPrayer, 
+  PrayerTime,
+  savePrayerCompletionStatus,
+} from "@/utils/prayerTimeService";
 
 interface DailyVerse {
   id: string;
@@ -31,9 +35,6 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const { 
     prayerGoals, 
-    dhikrGoals, 
-    quranGoals,
-    ibadahGoals,
     sectionScores, 
     overallScore,
     refreshData,
@@ -56,17 +57,6 @@ export default function HomeScreen() {
       setPrayerTimesLoading(true);
       console.log('HomeScreen: Loading prayer times...');
       
-      // Check if location permission is granted
-      if (!settings.locationPermissionGranted) {
-        console.log('HomeScreen: Location permission not granted, showing alert');
-        // Use default times but show alert
-        Alert.alert(
-          'Location Permission Required',
-          'To get accurate prayer times for your location, please enable location permissions in the notification settings.',
-          [{ text: 'OK' }]
-        );
-      }
-
       const prayerTimes = await getPrayerTimes();
       console.log('HomeScreen: Prayer times loaded:', prayerTimes);
       
@@ -85,7 +75,7 @@ export default function HomeScreen() {
       }
 
       // Get next prayer
-      const next = await getNextPrayer(prayerTimes);
+      const next = getNextPrayer(prayerTimes);
       setNextPrayer(next);
       
       if (next) {
@@ -95,7 +85,7 @@ export default function HomeScreen() {
       console.error('HomeScreen: Error loading prayer times:', error);
       Alert.alert(
         'Error Loading Prayer Times',
-        'Unable to load prayer times. Please check your location permissions and try again.',
+        'Unable to load prayer times. Please check your permissions in settings.',
         [{ text: 'OK' }]
       );
     } finally {
@@ -103,10 +93,10 @@ export default function HomeScreen() {
     }
   };
 
-  // Load prayer times on mount and when location permission changes
+  // Load prayer times on mount
   useEffect(() => {
     loadPrayerTimes();
-  }, [settings.locationPermissionGranted]);
+  }, []);
 
   // Sync prayers with prayerGoals from context
   useEffect(() => {
@@ -133,6 +123,7 @@ export default function HomeScreen() {
     return () => clearInterval(interval);
   }, [nextPrayer]);
 
+  // Load daily content
   useEffect(() => {
     loadDailyContent();
   }, [user]);
@@ -222,6 +213,16 @@ export default function HomeScreen() {
     };
 
     await updatePrayerGoals(updatedGoals);
+
+    // Also save to local storage for prayer time service
+    const completionStatus: Record<string, boolean> = {
+      fajr: updatedGoals.fardPrayers.fajr,
+      dhuhr: updatedGoals.fardPrayers.dhuhr,
+      asr: updatedGoals.fardPrayers.asr,
+      maghrib: updatedGoals.fardPrayers.maghrib,
+      isha: updatedGoals.fardPrayers.isha,
+    };
+    await savePrayerCompletionStatus(completionStatus);
   };
 
   const completedCount = prayers.filter(p => p.completed).length;
@@ -277,12 +278,9 @@ export default function HomeScreen() {
     const centerX = 100;
     const centerY = 100;
     
-    // Use sectionScores directly from context - SAME AS IMAN TRACKER
     const ibadahScore = typeof sectionScores.ibadah === 'number' && !isNaN(sectionScores.ibadah) ? sectionScores.ibadah : 0;
     const ilmScore = typeof sectionScores.ilm === 'number' && !isNaN(sectionScores.ilm) ? sectionScores.ilm : 0;
     const amanahScore = typeof sectionScores.amanah === 'number' && !isNaN(sectionScores.amanah) ? sectionScores.amanah : 0;
-    
-    console.log('Home Screen - Ring Scores from Context:', { ibadah: ibadahScore, ilm: ilmScore, amanah: amanahScore });
     
     // ʿIbādah ring (outer) - Green
     const ibadahRadius = 85;
@@ -305,7 +303,6 @@ export default function HomeScreen() {
     const amanahCircumference = 2 * Math.PI * amanahRadius;
     const amanahOffset = amanahCircumference * (1 - amanahProgressValue);
 
-    // Ring colors - SAME AS IMAN TRACKER
     const ibadahColor = '#10B981'; // Green
     const ilmColor = '#3B82F6'; // Blue
     const amanahColor = '#F59E0B'; // Amber/Gold
@@ -394,7 +391,7 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        {/* Ring Labels - SAME AS IMAN TRACKER */}
+        {/* Ring Labels */}
         <View style={styles.ringsLabels}>
           <View style={styles.ringLabelItem}>
             <View style={[styles.ringLabelDot, { backgroundColor: ibadahColor }]} />
@@ -426,7 +423,7 @@ export default function HomeScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
       >
-        {/* Header with Gradient - IMPROVED DESIGN */}
+        {/* Header with Gradient */}
         <LinearGradient
           colors={colors.gradientPrimary}
           start={{ x: 0, y: 0 }}
@@ -491,7 +488,7 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Daily Quran Verse Section - ENHANCED DESIGN */}
+        {/* Daily Quran Verse Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
@@ -527,7 +524,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Iman Score Rings - IMPROVED LAYOUT */}
+        {/* Iman Score Rings */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
@@ -545,7 +542,7 @@ export default function HomeScreen() {
           </View>
         </View>
         
-        {/* Prayer Tracker Section - IMPROVED DESIGN */}
+        {/* Prayer Tracker Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>
@@ -574,7 +571,7 @@ export default function HomeScreen() {
             </Text>
           </LinearGradient>
 
-          {/* Prayer List - IMPROVED SPACING */}
+          {/* Prayer List */}
           {prayerTimesLoading ? (
             <View style={styles.loadingCard}>
               <Text style={styles.loadingText}>Loading prayer times...</Text>
@@ -644,7 +641,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* Daily Hadith Section - IMPROVED DESIGN */}
+        {/* Daily Hadith Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.sectionIconContainer}>

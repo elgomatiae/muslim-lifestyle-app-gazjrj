@@ -1,150 +1,62 @@
 
-import * as Location from 'expo-location';
+import { Coordinates, CalculationMethod, PrayerTimes } from 'adhan';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as Notifications from 'expo-notifications';
-import { Coordinates, CalculationMethod, PrayerTimes, Prayer, Madhab, HighLatitudeRule } from 'adhan';
+import { getUserLocation, getLocationWithFallback, UserLocation } from './locationService';
+
+const PRAYER_TIMES_CACHE_KEY = '@prayer_times_cache';
+const PRAYER_COMPLETION_KEY = '@prayer_completion';
 
 export interface PrayerTime {
   name: string;
-  time: string;
   arabicName: string;
-  completed: boolean;
+  time: string;
   date: Date;
+  completed: boolean;
 }
 
-export interface LocationData {
-  latitude: number;
-  longitude: number;
-  timezone: string;
-  city?: string;
-  country?: string;
+export interface PrayerTimesData {
+  prayers: PrayerTime[];
+  date: string;
+  location: UserLocation;
 }
 
 const PRAYER_NAMES = {
   fajr: { english: 'Fajr', arabic: 'الفجر' },
-  sunrise: { english: 'Sunrise', arabic: 'الشروق' },
   dhuhr: { english: 'Dhuhr', arabic: 'الظهر' },
   asr: { english: 'Asr', arabic: 'العصر' },
   maghrib: { english: 'Maghrib', arabic: 'المغرب' },
   isha: { english: 'Isha', arabic: 'العشاء' },
 };
 
-const STORAGE_KEYS = {
-  LOCATION: '@prayer_location',
-  PRAYER_TIMES: '@prayer_times',
-  LAST_CALCULATION: '@last_prayer_calculation',
-  NOTIFICATION_IDS: '@prayer_notification_ids',
-};
+/**
+ * Simple prayer time service - calculates and manages prayer times
+ */
 
-// Request location permissions
-export async function requestLocationPermission(): Promise<boolean> {
-  try {
-    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-    
-    if (foregroundStatus !== 'granted') {
-      console.log('Location permission not granted');
-      return false;
-    }
-
-    console.log('Location permission granted');
-    return true;
-  } catch (error) {
-    console.error('Error requesting location permission:', error);
-    return false;
-  }
+// Format time to readable string
+function formatTime(date: Date): string {
+  return date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
-// Get user's current location
-export async function getCurrentLocation(): Promise<LocationData | null> {
-  try {
-    const hasPermission = await requestLocationPermission();
-    if (!hasPermission) {
-      console.log('No location permission, using cached location');
-      return await getCachedLocation();
-    }
-
-    console.log('Getting current location...');
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-
-    // Get timezone
-    const timezone = await Location.getTimeZoneAsync();
-
-    // Try to get city/country info
-    let city, country;
-    try {
-      const reverseGeocode = await Location.reverseGeocodeAsync({
-        latitude: location.coords.latitude,
-        longitude: location.coords.longitude,
-      });
-
-      if (reverseGeocode && reverseGeocode.length > 0) {
-        city = reverseGeocode[0].city || reverseGeocode[0].subregion;
-        country = reverseGeocode[0].country;
-      }
-    } catch (geoError) {
-      console.log('Error getting reverse geocode:', geoError);
-    }
-
-    const locationData: LocationData = {
-      latitude: location.coords.latitude,
-      longitude: location.coords.longitude,
-      timezone,
-      city,
-      country,
-    };
-
-    // Cache the location
-    await AsyncStorage.setItem(STORAGE_KEYS.LOCATION, JSON.stringify(locationData));
-    console.log('Location cached:', locationData);
-
-    return locationData;
-  } catch (error) {
-    console.error('Error getting current location:', error);
-    return await getCachedLocation();
-  }
+// Get today's date string (YYYY-MM-DD)
+function getTodayString(): string {
+  const today = new Date();
+  return today.toISOString().split('T')[0];
 }
 
-// Get cached location
-export async function getCachedLocation(): Promise<LocationData | null> {
+// Calculate prayer times for a location
+export async function calculatePrayerTimes(location: UserLocation): Promise<PrayerTime[]> {
   try {
-    const cached = await AsyncStorage.getItem(STORAGE_KEYS.LOCATION);
-    if (cached) {
-      return JSON.parse(cached);
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting cached location:', error);
-    return null;
-  }
-}
+    console.log('Calculating prayer times for location:', location);
 
-// Calculate prayer times for a given location and date
-export async function calculatePrayerTimes(
-  locationData: LocationData,
-  date: Date = new Date()
-): Promise<PrayerTime[]> {
-  try {
-    console.log('Calculating prayer times for:', locationData, date);
-
-    const coordinates = new Coordinates(locationData.latitude, locationData.longitude);
-    
-    // Use Muslim World League method as default (can be customized)
+    const coordinates = new Coordinates(location.latitude, location.longitude);
     const params = CalculationMethod.MuslimWorldLeague();
-    params.madhab = Madhab.Shafi; // Can be changed to Madhab.Hanafi
-    params.highLatitudeRule = HighLatitudeRule.MiddleOfTheNight;
-
+    const date = new Date();
+    
     const prayerTimes = new PrayerTimes(coordinates, date, params);
-
-    // Format times in local timezone
-    const formatTime = (date: Date): string => {
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    };
 
     const prayers: PrayerTime[] = [
       {
@@ -184,11 +96,7 @@ export async function calculatePrayerTimes(
       },
     ];
 
-    // Cache the prayer times
-    await AsyncStorage.setItem(STORAGE_KEYS.PRAYER_TIMES, JSON.stringify(prayers));
-    await AsyncStorage.setItem(STORAGE_KEYS.LAST_CALCULATION, date.toISOString());
-
-    console.log('Prayer times calculated:', prayers);
+    console.log('Prayer times calculated successfully');
     return prayers;
   } catch (error) {
     console.error('Error calculating prayer times:', error);
@@ -196,174 +104,160 @@ export async function calculatePrayerTimes(
   }
 }
 
-// Get prayer times (from cache or calculate new)
+// Get cached prayer times
+async function getCachedPrayerTimes(): Promise<PrayerTimesData | null> {
+  try {
+    const cached = await AsyncStorage.getItem(PRAYER_TIMES_CACHE_KEY);
+    if (!cached) return null;
+
+    const data: PrayerTimesData = JSON.parse(cached);
+    
+    // Check if cache is for today
+    if (data.date === getTodayString()) {
+      // Convert date strings back to Date objects
+      data.prayers = data.prayers.map(p => ({
+        ...p,
+        date: new Date(p.date),
+      }));
+      console.log('Using cached prayer times');
+      return data;
+    }
+
+    console.log('Cached prayer times are outdated');
+    return null;
+  } catch (error) {
+    console.log('Error reading cached prayer times:', error);
+    return null;
+  }
+}
+
+// Cache prayer times
+async function cachePrayerTimes(data: PrayerTimesData): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRAYER_TIMES_CACHE_KEY, JSON.stringify(data));
+    console.log('Prayer times cached successfully');
+  } catch (error) {
+    console.log('Error caching prayer times:', error);
+  }
+}
+
+// Get prayer completion status
+async function getPrayerCompletionStatus(): Promise<Record<string, boolean>> {
+  try {
+    const today = getTodayString();
+    const cached = await AsyncStorage.getItem(`${PRAYER_COMPLETION_KEY}_${today}`);
+    if (!cached) return {};
+    return JSON.parse(cached);
+  } catch (error) {
+    console.log('Error reading prayer completion status:', error);
+    return {};
+  }
+}
+
+// Save prayer completion status
+export async function savePrayerCompletionStatus(completionStatus: Record<string, boolean>): Promise<void> {
+  try {
+    const today = getTodayString();
+    await AsyncStorage.setItem(`${PRAYER_COMPLETION_KEY}_${today}`, JSON.stringify(completionStatus));
+    console.log('Prayer completion status saved');
+  } catch (error) {
+    console.log('Error saving prayer completion status:', error);
+  }
+}
+
+// Get prayer times (with caching)
 export async function getPrayerTimes(): Promise<PrayerTime[]> {
   try {
-    // Check if we have cached prayer times for today
-    const lastCalculation = await AsyncStorage.getItem(STORAGE_KEYS.LAST_CALCULATION);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (lastCalculation) {
-      const lastDate = new Date(lastCalculation);
-      lastDate.setHours(0, 0, 0, 0);
-
-      // If we have prayer times from today, return them
-      if (lastDate.getTime() === today.getTime()) {
-        const cached = await AsyncStorage.getItem(STORAGE_KEYS.PRAYER_TIMES);
-        if (cached) {
-          const prayers = JSON.parse(cached);
-          // Convert date strings back to Date objects
-          return prayers.map((p: any) => ({
-            ...p,
-            date: new Date(p.date),
-          }));
-        }
-      }
+    // Try to get cached prayer times first
+    const cached = await getCachedPrayerTimes();
+    if (cached) {
+      // Apply completion status
+      const completionStatus = await getPrayerCompletionStatus();
+      cached.prayers = cached.prayers.map(p => ({
+        ...p,
+        completed: completionStatus[p.name.toLowerCase()] || false,
+      }));
+      return cached.prayers;
     }
 
     // Calculate new prayer times
-    const location = await getCurrentLocation();
-    if (!location) {
-      throw new Error('Unable to get location for prayer times');
-    }
+    console.log('Calculating fresh prayer times...');
+    const location = await getLocationWithFallback();
+    const prayers = await calculatePrayerTimes(location);
 
-    return await calculatePrayerTimes(location);
+    // Apply completion status
+    const completionStatus = await getPrayerCompletionStatus();
+    const prayersWithStatus = prayers.map(p => ({
+      ...p,
+      completed: completionStatus[p.name.toLowerCase()] || false,
+    }));
+
+    // Cache the prayer times
+    await cachePrayerTimes({
+      prayers: prayersWithStatus,
+      date: getTodayString(),
+      location,
+    });
+
+    return prayersWithStatus;
   } catch (error) {
     console.error('Error getting prayer times:', error);
-    // Return default times as fallback
+    // Return default prayer times as fallback
     return getDefaultPrayerTimes();
   }
 }
 
-// Get default prayer times (fallback)
-function getDefaultPrayerTimes(): PrayerTime[] {
-  const now = new Date();
-  return [
-    {
-      name: PRAYER_NAMES.fajr.english,
-      arabicName: PRAYER_NAMES.fajr.arabic,
-      time: '5:30 AM',
-      date: new Date(now.setHours(5, 30, 0, 0)),
-      completed: false,
-    },
-    {
-      name: PRAYER_NAMES.dhuhr.english,
-      arabicName: PRAYER_NAMES.dhuhr.arabic,
-      time: '12:45 PM',
-      date: new Date(now.setHours(12, 45, 0, 0)),
-      completed: false,
-    },
-    {
-      name: PRAYER_NAMES.asr.english,
-      arabicName: PRAYER_NAMES.asr.arabic,
-      time: '4:15 PM',
-      date: new Date(now.setHours(16, 15, 0, 0)),
-      completed: false,
-    },
-    {
-      name: PRAYER_NAMES.maghrib.english,
-      arabicName: PRAYER_NAMES.maghrib.arabic,
-      time: '6:30 PM',
-      date: new Date(now.setHours(18, 30, 0, 0)),
-      completed: false,
-    },
-    {
-      name: PRAYER_NAMES.isha.english,
-      arabicName: PRAYER_NAMES.isha.arabic,
-      time: '8:00 PM',
-      date: new Date(now.setHours(20, 0, 0, 0)),
-      completed: false,
-    },
-  ];
-}
-
-// Schedule prayer notifications
-export async function schedulePrayerNotifications(
-  prayerTimes: PrayerTime[],
-  enabled: boolean = true
-): Promise<void> {
+// Refresh prayer times (force recalculation)
+export async function refreshPrayerTimes(): Promise<PrayerTime[]> {
   try {
-    if (!enabled) {
-      console.log('Prayer notifications disabled, skipping scheduling');
-      return;
-    }
+    console.log('Refreshing prayer times...');
+    
+    // Clear cache
+    await AsyncStorage.removeItem(PRAYER_TIMES_CACHE_KEY);
+    
+    // Get fresh location and calculate
+    const location = await getLocationWithFallback();
+    const prayers = await calculatePrayerTimes(location);
 
-    // Cancel existing prayer notifications
-    await cancelPrayerNotifications();
+    // Apply completion status
+    const completionStatus = await getPrayerCompletionStatus();
+    const prayersWithStatus = prayers.map(p => ({
+      ...p,
+      completed: completionStatus[p.name.toLowerCase()] || false,
+    }));
 
-    const notificationIds: string[] = [];
+    // Cache the new prayer times
+    await cachePrayerTimes({
+      prayers: prayersWithStatus,
+      date: getTodayString(),
+      location,
+    });
 
-    for (const prayer of prayerTimes) {
-      // Only schedule if the prayer time is in the future
-      if (prayer.date > new Date()) {
-        const id = await Notifications.scheduleNotificationAsync({
-          content: {
-            title: `🕌 ${prayer.name} Prayer Time`,
-            body: `It's time for ${prayer.name} prayer (${prayer.arabicName})`,
-            sound: 'default',
-            priority: Notifications.AndroidNotificationPriority.HIGH,
-            categoryIdentifier: 'prayer',
-            data: {
-              type: 'prayer',
-              prayerName: prayer.name,
-              prayerTime: prayer.time,
-            },
-          },
-          trigger: {
-            date: prayer.date,
-          },
-        });
-
-        notificationIds.push(id);
-        console.log(`Scheduled notification for ${prayer.name} at ${prayer.time}`);
-      }
-    }
-
-    // Save notification IDs for later cancellation
-    await AsyncStorage.setItem(STORAGE_KEYS.NOTIFICATION_IDS, JSON.stringify(notificationIds));
-    console.log('All prayer notifications scheduled:', notificationIds.length);
+    return prayersWithStatus;
   } catch (error) {
-    console.error('Error scheduling prayer notifications:', error);
-  }
-}
-
-// Cancel prayer notifications
-export async function cancelPrayerNotifications(): Promise<void> {
-  try {
-    const idsJson = await AsyncStorage.getItem(STORAGE_KEYS.NOTIFICATION_IDS);
-    if (idsJson) {
-      const ids: string[] = JSON.parse(idsJson);
-      for (const id of ids) {
-        await Notifications.cancelScheduledNotificationAsync(id);
-      }
-      console.log('Cancelled prayer notifications:', ids.length);
-    }
-
-    await AsyncStorage.removeItem(STORAGE_KEYS.NOTIFICATION_IDS);
-  } catch (error) {
-    console.error('Error cancelling prayer notifications:', error);
+    console.error('Error refreshing prayer times:', error);
+    return await getPrayerTimes();
   }
 }
 
 // Get next prayer
-export async function getNextPrayer(prayerTimes: PrayerTime[]): Promise<PrayerTime | null> {
+export function getNextPrayer(prayers: PrayerTime[]): PrayerTime | null {
   const now = new Date();
   
-  for (const prayer of prayerTimes) {
+  for (const prayer of prayers) {
     if (prayer.date > now) {
       return prayer;
     }
   }
 
   // If no prayer is left today, return Fajr (next day)
-  return prayerTimes[0];
+  return prayers[0] || null;
 }
 
-// Get time until next prayer
-export function getTimeUntilPrayer(prayerTime: PrayerTime): string {
+// Get time until prayer
+export function getTimeUntilPrayer(prayer: PrayerTime): string {
   const now = new Date();
-  const diff = prayerTime.date.getTime() - now.getTime();
+  const diff = prayer.date.getTime() - now.getTime();
 
   if (diff < 0) {
     return 'Passed';
@@ -378,64 +272,47 @@ export function getTimeUntilPrayer(prayerTime: PrayerTime): string {
   return `${minutes}m`;
 }
 
-// Initialize prayer times and notifications
-export async function initializePrayerTimes(notificationsEnabled: boolean = true): Promise<PrayerTime[]> {
-  try {
-    console.log('Initializing prayer times...');
-    
-    // Get or calculate prayer times
-    const prayerTimes = await getPrayerTimes();
-    
-    // Schedule notifications if enabled
-    if (notificationsEnabled) {
-      await schedulePrayerNotifications(prayerTimes, true);
-    }
+// Default prayer times (fallback)
+function getDefaultPrayerTimes(): PrayerTime[] {
+  const now = new Date();
+  const today = new Date(now);
+  today.setHours(0, 0, 0, 0);
 
-    return prayerTimes;
-  } catch (error) {
-    console.error('Error initializing prayer times:', error);
-    return getDefaultPrayerTimes();
-  }
-}
-
-// Refresh prayer times (call this daily or when location changes)
-export async function refreshPrayerTimes(notificationsEnabled: boolean = true): Promise<PrayerTime[]> {
-  try {
-    console.log('Refreshing prayer times...');
-    
-    // Get fresh location
-    const location = await getCurrentLocation();
-    if (!location) {
-      throw new Error('Unable to get location');
-    }
-
-    // Calculate new prayer times
-    const prayerTimes = await calculatePrayerTimes(location);
-
-    // Reschedule notifications
-    if (notificationsEnabled) {
-      await schedulePrayerNotifications(prayerTimes, true);
-    }
-
-    return prayerTimes;
-  } catch (error) {
-    console.error('Error refreshing prayer times:', error);
-    return await getPrayerTimes();
-  }
-}
-
-// Update calculation method
-export async function updateCalculationMethod(
-  method: 'MuslimWorldLeague' | 'Egyptian' | 'Karachi' | 'UmmAlQura' | 'Dubai' | 'Qatar' | 'Kuwait' | 'MoonsightingCommittee' | 'Singapore' | 'NorthAmerica' | 'Tehran',
-  madhab: 'Shafi' | 'Hanafi' = 'Shafi'
-): Promise<void> {
-  try {
-    await AsyncStorage.setItem('@prayer_calculation_method', method);
-    await AsyncStorage.setItem('@prayer_madhab', madhab);
-    
-    // Recalculate prayer times with new method
-    await refreshPrayerTimes();
-  } catch (error) {
-    console.error('Error updating calculation method:', error);
-  }
+  return [
+    {
+      name: PRAYER_NAMES.fajr.english,
+      arabicName: PRAYER_NAMES.fajr.arabic,
+      time: '5:30 AM',
+      date: new Date(today.getTime() + 5.5 * 60 * 60 * 1000),
+      completed: false,
+    },
+    {
+      name: PRAYER_NAMES.dhuhr.english,
+      arabicName: PRAYER_NAMES.dhuhr.arabic,
+      time: '12:45 PM',
+      date: new Date(today.getTime() + 12.75 * 60 * 60 * 1000),
+      completed: false,
+    },
+    {
+      name: PRAYER_NAMES.asr.english,
+      arabicName: PRAYER_NAMES.asr.arabic,
+      time: '4:15 PM',
+      date: new Date(today.getTime() + 16.25 * 60 * 60 * 1000),
+      completed: false,
+    },
+    {
+      name: PRAYER_NAMES.maghrib.english,
+      arabicName: PRAYER_NAMES.maghrib.arabic,
+      time: '6:30 PM',
+      date: new Date(today.getTime() + 18.5 * 60 * 60 * 1000),
+      completed: false,
+    },
+    {
+      name: PRAYER_NAMES.isha.english,
+      arabicName: PRAYER_NAMES.isha.arabic,
+      time: '8:00 PM',
+      date: new Date(today.getTime() + 20 * 60 * 60 * 1000),
+      completed: false,
+    },
+  ];
 }

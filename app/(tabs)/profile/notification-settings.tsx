@@ -183,6 +183,39 @@ export default function NotificationSettingsScreen() {
                 </Text>
               </View>
             </View>
+
+            <View style={styles.permissionRow}>
+              <View style={styles.permissionLeft}>
+                <View style={[
+                  styles.permissionIcon,
+                  settings.locationServicesEnabled && styles.permissionIconGranted
+                ]}>
+                  <IconSymbol
+                    ios_icon_name="location.circle.fill"
+                    android_material_icon_name="gps-fixed"
+                    size={20}
+                    color={settings.locationServicesEnabled ? colors.card : colors.textSecondary}
+                  />
+                </View>
+                <View style={styles.permissionInfo}>
+                  <Text style={styles.permissionTitle}>Location Services</Text>
+                  <Text style={styles.permissionStatus}>
+                    {settings.locationServicesEnabled ? 'Enabled' : 'Disabled'}
+                  </Text>
+                </View>
+              </View>
+              <View style={[
+                styles.statusBadge,
+                settings.locationServicesEnabled && styles.statusBadgeGranted
+              ]}>
+                <Text style={[
+                  styles.statusText,
+                  settings.locationServicesEnabled && styles.statusTextGranted
+                ]}>
+                  {settings.locationServicesEnabled ? 'Active' : 'Inactive'}
+                </Text>
+              </View>
+            </View>
           </View>
 
           <TouchableOpacity
@@ -432,6 +465,15 @@ export default function NotificationSettingsScreen() {
                 settings.locationPermissionGranted && styles.statusValueActive
               ]}>
                 {settings.locationPermissionGranted ? 'Granted' : 'Not Granted'}
+              </Text>
+            </View>
+            <View style={styles.statusRow}>
+              <Text style={styles.statusLabel}>Location Services</Text>
+              <Text style={[
+                styles.statusValue,
+                settings.locationServicesEnabled && styles.statusValueActive
+              ]}>
+                {settings.locationServicesEnabled ? 'Enabled' : 'Disabled'}
               </Text>
             </View>
           </View>

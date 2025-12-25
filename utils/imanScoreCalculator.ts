@@ -249,6 +249,7 @@ export async function calculateIbadahScore(goals: IbadahGoals): Promise<number> 
   const passedPrayers = await getPrayersThatHavePassed();
   const totalPassedPrayers = passedPrayers.length;
   
+  // FIXED: Only give credit if prayers have actually passed
   if (totalPassedPrayers > 0) {
     let completedPassedPrayers = 0;
     for (const prayerName of passedPrayers) {
@@ -260,10 +261,11 @@ export async function calculateIbadahScore(goals: IbadahGoals): Promise<number> 
     const fardScore = (completedPassedPrayers / totalPassedPrayers) * IBADAH_WEIGHTS.daily.fardPrayers;
     score += fardScore;
     breakdown.fardPrayers = fardScore;
+    console.log(`Fard Prayers: ${completedPassedPrayers}/${totalPassedPrayers} passed = ${fardScore.toFixed(1)} points`);
   } else {
-    // No prayers have passed yet - give full credit
-    score += IBADAH_WEIGHTS.daily.fardPrayers;
-    breakdown.fardPrayers = IBADAH_WEIGHTS.daily.fardPrayers;
+    // No prayers have passed yet - give ZERO credit (not full credit)
+    breakdown.fardPrayers = 0;
+    console.log('Fard Prayers: No prayers have passed yet = 0 points');
   }
   
   // Sunnah Prayers (10 points)

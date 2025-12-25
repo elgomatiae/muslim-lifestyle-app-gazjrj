@@ -27,7 +27,7 @@ interface Community {
 }
 
 export default function CommunitiesScreen() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
   const [communities, setCommunities] = useState<Community[]>([]);
   const [communitiesLoading, setCommunitiesLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -160,22 +160,41 @@ export default function CommunitiesScreen() {
       return;
     }
 
+    if (!session) {
+      Alert.alert('Error', 'Session expired. Please log in again.');
+      return;
+    }
+
     setCreating(true);
     try {
-      console.log('Creating community with user ID:', user.id);
+      console.log('Creating community...');
+      console.log('User ID:', user.id);
+      console.log('Session exists:', !!session);
+      console.log('Community name:', newCommunityName.trim());
+      
+      // Verify session is still valid
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !currentSession) {
+        console.error('Session error:', sessionError);
+        throw new Error('Your session has expired. Please log in again.');
+      }
+
+      console.log('Current session user ID:', currentSession.user.id);
       
       // Create community
       const { data: communityData, error: communityError } = await supabase
         .from('communities')
         .insert({
           name: newCommunityName.trim(),
-          created_by: user.id,
+          created_by: currentSession.user.id,
         })
         .select()
         .single();
 
       if (communityError) {
         console.error('Error creating community:', communityError);
+        console.error('Error details:', JSON.stringify(communityError, null, 2));
         throw communityError;
       }
 
@@ -186,12 +205,13 @@ export default function CommunitiesScreen() {
         .from('community_members')
         .insert({
           community_id: communityData.id,
-          user_id: user.id,
+          user_id: currentSession.user.id,
           is_admin: true,
         });
 
       if (memberError) {
         console.error('Error adding creator as member:', memberError);
+        console.error('Member error details:', JSON.stringify(memberError, null, 2));
         throw memberError;
       }
 
@@ -211,6 +231,12 @@ export default function CommunitiesScreen() {
       }
       if (error.code) {
         errorMessage += ' (Error code: ' + error.code + ')';
+      }
+      if (error.details) {
+        errorMessage += '\nDetails: ' + error.details;
+      }
+      if (error.hint) {
+        errorMessage += '\nHint: ' + error.hint;
       }
       
       Alert.alert('Error', errorMessage);

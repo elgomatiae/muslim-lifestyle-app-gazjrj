@@ -781,49 +781,48 @@ export default function GoalsSettingsScreen() {
       </View>
 
       <View style={styles.sectionTabs}>
-        {(['ibadah', 'ilm', 'amanah'] as SectionType[]).map((section, index) => {
+        {(['ibadah', 'ilm', 'amanah'] as SectionType[]).map((section) => {
           const isActive = activeSection === section;
           const icon = getSectionIcon(section);
           const colors_gradient = getSectionColor(section);
 
           return (
-            <React.Fragment key={index}>
-              <TouchableOpacity
-                style={[styles.sectionTab, isActive && styles.sectionTabActive]}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setActiveSection(section);
-                }}
-                activeOpacity={0.7}
-              >
-                {isActive ? (
-                  <LinearGradient
-                    colors={colors_gradient}
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={styles.sectionTabGradient}
-                  >
-                    <IconSymbol
-                      ios_icon_name={icon.ios}
-                      android_material_icon_name={icon.android}
-                      size={20}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.sectionTabTextActive}>{getSectionTitle(section)}</Text>
-                  </LinearGradient>
-                ) : (
-                  <View style={styles.sectionTabContent}>
-                    <IconSymbol
-                      ios_icon_name={icon.ios}
-                      android_material_icon_name={icon.android}
-                      size={20}
-                      color={colors.textSecondary}
-                    />
-                    <Text style={styles.sectionTabText}>{getSectionTitle(section)}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            </React.Fragment>
+            <TouchableOpacity
+              key={section}
+              style={[styles.sectionTab, isActive && styles.sectionTabActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveSection(section);
+              }}
+              activeOpacity={0.7}
+            >
+              {isActive ? (
+                <LinearGradient
+                  colors={colors_gradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={styles.sectionTabGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name={icon.ios}
+                    android_material_icon_name={icon.android}
+                    size={20}
+                    color="#FFFFFF"
+                  />
+                  <Text style={styles.sectionTabTextActive}>{getSectionTitle(section)}</Text>
+                </LinearGradient>
+              ) : (
+                <View style={styles.sectionTabContent}>
+                  <IconSymbol
+                    ios_icon_name={icon.ios}
+                    android_material_icon_name={icon.android}
+                    size={20}
+                    color={colors.textSecondary}
+                  />
+                  <Text style={styles.sectionTabText}>{getSectionTitle(section)}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -848,18 +847,16 @@ export default function GoalsSettingsScreen() {
               The five daily prayers are obligatory for every Muslim and cannot be disabled. They are:
             </Text>
             <View style={styles.fardList}>
-              {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map((prayer, index) => (
-                <React.Fragment key={index}>
-                  <View style={styles.fardItem}>
-                    <IconSymbol
-                      ios_icon_name="checkmark.circle.fill"
-                      android_material_icon_name="check-circle"
-                      size={16}
-                      color={colors.primary}
-                    />
-                    <Text style={styles.fardItemText}>{prayer}</Text>
-                  </View>
-                </React.Fragment>
+              {['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'].map((prayer) => (
+                <View key={prayer} style={styles.fardItem}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={16}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.fardItemText}>{prayer}</Text>
+                </View>
               ))}
             </View>
           </View>
@@ -880,40 +877,39 @@ export default function GoalsSettingsScreen() {
               Select all workout types you want to track. You can choose multiple types to match your fitness routine.
             </Text>
             <View style={styles.workoutTypesGrid}>
-              {WORKOUT_TYPES.map((type, index) => (
-                <React.Fragment key={index}>
-                  <TouchableOpacity
-                    style={[
-                      styles.workoutTypeCard,
-                      selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,
-                    ]}
-                    onPress={() => toggleWorkoutType(type.value)}
-                    activeOpacity={0.7}
-                  >
-                    <IconSymbol
-                      ios_icon_name={type.icon.ios}
-                      android_material_icon_name={type.icon.android}
-                      size={32}
-                      color={selectedWorkoutTypes.includes(type.value) ? colors.accent : colors.textSecondary}
-                    />
-                    <Text style={[
-                      styles.workoutTypeLabel,
-                      selectedWorkoutTypes.includes(type.value) && styles.workoutTypeLabelActive,
-                    ]}>
-                      {type.label}
-                    </Text>
-                    {selectedWorkoutTypes.includes(type.value) && (
-                      <View style={styles.checkmarkBadge}>
-                        <IconSymbol
-                          ios_icon_name="checkmark"
-                          android_material_icon_name="check"
-                          size={12}
-                          color={colors.card}
-                        />
-                      </View>
-                    )}
-                  </TouchableOpacity>
-                </React.Fragment>
+              {WORKOUT_TYPES.map((type) => (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.workoutTypeCard,
+                    selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,
+                  ]}
+                  onPress={() => toggleWorkoutType(type.value)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name={type.icon.ios}
+                    android_material_icon_name={type.icon.android}
+                    size={32}
+                    color={selectedWorkoutTypes.includes(type.value) ? colors.accent : colors.textSecondary}
+                  />
+                  <Text style={[
+                    styles.workoutTypeLabel,
+                    selectedWorkoutTypes.includes(type.value) && styles.workoutTypeLabelActive,
+                  ]}>
+                    {type.label}
+                  </Text>
+                  {selectedWorkoutTypes.includes(type.value) && (
+                    <View style={styles.checkmarkBadge}>
+                      <IconSymbol
+                        ios_icon_name="checkmark"
+                        android_material_icon_name="check"
+                        size={12}
+                        color={colors.card}
+                      />
+                    </View>
+                  )}
+                </TouchableOpacity>
               ))}
             </View>
             <View style={styles.selectedTypesInfo}>

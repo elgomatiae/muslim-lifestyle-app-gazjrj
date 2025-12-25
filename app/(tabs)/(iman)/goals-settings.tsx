@@ -877,9 +877,9 @@ export default function GoalsSettingsScreen() {
               Select all workout types you want to track. You can choose multiple types to match your fitness routine.
             </Text>
             <View style={styles.workoutTypesGrid}>
-              {WORKOUT_TYPES.map((type) => (
+              {WORKOUT_TYPES.map((type, index) => (
                 <TouchableOpacity
-                  key={type.value}
+                  key={`workout-type-${type.value}-${index}`}
                   style={[
                     styles.workoutTypeCard,
                     selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,

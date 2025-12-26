@@ -157,15 +157,10 @@ export default function ImanTrackerScreen() {
       setCommunitiesLoading(true);
 
       // Fetch communities where user is a member - split the query to avoid nested query issues
-      const { data: memberData, error: memberError } = await supabase
+      const { data: memberData } = await supabase
         .from('community_members')
         .select('community_id, is_admin')
         .eq('user_id', user.id);
-
-      if (memberError) {
-        console.error('Error fetching community members:', memberError);
-        throw memberError;
-      }
 
       if (!memberData || memberData.length === 0) {
         setCommunities([]);
@@ -230,16 +225,12 @@ export default function ImanTrackerScreen() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
+      const { data } = await supabase
         .from('community_invites')
         .select('id')
         .eq('invited_user_id', user.id)
         .eq('status', 'pending');
 
-      if (error) {
-        console.error('Error fetching pending invites:', error);
-        throw error;
-      }
       setPendingInvitesCount(data?.length || 0);
     } catch (error) {
       console.error('Error fetching pending invites:', error);

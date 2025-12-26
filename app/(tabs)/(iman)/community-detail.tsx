@@ -9,11 +9,13 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Animated,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { LinearGradient } from 'expo-linear-gradient';
 import {
   getCommunity,
   removeMemberFromCommunity,
@@ -28,6 +30,7 @@ export default function CommunityDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'member'>('member');
+  const [showLeaderboard, setShowLeaderboard] = useState(true);
 
   const loadCommunityData = useCallback(async () => {
     if (!communityId || !user) {
@@ -168,6 +171,21 @@ export default function CommunityDetailScreen() {
   // Sort members by score (highest first)
   const sortedMembers = [...community.members].sort((a, b) => b.imanScore - a.imanScore);
 
+  // Get medal colors for top 3
+  const getMedalGradient = (rank: number) => {
+    if (rank === 1) return ['#FFD700', '#FFA500']; // Gold
+    if (rank === 2) return ['#C0C0C0', '#A8A8A8']; // Silver
+    if (rank === 3) return ['#CD7F32', '#B87333']; // Bronze
+    return colors.gradientPrimary;
+  };
+
+  const getMedalIcon = (rank: number) => {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return '';
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -215,66 +233,269 @@ export default function CommunityDetailScreen() {
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Members ({community.members.length})</Text>
+        {/* Toggle between Leaderboard and Members List */}
+        <View style={styles.toggleContainer}>
+          <TouchableOpacity
+            style={[styles.toggleButton, showLeaderboard && styles.toggleButtonActive]}
+            onPress={() => setShowLeaderboard(true)}
+          >
+            <IconSymbol
+              ios_icon_name="trophy.fill"
+              android_material_icon_name="emoji_events"
+              size={20}
+              color={showLeaderboard ? '#fff' : colors.textSecondary}
+            />
+            <Text style={[styles.toggleButtonText, showLeaderboard && styles.toggleButtonTextActive]}>
+              Leaderboard
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.toggleButton, !showLeaderboard && styles.toggleButtonActive]}
+            onPress={() => setShowLeaderboard(false)}
+          >
+            <IconSymbol
+              ios_icon_name="person.3.fill"
+              android_material_icon_name="groups"
+              size={20}
+              color={!showLeaderboard ? '#fff' : colors.textSecondary}
+            />
+            <Text style={[styles.toggleButtonText, !showLeaderboard && styles.toggleButtonTextActive]}>
+              Members
+            </Text>
+          </TouchableOpacity>
+        </View>
 
-        <View style={styles.membersList}>
-          {sortedMembers.map((member, index) => {
-            const isCurrentUser = member.userId === user?.id;
-            const showScore = !member.hideScore || isCurrentUser;
-            const rank = index + 1;
+        {showLeaderboard ? (
+          // LEADERBOARD VIEW
+          <View style={styles.leaderboardContainer}>
+            <LinearGradient
+              colors={colors.gradientOcean}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.leaderboardHeader}
+            >
+              <IconSymbol
+                ios_icon_name="trophy.fill"
+                android_material_icon_name="emoji_events"
+                size={32}
+                color="#fff"
+              />
+              <Text style={styles.leaderboardTitle}>Top Performers</Text>
+              <Text style={styles.leaderboardSubtitle}>
+                {community.members.length} {community.members.length === 1 ? 'Member' : 'Members'}
+              </Text>
+            </LinearGradient>
 
-            return (
-              <React.Fragment key={index}>
-                <View style={styles.memberCard}>
-                  <View style={styles.rankContainer}>
-                    <Text style={styles.rankText}>{rank}</Text>
+            {/* Top 3 Podium */}
+            {sortedMembers.length >= 3 && (
+              <View style={styles.podiumContainer}>
+                {/* 2nd Place */}
+                <View style={styles.podiumItem}>
+                  <LinearGradient
+                    colors={getMedalGradient(2)}
+                    style={styles.podiumAvatar}
+                  >
+                    <Text style={styles.podiumMedal}>{getMedalIcon(2)}</Text>
+                  </LinearGradient>
+                  <View style={styles.podiumRank}>
+                    <Text style={styles.podiumRankText}>2</Text>
                   </View>
-                  <View style={styles.memberAvatar}>
-                    <IconSymbol
-                      ios_icon_name="person.fill"
-                      android_material_icon_name="person"
-                      size={24}
-                      color={colors.primary}
-                    />
+                  <Text style={styles.podiumName} numberOfLines={1}>
+                    {sortedMembers[1].username}
+                  </Text>
+                  <Text style={styles.podiumScore}>{sortedMembers[1].imanScore}</Text>
+                  <View style={[styles.podiumBar, styles.podiumBarSecond]} />
+                </View>
+
+                {/* 1st Place */}
+                <View style={[styles.podiumItem, styles.podiumItemFirst]}>
+                  <LinearGradient
+                    colors={getMedalGradient(1)}
+                    style={[styles.podiumAvatar, styles.podiumAvatarFirst]}
+                  >
+                    <Text style={styles.podiumMedalFirst}>{getMedalIcon(1)}</Text>
+                  </LinearGradient>
+                  <View style={[styles.podiumRank, styles.podiumRankFirst]}>
+                    <Text style={styles.podiumRankText}>1</Text>
                   </View>
-                  <View style={styles.memberInfo}>
-                    <View style={styles.memberNameRow}>
-                      <Text style={styles.memberName}>{member.username}</Text>
-                      {member.role === 'admin' && (
-                        <View style={styles.adminBadge}>
-                          <Text style={styles.adminBadgeText}>Admin</Text>
+                  <IconSymbol
+                    ios_icon_name="crown.fill"
+                    android_material_icon_name="workspace_premium"
+                    size={24}
+                    color="#FFD700"
+                    style={styles.crownIcon}
+                  />
+                  <Text style={[styles.podiumName, styles.podiumNameFirst]} numberOfLines={1}>
+                    {sortedMembers[0].username}
+                  </Text>
+                  <Text style={[styles.podiumScore, styles.podiumScoreFirst]}>
+                    {sortedMembers[0].imanScore}
+                  </Text>
+                  <View style={[styles.podiumBar, styles.podiumBarFirst]} />
+                </View>
+
+                {/* 3rd Place */}
+                <View style={styles.podiumItem}>
+                  <LinearGradient
+                    colors={getMedalGradient(3)}
+                    style={styles.podiumAvatar}
+                  >
+                    <Text style={styles.podiumMedal}>{getMedalIcon(3)}</Text>
+                  </LinearGradient>
+                  <View style={styles.podiumRank}>
+                    <Text style={styles.podiumRankText}>3</Text>
+                  </View>
+                  <Text style={styles.podiumName} numberOfLines={1}>
+                    {sortedMembers[2].username}
+                  </Text>
+                  <Text style={styles.podiumScore}>{sortedMembers[2].imanScore}</Text>
+                  <View style={[styles.podiumBar, styles.podiumBarThird]} />
+                </View>
+              </View>
+            )}
+
+            {/* Rest of the leaderboard */}
+            <View style={styles.leaderboardList}>
+              {sortedMembers.map((member, index) => {
+                const isCurrentUser = member.userId === user?.id;
+                const showScore = !member.hideScore || isCurrentUser;
+                const rank = index + 1;
+                const isTopThree = rank <= 3;
+
+                // Skip top 3 if we have podium
+                if (isTopThree && sortedMembers.length >= 3) return null;
+
+                return (
+                  <React.Fragment key={index}>
+                    <LinearGradient
+                      colors={isCurrentUser ? colors.gradientPurple : ['#fff', '#fff']}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 0 }}
+                      style={[
+                        styles.leaderboardCard,
+                        isCurrentUser && styles.leaderboardCardHighlight,
+                      ]}
+                    >
+                      <View style={styles.leaderboardRank}>
+                        <Text style={[styles.leaderboardRankText, isCurrentUser && styles.leaderboardRankTextHighlight]}>
+                          {rank}
+                        </Text>
+                      </View>
+                      <View style={[styles.leaderboardAvatar, isCurrentUser && styles.leaderboardAvatarHighlight]}>
+                        <IconSymbol
+                          ios_icon_name="person.fill"
+                          android_material_icon_name="person"
+                          size={24}
+                          color={isCurrentUser ? '#fff' : colors.primary}
+                        />
+                      </View>
+                      <View style={styles.leaderboardInfo}>
+                        <View style={styles.leaderboardNameRow}>
+                          <Text style={[styles.leaderboardName, isCurrentUser && styles.leaderboardNameHighlight]}>
+                            {member.username}
+                          </Text>
+                          {member.role === 'admin' && (
+                            <View style={[styles.adminBadge, isCurrentUser && styles.adminBadgeHighlight]}>
+                              <Text style={styles.adminBadgeText}>Admin</Text>
+                            </View>
+                          )}
+                          {isCurrentUser && (
+                            <View style={styles.youBadge}>
+                              <Text style={styles.youBadgeText}>You</Text>
+                            </View>
+                          )}
                         </View>
+                        {showScore ? (
+                          <Text style={[styles.leaderboardScore, isCurrentUser && styles.leaderboardScoreHighlight]}>
+                            {member.imanScore} points
+                          </Text>
+                        ) : (
+                          <Text style={[styles.leaderboardScoreHidden, isCurrentUser && styles.leaderboardScoreHighlight]}>
+                            Score Hidden
+                          </Text>
+                        )}
+                      </View>
+                      {userRole === 'admin' && !isCurrentUser && (
+                        <TouchableOpacity
+                          style={styles.removeButton}
+                          onPress={() => handleRemoveMember(member.userId, member.username)}
+                        >
+                          <IconSymbol
+                            ios_icon_name="xmark.circle.fill"
+                            android_material_icon_name="cancel"
+                            size={24}
+                            color={isCurrentUser ? '#fff' : colors.error}
+                          />
+                        </TouchableOpacity>
                       )}
-                      {isCurrentUser && (
-                        <View style={styles.youBadge}>
-                          <Text style={styles.youBadgeText}>You</Text>
-                        </View>
+                    </LinearGradient>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </View>
+        ) : (
+          // MEMBERS LIST VIEW
+          <View style={styles.membersList}>
+            <Text style={styles.sectionTitle}>Members ({community.members.length})</Text>
+            {sortedMembers.map((member, index) => {
+              const isCurrentUser = member.userId === user?.id;
+              const showScore = !member.hideScore || isCurrentUser;
+              const rank = index + 1;
+
+              return (
+                <React.Fragment key={index}>
+                  <View style={styles.memberCard}>
+                    <View style={styles.rankContainer}>
+                      <Text style={styles.rankText}>{rank}</Text>
+                    </View>
+                    <View style={styles.memberAvatar}>
+                      <IconSymbol
+                        ios_icon_name="person.fill"
+                        android_material_icon_name="person"
+                        size={24}
+                        color={colors.primary}
+                      />
+                    </View>
+                    <View style={styles.memberInfo}>
+                      <View style={styles.memberNameRow}>
+                        <Text style={styles.memberName}>{member.username}</Text>
+                        {member.role === 'admin' && (
+                          <View style={styles.adminBadge}>
+                            <Text style={styles.adminBadgeText}>Admin</Text>
+                          </View>
+                        )}
+                        {isCurrentUser && (
+                          <View style={styles.youBadge}>
+                            <Text style={styles.youBadgeText}>You</Text>
+                          </View>
+                        )}
+                      </View>
+                      {showScore ? (
+                        <Text style={styles.memberScore}>Iman Score: {member.imanScore}</Text>
+                      ) : (
+                        <Text style={styles.memberScoreHidden}>Score Hidden</Text>
                       )}
                     </View>
-                    {showScore ? (
-                      <Text style={styles.memberScore}>Iman Score: {member.imanScore}</Text>
-                    ) : (
-                      <Text style={styles.memberScoreHidden}>Score Hidden</Text>
+                    {userRole === 'admin' && !isCurrentUser && (
+                      <TouchableOpacity
+                        style={styles.removeButton}
+                        onPress={() => handleRemoveMember(member.userId, member.username)}
+                      >
+                        <IconSymbol
+                          ios_icon_name="xmark.circle.fill"
+                          android_material_icon_name="cancel"
+                          size={24}
+                          color={colors.error}
+                        />
+                      </TouchableOpacity>
                     )}
                   </View>
-                  {userRole === 'admin' && !isCurrentUser && (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleRemoveMember(member.userId, member.username)}
-                    >
-                      <IconSymbol
-                        ios_icon_name="xmark.circle.fill"
-                        android_material_icon_name="cancel"
-                        size={24}
-                        color={colors.error}
-                      />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </React.Fragment>
-            );
-          })}
-        </View>
+                </React.Fragment>
+              );
+            })}
+          </View>
+        )}
       </ScrollView>
 
       <View style={styles.footer}>
@@ -346,6 +567,227 @@ const styles = StyleSheet.create({
     ...typography.body,
     color: colors.textSecondary,
   },
+  toggleContainer: {
+    flexDirection: 'row',
+    backgroundColor: colors.card,
+    borderRadius: borderRadius.lg,
+    padding: spacing.xs,
+    marginBottom: spacing.lg,
+    ...shadows.small,
+  },
+  toggleButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    borderRadius: borderRadius.md,
+    gap: spacing.sm,
+  },
+  toggleButtonActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleButtonText: {
+    ...typography.bodyBold,
+    color: colors.textSecondary,
+  },
+  toggleButtonTextActive: {
+    color: '#fff',
+  },
+  // LEADERBOARD STYLES
+  leaderboardContainer: {
+    gap: spacing.lg,
+  },
+  leaderboardHeader: {
+    padding: spacing.xl,
+    borderRadius: borderRadius.lg,
+    alignItems: 'center',
+    ...shadows.colored,
+  },
+  leaderboardTitle: {
+    ...typography.h2,
+    color: '#fff',
+    marginTop: spacing.sm,
+    fontWeight: '800',
+  },
+  leaderboardSubtitle: {
+    ...typography.body,
+    color: 'rgba(255, 255, 255, 0.9)',
+    marginTop: spacing.xs,
+  },
+  // PODIUM STYLES
+  podiumContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.xl,
+  },
+  podiumItem: {
+    flex: 1,
+    alignItems: 'center',
+    gap: spacing.sm,
+  },
+  podiumItemFirst: {
+    marginBottom: spacing.lg,
+  },
+  podiumAvatar: {
+    width: 64,
+    height: 64,
+    borderRadius: borderRadius.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.colored,
+  },
+  podiumAvatarFirst: {
+    width: 80,
+    height: 80,
+  },
+  podiumMedal: {
+    fontSize: 32,
+  },
+  podiumMedalFirst: {
+    fontSize: 40,
+  },
+  podiumRank: {
+    position: 'absolute',
+    top: -8,
+    right: '50%',
+    transform: [{ translateX: 20 }],
+    backgroundColor: colors.primary,
+    width: 24,
+    height: 24,
+    borderRadius: borderRadius.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  podiumRankFirst: {
+    backgroundColor: '#FFD700',
+    width: 28,
+    height: 28,
+    transform: [{ translateX: 26 }],
+  },
+  podiumRankText: {
+    ...typography.smallBold,
+    color: '#fff',
+  },
+  crownIcon: {
+    position: 'absolute',
+    top: -12,
+  },
+  podiumName: {
+    ...typography.caption,
+    color: colors.text,
+    fontWeight: '600',
+    textAlign: 'center',
+    maxWidth: 80,
+  },
+  podiumNameFirst: {
+    ...typography.bodyBold,
+    maxWidth: 100,
+  },
+  podiumScore: {
+    ...typography.h4,
+    color: colors.primary,
+    fontWeight: '800',
+  },
+  podiumScoreFirst: {
+    ...typography.h3,
+    color: colors.primary,
+  },
+  podiumBar: {
+    width: '100%',
+    backgroundColor: colors.highlight,
+    borderTopLeftRadius: borderRadius.md,
+    borderTopRightRadius: borderRadius.md,
+    marginTop: spacing.sm,
+  },
+  podiumBarFirst: {
+    height: 100,
+    backgroundColor: colors.primaryLight,
+  },
+  podiumBarSecond: {
+    height: 70,
+    backgroundColor: colors.secondaryLight,
+  },
+  podiumBarThird: {
+    height: 50,
+    backgroundColor: colors.warning,
+  },
+  // LEADERBOARD LIST STYLES
+  leaderboardList: {
+    gap: spacing.md,
+  },
+  leaderboardCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    ...shadows.medium,
+    gap: spacing.md,
+  },
+  leaderboardCardHighlight: {
+    borderWidth: 2,
+    borderColor: colors.primary,
+    ...shadows.colored,
+  },
+  leaderboardRank: {
+    width: 32,
+    alignItems: 'center',
+  },
+  leaderboardRankText: {
+    ...typography.h4,
+    color: colors.textSecondary,
+    fontWeight: '700',
+  },
+  leaderboardRankTextHighlight: {
+    color: '#fff',
+  },
+  leaderboardAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: borderRadius.round,
+    backgroundColor: colors.highlight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaderboardAvatarHighlight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+  },
+  leaderboardInfo: {
+    flex: 1,
+  },
+  leaderboardNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  leaderboardName: {
+    ...typography.h4,
+    color: colors.text,
+  },
+  leaderboardNameHighlight: {
+    color: '#fff',
+  },
+  leaderboardScore: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  leaderboardScoreHighlight: {
+    color: 'rgba(255, 255, 255, 0.9)',
+  },
+  leaderboardScoreHidden: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+  },
+  // MEMBERS LIST STYLES
   sectionTitle: {
     ...typography.h3,
     color: colors.text,
@@ -398,6 +840,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
+  },
+  adminBadgeHighlight: {
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
   },
   adminBadgeText: {
     ...typography.small,

@@ -56,7 +56,7 @@ export default function CommunitiesScreen() {
         console.log('ℹ️ Iman score update skipped:', error);
       }
       
-      // Load communities
+      // Load communities the user is a member of
       const userCommunities = await getUserCommunities(user.id);
       setCommunities(userCommunities);
       
@@ -222,6 +222,7 @@ export default function CommunitiesScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
+        {/* Create Community Button - Always visible at top */}
         {!showCreateModal ? (
           <TouchableOpacity
             style={styles.createButton}
@@ -282,7 +283,68 @@ export default function CommunitiesScreen() {
           </View>
         )}
 
-        {communities.length === 0 ? (
+        {/* My Communities Section */}
+        {communities.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>My Communities</Text>
+            <View style={styles.communitiesList}>
+              {communities.map((community, index) => {
+                const userMember = community.members.find(m => m.userId === user?.id);
+                const isAdmin = userMember?.role === 'admin';
+                
+                return (
+                  <React.Fragment key={index}>
+                    <TouchableOpacity
+                      style={styles.communityCard}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(tabs)/(iman)/community-detail',
+                          params: { communityId: community.id },
+                        })
+                      }
+                    >
+                      <View style={styles.communityIcon}>
+                        <IconSymbol
+                          ios_icon_name="person.3.fill"
+                          android_material_icon_name="groups"
+                          size={32}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={styles.communityInfo}>
+                        <View style={styles.communityHeader}>
+                          <Text style={styles.communityName}>{community.name}</Text>
+                          {isAdmin && (
+                            <View style={styles.adminBadge}>
+                              <Text style={styles.adminBadgeText}>Admin</Text>
+                            </View>
+                          )}
+                        </View>
+                        {community.description && (
+                          <Text style={styles.communityDescription} numberOfLines={1}>
+                            {community.description}
+                          </Text>
+                        )}
+                        <Text style={styles.communityMembers}>
+                          {community.members.length} {community.members.length === 1 ? 'member' : 'members'}
+                        </Text>
+                      </View>
+                      <IconSymbol
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron_right"
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Empty State - Only show if no communities */}
+        {communities.length === 0 && (
           <View style={styles.emptyState}>
             <IconSymbol
               ios_icon_name="person.3.fill"
@@ -294,60 +356,6 @@ export default function CommunitiesScreen() {
             <Text style={styles.emptyStateText}>
               Create a community or wait for an invite to get started!
             </Text>
-          </View>
-        ) : (
-          <View style={styles.communitiesList}>
-            {communities.map((community, index) => {
-              const userMember = community.members.find(m => m.userId === user?.id);
-              const isAdmin = userMember?.role === 'admin';
-              
-              return (
-                <React.Fragment key={index}>
-                  <TouchableOpacity
-                    style={styles.communityCard}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/(tabs)/(iman)/community-detail',
-                        params: { communityId: community.id },
-                      })
-                    }
-                  >
-                    <View style={styles.communityIcon}>
-                      <IconSymbol
-                        ios_icon_name="person.3.fill"
-                        android_material_icon_name="groups"
-                        size={32}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <View style={styles.communityInfo}>
-                      <View style={styles.communityHeader}>
-                        <Text style={styles.communityName}>{community.name}</Text>
-                        {isAdmin && (
-                          <View style={styles.adminBadge}>
-                            <Text style={styles.adminBadgeText}>Admin</Text>
-                          </View>
-                        )}
-                      </View>
-                      {community.description && (
-                        <Text style={styles.communityDescription} numberOfLines={1}>
-                          {community.description}
-                        </Text>
-                      )}
-                      <Text style={styles.communityMembers}>
-                        {community.members.length} {community.members.length === 1 ? 'member' : 'members'}
-                      </Text>
-                    </View>
-                    <IconSymbol
-                      ios_icon_name="chevron.right"
-                      android_material_icon_name="chevron_right"
-                      size={20}
-                      color={colors.textSecondary}
-                    />
-                  </TouchableOpacity>
-                </React.Fragment>
-              );
-            })}
           </View>
         )}
       </ScrollView>
@@ -487,6 +495,14 @@ const styles = StyleSheet.create({
   confirmButtonText: {
     ...typography.bodyBold,
     color: '#fff',
+  },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
   emptyState: {
     alignItems: 'center',

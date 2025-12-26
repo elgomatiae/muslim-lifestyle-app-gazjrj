@@ -31,7 +31,6 @@ import { useAuth } from './AuthContext';
 import { syncLocalToSupabase, syncSupabaseToLocal, initializeImanTrackerForUser } from '@/utils/imanSupabaseSync';
 import { sendImanTrackerMilestone } from '@/utils/notificationService';
 import { checkAndUnlockAchievements } from '@/utils/achievementService';
-import { syncImanScoreToDatabase } from '@/utils/communitySupabaseSync';
 
 interface ImanTrackerContextType {
   // New ring structure
@@ -156,8 +155,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check - this ensures badges update immediately
       console.log('ImanTrackerContext: Checking achievements after ibadah update...');
       await checkAndUnlockAchievements(user.id);
@@ -179,8 +176,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check
       console.log('ImanTrackerContext: Checking achievements after ilm update...');
       await checkAndUnlockAchievements(user.id);
@@ -202,8 +197,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check
       console.log('ImanTrackerContext: Checking achievements after amanah update...');
       await checkAndUnlockAchievements(user.id);
@@ -229,8 +222,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check
       console.log('ImanTrackerContext: Checking achievements after prayer update...');
       await checkAndUnlockAchievements(user.id);
@@ -256,8 +247,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check
       console.log('ImanTrackerContext: Checking achievements after dhikr update...');
       await checkAndUnlockAchievements(user.id);
@@ -283,8 +272,6 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
     
     if (user) {
       await syncLocalToSupabase(user.id);
-      // Sync to community leaderboards
-      await syncImanScoreToDatabase(user.id);
       // INSTANT achievement check
       console.log('ImanTrackerContext: Checking achievements after quran update...');
       await checkAndUnlockAchievements(user.id);
@@ -331,9 +318,8 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       setSectionScores(scores);
       setOverallScore(overall);
       
-      // Sync to community leaderboards and check for new achievements periodically
+      // Check for new achievements periodically
       if (user) {
-        await syncImanScoreToDatabase(user.id);
         await checkAndUnlockAchievements(user.id);
       }
     }, 30000);

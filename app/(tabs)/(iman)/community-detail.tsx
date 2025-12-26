@@ -34,6 +34,8 @@ export default function CommunityDetailScreen() {
     if (!communityId || !user) return;
 
     try {
+      console.log('📥 Loading community data...');
+      
       // Update all member scores
       await updateAllMemberScores(communityId);
       
@@ -54,10 +56,10 @@ export default function CommunityDetailScreen() {
         setUserRole(userMember.role);
       }
       
-      console.log(`✅ Loaded community: ${communityData.name}`);
+      console.log(`✅ Successfully loaded community: ${communityData.name}`);
     } catch (error) {
-      console.error('Error loading community data:', error);
-      Alert.alert('Error', 'Failed to load community data');
+      console.error('❌ Failed to load community data:', error);
+      Alert.alert('Error', 'Failed to load community data. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -86,12 +88,13 @@ export default function CommunityDetailScreen() {
             try {
               if (!user || !communityId) return;
               
+              console.log('🚪 Leaving community...');
               await removeMemberFromCommunity(communityId, user.id);
               Alert.alert('Success', 'You have left the community');
               router.back();
             } catch (error) {
-              console.error('Error leaving community:', error);
-              Alert.alert('Error', 'Failed to leave community');
+              console.error('❌ Failed to leave community:', error);
+              Alert.alert('Error', 'Failed to leave community. Please try again.');
             }
           },
         },
@@ -112,12 +115,13 @@ export default function CommunityDetailScreen() {
             try {
               if (!communityId) return;
               
+              console.log(`🗑️ Removing member ${username}...`);
               await removeMemberFromCommunity(communityId, memberId);
               Alert.alert('Success', 'Member removed successfully');
               loadCommunityData();
             } catch (error) {
-              console.error('Error removing member:', error);
-              Alert.alert('Error', 'Failed to remove member');
+              console.error('❌ Failed to remove member:', error);
+              Alert.alert('Error', 'Failed to remove member. Please try again.');
             }
           },
         },

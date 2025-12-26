@@ -45,6 +45,8 @@ export default function CommunitiesScreen() {
     }
 
     try {
+      console.log('📥 Loading communities...');
+      
       // Update user's Iman score
       await updateUserImanScore(user.id);
       
@@ -52,10 +54,10 @@ export default function CommunitiesScreen() {
       const userCommunities = await getUserCommunities(user.id);
       setCommunities(userCommunities);
       
-      console.log(`✅ Loaded ${userCommunities.length} communities`);
+      console.log(`✅ Successfully loaded ${userCommunities.length} communities`);
     } catch (error) {
-      console.error('Error loading communities:', error);
-      Alert.alert('Error', 'Failed to load communities');
+      console.error('❌ Failed to load communities:', error);
+      Alert.alert('Error', 'Failed to load communities. Please try again.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -66,10 +68,13 @@ export default function CommunitiesScreen() {
     if (!user) return;
 
     try {
+      console.log('📥 Fetching pending invites...');
       const count = await getPendingInvitesCount(user.id);
       setPendingInvitesCount(count);
+      console.log(`✅ Successfully fetched ${count} pending invites`);
     } catch (error) {
-      console.error('Error fetching pending invites:', error);
+      console.error('❌ Failed to fetch pending invites:', error);
+      // Don't show alert for this - it's not critical
     }
   }, [user]);
 
@@ -112,6 +117,8 @@ export default function CommunitiesScreen() {
 
     setCreating(true);
     try {
+      console.log('🏗️ Creating community...');
+      
       const profile = await getUserProfile();
       const username = profile?.username || user.email?.split('@')[0] || 'User';
       
@@ -128,8 +135,8 @@ export default function CommunitiesScreen() {
       setShowCreateModal(false);
       loadCommunities();
     } catch (error: any) {
-      console.error('Error creating community:', error);
-      Alert.alert('Error', error.message || 'Failed to create community');
+      console.error('❌ Failed to create community:', error);
+      Alert.alert('Error', error.message || 'Failed to create community. Please try again.');
     } finally {
       setCreating(false);
     }

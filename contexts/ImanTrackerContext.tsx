@@ -98,7 +98,8 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       
       console.log('✅ Community scores updated');
     } catch (error) {
-      console.log('Error updating community scores:', error);
+      console.error('❌ Error updating community scores:', error);
+      // Don't throw - this is not critical
     }
   }, [user]);
 
@@ -148,7 +149,7 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       
       console.log('ImanTrackerContext: Data loaded successfully');
     } catch (error) {
-      console.log('ImanTrackerContext: Error loading data:', error);
+      console.error('ImanTrackerContext: Error loading data:', error);
     } finally {
       setLoading(false);
     }

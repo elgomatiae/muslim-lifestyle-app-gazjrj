@@ -116,6 +116,7 @@ export async function updateUserImanScore(userId: string): Promise<void> {
     console.log(`✅ Iman score updated for user ${userId}: ${overallScore}`);
   } catch (error) {
     console.error('❌ Error updating Iman score:', error);
+    throw error;
   }
 }
 
@@ -138,19 +139,22 @@ export async function getAllCommunities(): Promise<LocalCommunity[]> {
   try {
     const saved = await AsyncStorage.getItem(STORAGE_KEYS.COMMUNITIES);
     if (saved) {
-      return JSON.parse(saved);
+      const communities = JSON.parse(saved);
+      console.log(`✅ Loaded ${communities.length} communities from storage`);
+      return communities;
     }
+    console.log('ℹ️ No communities found in storage');
     return [];
   } catch (error) {
     console.error('❌ Error loading communities:', error);
-    return [];
+    throw error;
   }
 }
 
 export async function saveCommunities(communities: LocalCommunity[]): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.COMMUNITIES, JSON.stringify(communities));
-    console.log('✅ Communities saved locally');
+    console.log(`✅ ${communities.length} communities saved locally`);
   } catch (error) {
     console.error('❌ Error saving communities:', error);
     throw error;
@@ -198,20 +202,28 @@ export async function createCommunity(
 export async function getCommunity(communityId: string): Promise<LocalCommunity | null> {
   try {
     const communities = await getAllCommunities();
-    return communities.find(c => c.id === communityId) || null;
+    const community = communities.find(c => c.id === communityId) || null;
+    if (community) {
+      console.log(`✅ Found community: ${community.name}`);
+    } else {
+      console.log(`ℹ️ Community not found: ${communityId}`);
+    }
+    return community;
   } catch (error) {
     console.error('❌ Error getting community:', error);
-    return null;
+    throw error;
   }
 }
 
 export async function getUserCommunities(userId: string): Promise<LocalCommunity[]> {
   try {
     const communities = await getAllCommunities();
-    return communities.filter(c => c.members.some(m => m.userId === userId));
+    const userCommunities = communities.filter(c => c.members.some(m => m.userId === userId));
+    console.log(`✅ Found ${userCommunities.length} communities for user`);
+    return userCommunities;
   } catch (error) {
     console.error('❌ Error getting user communities:', error);
-    return [];
+    throw error;
   }
 }
 
@@ -287,6 +299,7 @@ export async function updateMemberScore(communityId: string, userId: string): Pr
     const community = communities.find(c => c.id === communityId);
     
     if (!community) {
+      console.log(`ℹ️ Community ${communityId} not found for score update`);
       return;
     }
     
@@ -298,6 +311,7 @@ export async function updateMemberScore(communityId: string, userId: string): Pr
     }
   } catch (error) {
     console.error('❌ Error updating member score:', error);
+    throw error;
   }
 }
 
@@ -307,6 +321,7 @@ export async function updateAllMemberScores(communityId: string): Promise<void> 
     const community = communities.find(c => c.id === communityId);
     
     if (!community) {
+      console.log(`ℹ️ Community ${communityId} not found for score update`);
       return;
     }
     
@@ -318,6 +333,7 @@ export async function updateAllMemberScores(communityId: string): Promise<void> 
     console.log(`✅ All member scores updated in community ${community.name}`);
   } catch (error) {
     console.error('❌ Error updating all member scores:', error);
+    throw error;
   }
 }
 
@@ -350,19 +366,22 @@ export async function getAllInvites(): Promise<CommunityInvite[]> {
   try {
     const saved = await AsyncStorage.getItem(STORAGE_KEYS.INVITES);
     if (saved) {
-      return JSON.parse(saved);
+      const invites = JSON.parse(saved);
+      console.log(`✅ Loaded ${invites.length} invites from storage`);
+      return invites;
     }
+    console.log('ℹ️ No invites found in storage');
     return [];
   } catch (error) {
     console.error('❌ Error loading invites:', error);
-    return [];
+    throw error;
   }
 }
 
 export async function saveInvites(invites: CommunityInvite[]): Promise<void> {
   try {
     await AsyncStorage.setItem(STORAGE_KEYS.INVITES, JSON.stringify(invites));
-    console.log('✅ Invites saved locally');
+    console.log(`✅ ${invites.length} invites saved locally`);
   } catch (error) {
     console.error('❌ Error saving invites:', error);
     throw error;
@@ -415,17 +434,21 @@ export async function createInvite(
 export async function getUserInvites(userId: string): Promise<CommunityInvite[]> {
   try {
     const invites = await getAllInvites();
-    return invites.filter(i => i.invitedUserId === userId);
+    const userInvites = invites.filter(i => i.invitedUserId === userId);
+    console.log(`✅ Found ${userInvites.length} invites for user`);
+    return userInvites;
   } catch (error) {
     console.error('❌ Error getting user invites:', error);
-    return [];
+    throw error;
   }
 }
 
 export async function getPendingInvitesCount(userId: string): Promise<number> {
   try {
     const invites = await getUserInvites(userId);
-    return invites.filter(i => i.status === 'pending').length;
+    const count = invites.filter(i => i.status === 'pending').length;
+    console.log(`✅ Found ${count} pending invites for user`);
+    return count;
   } catch (error) {
     console.error('❌ Error getting pending invites count:', error);
     return 0;
@@ -510,5 +533,6 @@ export async function clearAllCommunityData(): Promise<void> {
     console.log('✅ All community data cleared');
   } catch (error) {
     console.error('❌ Error clearing community data:', error);
+    throw error;
   }
 }

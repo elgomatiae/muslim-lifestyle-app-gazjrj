@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -58,6 +58,7 @@ export default function CommunitiesScreen() {
       
       // Load communities the user is a member of
       const userCommunities = await getUserCommunities(user.id);
+      console.log(`📊 Found ${userCommunities.length} communities for user:`, userCommunities.map(c => c.name));
       setCommunities(userCommunities);
       
       console.log(`✅ Successfully loaded ${userCommunities.length} communities`);
@@ -104,7 +105,7 @@ export default function CommunitiesScreen() {
             });
             console.log('✅ User profile created');
           } else {
-            console.log('✅ User profile exists');
+            console.log('✅ User profile exists:', profile.username);
           }
         } catch (error) {
           console.log('ℹ️ Error initializing user profile:', error);
@@ -116,6 +117,15 @@ export default function CommunitiesScreen() {
     loadCommunities();
     fetchPendingInvites();
   }, [loadCommunities, fetchPendingInvites, user]);
+
+  // Reload communities when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('🔄 Screen focused, reloading communities...');
+      loadCommunities();
+      fetchPendingInvites();
+    }, [loadCommunities, fetchPendingInvites])
+  );
 
   const onRefresh = useCallback(() => {
     console.log('🔄 Refreshing communities...');
@@ -153,7 +163,9 @@ export default function CommunitiesScreen() {
       setNewCommunityName('');
       setNewCommunityDescription('');
       setShowCreateModal(false);
-      loadCommunities();
+      
+      // Reload communities after creation
+      await loadCommunities();
       
       console.log('✅ Community created successfully');
     } catch (error: any) {
@@ -222,7 +234,67 @@ export default function CommunitiesScreen() {
         contentContainerStyle={styles.scrollContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Create Community Button - Always visible at top */}
+        {/* My Communities Section - Show first if user has communities */}
+        {communities.length > 0 && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>My Communities</Text>
+            <View style={styles.communitiesList}>
+              {communities.map((community, index) => {
+                const userMember = community.members.find(m => m.userId === user?.id);
+                const isAdmin = userMember?.role === 'admin';
+                
+                return (
+                  <React.Fragment key={index}>
+                    <TouchableOpacity
+                      style={styles.communityCard}
+                      onPress={() =>
+                        router.push({
+                          pathname: '/(tabs)/(iman)/community-detail',
+                          params: { communityId: community.id },
+                        })
+                      }
+                    >
+                      <View style={styles.communityIcon}>
+                        <IconSymbol
+                          ios_icon_name="person.3.fill"
+                          android_material_icon_name="groups"
+                          size={32}
+                          color={colors.primary}
+                        />
+                      </View>
+                      <View style={styles.communityInfo}>
+                        <View style={styles.communityHeader}>
+                          <Text style={styles.communityName}>{community.name}</Text>
+                          {isAdmin && (
+                            <View style={styles.adminBadge}>
+                              <Text style={styles.adminBadgeText}>Admin</Text>
+                            </View>
+                          )}
+                        </View>
+                        {community.description && (
+                          <Text style={styles.communityDescription} numberOfLines={1}>
+                            {community.description}
+                          </Text>
+                        )}
+                        <Text style={styles.communityMembers}>
+                          {community.members.length} {community.members.length === 1 ? 'member' : 'members'}
+                        </Text>
+                      </View>
+                      <IconSymbol
+                        ios_icon_name="chevron.right"
+                        android_material_icon_name="chevron_right"
+                        size={20}
+                        color={colors.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  </React.Fragment>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
+        {/* Create Community Button */}
         {!showCreateModal ? (
           <TouchableOpacity
             style={styles.createButton}
@@ -279,66 +351,6 @@ export default function CommunitiesScreen() {
                   <Text style={styles.confirmButtonText}>Create</Text>
                 )}
               </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* My Communities Section */}
-        {communities.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>My Communities</Text>
-            <View style={styles.communitiesList}>
-              {communities.map((community, index) => {
-                const userMember = community.members.find(m => m.userId === user?.id);
-                const isAdmin = userMember?.role === 'admin';
-                
-                return (
-                  <React.Fragment key={index}>
-                    <TouchableOpacity
-                      style={styles.communityCard}
-                      onPress={() =>
-                        router.push({
-                          pathname: '/(tabs)/(iman)/community-detail',
-                          params: { communityId: community.id },
-                        })
-                      }
-                    >
-                      <View style={styles.communityIcon}>
-                        <IconSymbol
-                          ios_icon_name="person.3.fill"
-                          android_material_icon_name="groups"
-                          size={32}
-                          color={colors.primary}
-                        />
-                      </View>
-                      <View style={styles.communityInfo}>
-                        <View style={styles.communityHeader}>
-                          <Text style={styles.communityName}>{community.name}</Text>
-                          {isAdmin && (
-                            <View style={styles.adminBadge}>
-                              <Text style={styles.adminBadgeText}>Admin</Text>
-                            </View>
-                          )}
-                        </View>
-                        {community.description && (
-                          <Text style={styles.communityDescription} numberOfLines={1}>
-                            {community.description}
-                          </Text>
-                        )}
-                        <Text style={styles.communityMembers}>
-                          {community.members.length} {community.members.length === 1 ? 'member' : 'members'}
-                        </Text>
-                      </View>
-                      <IconSymbol
-                        ios_icon_name="chevron.right"
-                        android_material_icon_name="chevron_right"
-                        size={20}
-                        color={colors.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  </React.Fragment>
-                );
-              })}
             </View>
           </View>
         )}
@@ -428,6 +440,67 @@ const styles = StyleSheet.create({
   scrollContent: {
     padding: spacing.xl,
   },
+  section: {
+    marginBottom: spacing.xl,
+  },
+  sectionTitle: {
+    ...typography.h3,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  communitiesList: {
+    gap: spacing.md,
+  },
+  communityCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    padding: spacing.lg,
+    borderRadius: borderRadius.lg,
+    ...shadows.medium,
+    gap: spacing.md,
+  },
+  communityIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.md,
+    backgroundColor: colors.highlight,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  communityInfo: {
+    flex: 1,
+  },
+  communityHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xs,
+  },
+  communityName: {
+    ...typography.h4,
+    color: colors.text,
+  },
+  adminBadge: {
+    backgroundColor: colors.primary,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+  },
+  adminBadgeText: {
+    ...typography.small,
+    color: '#fff',
+    fontWeight: '700',
+  },
+  communityDescription: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.xs,
+  },
+  communityMembers: {
+    ...typography.caption,
+    color: colors.textSecondary,
+  },
   createButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -496,14 +569,6 @@ const styles = StyleSheet.create({
     ...typography.bodyBold,
     color: '#fff',
   },
-  section: {
-    marginBottom: spacing.xl,
-  },
-  sectionTitle: {
-    ...typography.h3,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
   emptyState: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -520,58 +585,5 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     textAlign: 'center',
     paddingHorizontal: spacing.xl,
-  },
-  communitiesList: {
-    gap: spacing.md,
-  },
-  communityCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    ...shadows.medium,
-    gap: spacing.md,
-  },
-  communityIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.highlight,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  communityInfo: {
-    flex: 1,
-  },
-  communityHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  communityName: {
-    ...typography.h4,
-    color: colors.text,
-  },
-  adminBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  adminBadgeText: {
-    ...typography.small,
-    color: '#fff',
-    fontWeight: '700',
-  },
-  communityDescription: {
-    ...typography.caption,
-    color: colors.textSecondary,
-    marginBottom: spacing.xs,
-  },
-  communityMembers: {
-    ...typography.caption,
-    color: colors.textSecondary,
   },
 });

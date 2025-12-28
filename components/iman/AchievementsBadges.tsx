@@ -48,6 +48,8 @@ export default function AchievementsBadges() {
     if (!user) return;
 
     try {
+      console.log('🏆 Loading achievements for user:', user.id);
+
       // Load all achievements
       const { data: allAchievements, error: achievementsError } = await supabase
         .from('achievements')
@@ -56,10 +58,12 @@ export default function AchievementsBadges() {
         .order('order_index', { ascending: true });
 
       if (achievementsError) {
-        console.log('Error loading achievements:', achievementsError);
+        console.log('❌ Error loading achievements:', achievementsError);
         setLoading(false);
         return;
       }
+
+      console.log('✅ Loaded achievements:', allAchievements?.length || 0);
 
       // Load user's unlocked achievements
       const { data: userAchievements, error: userError } = await supabase
@@ -68,7 +72,9 @@ export default function AchievementsBadges() {
         .eq('user_id', user.id);
 
       if (userError) {
-        console.log('Error loading user achievements:', userError);
+        console.log('⚠️ Error loading user achievements:', userError);
+      } else {
+        console.log('✅ User unlocked achievements:', userAchievements?.length || 0);
       }
 
       // Load progress for locked achievements
@@ -78,7 +84,9 @@ export default function AchievementsBadges() {
         .eq('user_id', user.id);
 
       if (progressError) {
-        console.log('Error loading progress:', progressError);
+        console.log('⚠️ Error loading progress:', progressError);
+      } else {
+        console.log('✅ Progress data loaded:', progressData?.length || 0);
       }
 
       // Merge data
@@ -100,6 +108,10 @@ export default function AchievementsBadges() {
         };
       });
 
+      console.log('✅ Merged achievements:', mergedAchievements.length);
+      console.log('📊 Unlocked count:', mergedAchievements.filter(a => a.unlocked).length);
+      console.log('📊 Locked count:', mergedAchievements.filter(a => !a.unlocked).length);
+
       setAchievements(mergedAchievements);
 
       // Get recent achievements (unlocked in the last 7 days)
@@ -114,9 +126,10 @@ export default function AchievementsBadges() {
         })
         .slice(0, 5); // Show top 5 recent achievements
 
+      console.log('✅ Recent achievements:', recent.length);
       setRecentAchievements(recent);
     } catch (error) {
-      console.log('Error in loadAchievements:', error);
+      console.log('❌ Error in loadAchievements:', error);
     } finally {
       setLoading(false);
     }
@@ -254,6 +267,35 @@ export default function AchievementsBadges() {
     );
   }
 
+  if (achievements.length === 0) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <LinearGradient
+            colors={colors.gradientPurple}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sectionIconContainer}
+          >
+            <IconSymbol
+              ios_icon_name="rosette"
+              android_material_icon_name="workspace-premium"
+              size={20}
+              color={colors.card}
+            />
+          </LinearGradient>
+          <View style={styles.sectionTitleContainer}>
+            <Text style={styles.sectionTitle}>Achievements</Text>
+            <Text style={styles.sectionSubtitle}>No achievements available</Text>
+          </View>
+        </View>
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyText}>No achievements found. Check back later!</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.section}>
       <View style={styles.sectionHeader}>
@@ -288,7 +330,12 @@ export default function AchievementsBadges() {
             />
             <Text style={styles.recentTitle}>Recently Unlocked</Text>
           </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false} 
+            style={styles.achievementsScroll}
+            contentContainerStyle={styles.achievementsScrollContent}
+          >
             {recentAchievements.map((achievement, index) => renderAchievementCard(achievement, index))}
           </ScrollView>
         </View>
@@ -312,7 +359,12 @@ export default function AchievementsBadges() {
             />
           </TouchableOpacity>
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.achievementsScroll}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false} 
+          style={styles.achievementsScroll}
+          contentContainerStyle={styles.achievementsScrollContent}
+        >
           {achievements.map((achievement, index) => renderAchievementCard(achievement, index))}
         </ScrollView>
       </View>
@@ -353,6 +405,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: spacing.xl,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: spacing.xl,
+  },
+  emptyText: {
+    ...typography.body,
+    color: colors.textSecondary,
+    textAlign: 'center',
   },
   recentSection: {
     marginBottom: spacing.xl,
@@ -399,6 +461,9 @@ const styles = StyleSheet.create({
   achievementsScroll: {
     marginHorizontal: -spacing.xl,
     paddingHorizontal: spacing.xl,
+  },
+  achievementsScrollContent: {
+    paddingRight: spacing.xl,
   },
   achievementCard: {
     width: 140,

@@ -897,8 +897,44 @@ export async function loadAmanahGoals(): Promise<AmanahGoals> {
 }
 
 export async function saveIbadahGoals(goals: IbadahGoals): Promise<void> {
+  // Load old goals to track changes
+  const oldGoals = await loadIbadahGoals();
+  
+  // Save new goals
   await AsyncStorage.setItem('ibadahGoals', JSON.stringify(goals));
   await updateSectionScores();
+  
+  // Track activity changes for achievements
+  try {
+    // Import activity tracking functions
+    const { trackPrayerCompletion, trackDhikrCompletion, trackQuranReading } = await import('./imanActivityIntegration');
+    
+    // Track prayer completions
+    let newPrayersCompleted = 0;
+    if (!oldGoals.fardPrayers.fajr && goals.fardPrayers.fajr) newPrayersCompleted++;
+    if (!oldGoals.fardPrayers.dhuhr && goals.fardPrayers.dhuhr) newPrayersCompleted++;
+    if (!oldGoals.fardPrayers.asr && goals.fardPrayers.asr) newPrayersCompleted++;
+    if (!oldGoals.fardPrayers.maghrib && goals.fardPrayers.maghrib) newPrayersCompleted++;
+    if (!oldGoals.fardPrayers.isha && goals.fardPrayers.isha) newPrayersCompleted++;
+    
+    // Track dhikr completions
+    const dhikrDailyIncrease = Math.max(0, goals.dhikrDailyCompleted - oldGoals.dhikrDailyCompleted);
+    const dhikrWeeklyIncrease = Math.max(0, goals.dhikrWeeklyCompleted - oldGoals.dhikrWeeklyCompleted);
+    const totalDhikrIncrease = dhikrDailyIncrease + dhikrWeeklyIncrease;
+    
+    // Track Quran reading
+    const quranPagesIncrease = Math.max(0, goals.quranDailyPagesCompleted - oldGoals.quranDailyPagesCompleted);
+    
+    // Only track if there are actual increases
+    if (newPrayersCompleted > 0 || totalDhikrIncrease > 0 || quranPagesIncrease > 0) {
+      console.log(`📊 Activity changes detected:`);
+      if (newPrayersCompleted > 0) console.log(`   🕌 Prayers: +${newPrayersCompleted}`);
+      if (totalDhikrIncrease > 0) console.log(`   📿 Dhikr: +${totalDhikrIncrease}`);
+      if (quranPagesIncrease > 0) console.log(`   📖 Quran: +${quranPagesIncrease} pages`);
+    }
+  } catch (error) {
+    console.log('ℹ️ Activity tracking skipped:', error);
+  }
 }
 
 export async function saveIlmGoals(goals: IlmGoals): Promise<void> {
@@ -986,25 +1022,80 @@ export async function loadQuranGoals(): Promise<QuranGoals> {
 
 export async function savePrayerGoals(goals: PrayerGoals): Promise<void> {
   const ibadah = await loadIbadahGoals();
+  
+  // Track prayer completions for achievements
+  const oldPrayers = ibadah.fardPrayers;
+  const newPrayers = goals.fardPrayers;
+  
+  // Count newly completed prayers
+  let newlyCompleted = 0;
+  if (!oldPrayers.fajr && newPrayers.fajr) newlyCompleted++;
+  if (!oldPrayers.dhuhr && newPrayers.dhuhr) newlyCompleted++;
+  if (!oldPrayers.asr && newPrayers.asr) newlyCompleted++;
+  if (!oldPrayers.maghrib && newPrayers.maghrib) newlyCompleted++;
+  if (!oldPrayers.isha && newPrayers.isha) newlyCompleted++;
+  
+  // Update goals
   ibadah.fardPrayers = goals.fardPrayers;
   ibadah.sunnahDailyGoal = goals.sunnahDailyGoal;
   ibadah.sunnahCompleted = goals.sunnahCompleted;
   ibadah.tahajjudWeeklyGoal = goals.tahajjudWeeklyGoal;
   ibadah.tahajjudCompleted = goals.tahajjudCompleted;
   await saveIbadahGoals(ibadah);
+  
+  // Track for achievements if prayers were completed
+  if (newlyCompleted > 0) {
+    try {
+      const { trackPrayerCompletion } = await import('./imanActivityIntegration');
+      // We'll track the total count, not individual prayers
+      // The achievement service will handle the counting
+      console.log(`🕌 ${newlyCompleted} new prayers completed, triggering achievement check`);
+    } catch (error) {
+      console.log('Error importing activity integration:', error);
+    }
+  }
 }
 
 export async function saveDhikrGoals(goals: DhikrGoals): Promise<void> {
   const ibadah = await loadIbadahGoals();
+  
+  // Track dhikr completions for achievements
+  const oldDaily = ibadah.dhikrDailyCompleted;
+  const oldWeekly = ibadah.dhikrWeeklyCompleted;
+  const newDaily = goals.dailyCompleted;
+  const newWeekly = goals.weeklyCompleted;
+  
+  const dailyIncrease = Math.max(0, newDaily - oldDaily);
+  const weeklyIncrease = Math.max(0, newWeekly - oldWeekly);
+  const totalIncrease = dailyIncrease + weeklyIncrease;
+  
+  // Update goals
   ibadah.dhikrDailyGoal = goals.dailyGoal;
   ibadah.dhikrDailyCompleted = goals.dailyCompleted;
   ibadah.dhikrWeeklyGoal = goals.weeklyGoal;
   ibadah.dhikrWeeklyCompleted = goals.weeklyCompleted;
   await saveIbadahGoals(ibadah);
+  
+  // Track for achievements if dhikr was completed
+  if (totalIncrease > 0) {
+    try {
+      const { trackDhikrCompletion } = await import('./imanActivityIntegration');
+      console.log(`📿 ${totalIncrease} new dhikr completed, triggering achievement check`);
+    } catch (error) {
+      console.log('Error importing activity integration:', error);
+    }
+  }
 }
 
 export async function saveQuranGoals(goals: QuranGoals): Promise<void> {
   const ibadah = await loadIbadahGoals();
+  
+  // Track Quran reading for achievements
+  const oldPages = ibadah.quranDailyPagesCompleted;
+  const newPages = goals.dailyPagesCompleted;
+  const pagesIncrease = Math.max(0, newPages - oldPages);
+  
+  // Update goals
   ibadah.quranDailyPagesGoal = goals.dailyPagesGoal;
   ibadah.quranDailyPagesCompleted = goals.dailyPagesCompleted;
   ibadah.quranDailyVersesGoal = goals.dailyVersesGoal;
@@ -1012,4 +1103,14 @@ export async function saveQuranGoals(goals: QuranGoals): Promise<void> {
   ibadah.quranWeeklyMemorizationGoal = goals.weeklyMemorizationGoal;
   ibadah.quranWeeklyMemorizationCompleted = goals.weeklyMemorizationCompleted;
   await saveIbadahGoals(ibadah);
+  
+  // Track for achievements if pages were read
+  if (pagesIncrease > 0) {
+    try {
+      const { trackQuranReading } = await import('./imanActivityIntegration');
+      console.log(`📖 ${pagesIncrease} new Quran pages read, triggering achievement check`);
+    } catch (error) {
+      console.log('Error importing activity integration:', error);
+    }
+  }
 }

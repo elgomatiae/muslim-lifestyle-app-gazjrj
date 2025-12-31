@@ -27,6 +27,7 @@ export const colors = {
   success: '#10B981',           // Success Green
   successDark: '#059669',       // Darker Success Green
   error: '#EF4444',             // Error Red
+  errorBackground: '#FEE2E2',   // Light Error Background
   warning: '#F59E0B',           // Warning Amber
   warningLight: '#FEF3C7',      // Light Warning Background
   warningDark: '#D97706',       // Darker Warning Amber

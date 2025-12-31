@@ -24,9 +24,14 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleLogin = async () => {
+    // Clear any previous error messages
+    setErrorMessage('');
+
     if (!email || !password) {
+      setErrorMessage('Please fill in all fields');
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -48,12 +53,21 @@ export default function LoginScreen() {
         
         // Show user-friendly error messages
         let errorMessage = error.message;
+        
+        // Handle specific error cases
         if (error.message.includes('Email not confirmed')) {
           errorMessage = 'Please verify your email address before logging in. Check your inbox for the verification link.';
-        } else if (error.message.includes('Invalid login credentials')) {
-          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (error.message.includes('Invalid login credentials') || 
+                   error.message.includes('Invalid email or password') ||
+                   error.status === 400) {
+          errorMessage = 'Username or password not found. Please check your credentials and try again.';
+        } else if (error.message.includes('Email link is invalid or has expired')) {
+          errorMessage = 'Your verification link has expired. Please request a new one.';
+        } else if (error.message.includes('User not found')) {
+          errorMessage = 'Username or password not found. Please check your credentials and try again.';
         }
         
+        setErrorMessage(errorMessage);
         Alert.alert('Login Failed', errorMessage);
         setLoading(false);
         return;
@@ -64,11 +78,15 @@ export default function LoginScreen() {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+        // Clear error message on success
+        setErrorMessage('');
         // Navigation will be handled automatically by AuthContext
       }
     } catch (error: any) {
       console.error('Login error:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      const errorMsg = 'An unexpected error occurred. Please try again.';
+      setErrorMessage(errorMsg);
+      Alert.alert('Error', errorMsg);
       setLoading(false);
     }
   };
@@ -135,6 +153,18 @@ export default function LoginScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="error"
+                size={20}
+                color={colors.error}
+              />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.inputContainer}>
             <View style={styles.inputIconContainer}>
               <IconSymbol
@@ -149,7 +179,10 @@ export default function LoginScreen() {
               placeholder="Email"
               placeholderTextColor={colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -171,7 +204,10 @@ export default function LoginScreen() {
               placeholder="Password"
               placeholderTextColor={colors.textSecondary}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               autoComplete="password"
@@ -282,6 +318,22 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.errorBackground || '#fee',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error,
+    marginLeft: spacing.sm,
+    flex: 1,
   },
   inputContainer: {
     flexDirection: 'row',

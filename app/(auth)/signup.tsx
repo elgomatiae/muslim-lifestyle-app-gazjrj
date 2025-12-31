@@ -27,20 +27,30 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleSignup = async () => {
+    // Clear any previous error messages
+    setErrorMessage('');
+
     if (!username || !email || !password || !confirmPassword) {
-      Alert.alert('Error', 'Please fill in all fields');
+      const errorMsg = 'Please fill in all fields';
+      setErrorMessage(errorMsg);
+      Alert.alert('Error', errorMsg);
       return;
     }
 
     if (password !== confirmPassword) {
-      Alert.alert('Error', 'Passwords do not match');
+      const errorMsg = 'Passwords do not match';
+      setErrorMessage(errorMsg);
+      Alert.alert('Error', errorMsg);
       return;
     }
 
     if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+      const errorMsg = 'Password must be at least 6 characters long';
+      setErrorMessage(errorMsg);
+      Alert.alert('Error', errorMsg);
       return;
     }
 
@@ -64,7 +74,21 @@ export default function SignupScreen() {
 
       if (error) {
         console.log('Signup error:', error);
-        Alert.alert('Signup Failed', error.message);
+        
+        // Show user-friendly error messages
+        let errorMessage = error.message;
+        
+        // Handle specific error cases
+        if (error.message.includes('User already registered')) {
+          errorMessage = 'An account with this email already exists. Please sign in instead.';
+        } else if (error.message.includes('Password should be at least')) {
+          errorMessage = 'Password must be at least 6 characters long';
+        } else if (error.message.includes('Invalid email')) {
+          errorMessage = 'Please enter a valid email address';
+        }
+        
+        setErrorMessage(errorMessage);
+        Alert.alert('Signup Failed', errorMessage);
         setLoading(false);
         return;
       }
@@ -75,6 +99,9 @@ export default function SignupScreen() {
         if (Platform.OS !== 'web') {
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         }
+
+        // Clear error message on success
+        setErrorMessage('');
 
         // Check if email confirmation is required
         if (data.user.identities && data.user.identities.length === 0) {
@@ -105,7 +132,9 @@ export default function SignupScreen() {
       }
     } catch (error: any) {
       console.error('Signup error:', error);
-      Alert.alert('Error', 'An unexpected error occurred. Please try again.');
+      const errorMsg = 'An unexpected error occurred. Please try again.';
+      setErrorMessage(errorMsg);
+      Alert.alert('Error', errorMsg);
       setLoading(false);
     }
   };
@@ -139,6 +168,18 @@ export default function SignupScreen() {
         </View>
 
         <View style={styles.form}>
+          {errorMessage ? (
+            <View style={styles.errorContainer}>
+              <IconSymbol
+                ios_icon_name="exclamationmark.triangle.fill"
+                android_material_icon_name="error"
+                size={20}
+                color={colors.error}
+              />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.inputContainer}>
             <View style={styles.inputIconContainer}>
               <IconSymbol
@@ -153,7 +194,10 @@ export default function SignupScreen() {
               placeholder="Username"
               placeholderTextColor={colors.textSecondary}
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(text) => {
+                setUsername(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               autoCapitalize="none"
               editable={!loading}
             />
@@ -173,7 +217,10 @@ export default function SignupScreen() {
               placeholder="Email"
               placeholderTextColor={colors.textSecondary}
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               keyboardType="email-address"
               autoCapitalize="none"
               autoComplete="email"
@@ -195,7 +242,10 @@ export default function SignupScreen() {
               placeholder="Password"
               placeholderTextColor={colors.textSecondary}
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               secureTextEntry={!showPassword}
               autoCapitalize="none"
               editable={!loading}
@@ -228,7 +278,10 @@ export default function SignupScreen() {
               placeholder="Confirm Password"
               placeholderTextColor={colors.textSecondary}
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setErrorMessage(''); // Clear error when user starts typing
+              }}
               secureTextEntry={!showConfirmPassword}
               autoCapitalize="none"
               editable={!loading}
@@ -330,6 +383,22 @@ const styles = StyleSheet.create({
   },
   form: {
     width: '100%',
+  },
+  errorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.errorBackground || '#fee',
+    borderRadius: borderRadius.md,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    borderWidth: 1,
+    borderColor: colors.error,
+  },
+  errorText: {
+    ...typography.caption,
+    color: colors.error,
+    marginLeft: spacing.sm,
+    flex: 1,
   },
   inputContainer: {
     flexDirection: 'row',

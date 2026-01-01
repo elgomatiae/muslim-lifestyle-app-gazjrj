@@ -82,7 +82,7 @@ export default function PrayerSettingsScreen() {
       
       Alert.alert(
         'Success',
-        'Calculation method updated. Prayer times have been recalculated.',
+        'Calculation method updated. Prayer times have been automatically recalculated based on your location.',
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -191,30 +191,32 @@ export default function PrayerSettingsScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Location Info */}
-        {locationInfo && (
-          <View style={styles.infoCard}>
-            <View style={styles.infoIconContainer}>
-              <IconSymbol
-                ios_icon_name="location.fill"
-                android_material_icon_name="location-on"
-                size={20}
-                color={colors.primary}
-              />
-            </View>
-            <View style={styles.infoContent}>
-              <Text style={styles.infoLabel}>Current Location</Text>
-              <Text style={styles.infoValue}>{locationInfo}</Text>
-            </View>
+        {/* Auto-Calculation Info Card */}
+        <View style={styles.infoCard}>
+          <View style={styles.infoIconContainer}>
+            <IconSymbol
+              ios_icon_name="location.fill.viewfinder"
+              android_material_icon_name="my-location"
+              size={20}
+              color={colors.success}
+            />
           </View>
-        )}
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Automatic Calculation</Text>
+            <Text style={styles.infoValue}>
+              Prayer times are automatically calculated based on your GPS location using the adhan library.
+              {locationInfo && ` Currently using: ${locationInfo}`}
+            </Text>
+          </View>
+        </View>
 
         {/* Calculation Method Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Calculation Method</Text>
           <Text style={styles.sectionDescription}>
             Choose the calculation method that best matches your local mosque or Islamic center.
-            For Aurora (US/Canada), ISNA (North America) is recommended.
+            For Aurora (US/Canada), ISNA (North America) is recommended. Prayer times will be
+            automatically recalculated based on your GPS location.
           </Text>
 
           <View style={styles.methodList}>
@@ -258,10 +260,11 @@ export default function PrayerSettingsScreen() {
 
         {/* Manual Adjustments Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Manual Adjustments</Text>
+          <Text style={styles.sectionTitle}>Fine-Tune Prayer Times</Text>
           <Text style={styles.sectionDescription}>
-            Fine-tune prayer times by adding or subtracting minutes. Use this if your local mosque
-            times differ slightly from the calculated times.
+            Prayer times are automatically calculated based on your location. Use these adjustments
+            to fine-tune the times if your local mosque times differ slightly. These are small
+            offsets (±minutes) applied to the automatically calculated times.
           </Text>
 
           <View style={styles.adjustmentList}>
@@ -344,13 +347,17 @@ export default function PrayerSettingsScreen() {
             />
           </View>
           <View style={styles.helpContent}>
-            <Text style={styles.helpTitle}>Need Help?</Text>
+            <Text style={styles.helpTitle}>How It Works</Text>
             <Text style={styles.helpText}>
-              If prayer times are still inaccurate, try:
+              Prayer times are automatically calculated using:
             </Text>
-            <Text style={styles.helpBullet}>• Checking your location permissions</Text>
-            <Text style={styles.helpBullet}>• Comparing with your local mosque times</Text>
-            <Text style={styles.helpBullet}>• Using manual adjustments to match exactly</Text>
+            <Text style={styles.helpBullet}>• Your GPS location (latitude & longitude)</Text>
+            <Text style={styles.helpBullet}>• The adhan library for accurate calculations</Text>
+            <Text style={styles.helpBullet}>• Your selected calculation method</Text>
+            <Text style={styles.helpBullet}>• Optional fine-tuning adjustments</Text>
+            <Text style={styles.helpText} style={{ marginTop: spacing.sm }}>
+              Times automatically update when you move to a new location (>5km).
+            </Text>
           </View>
         </View>
 
@@ -400,20 +407,19 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
+    alignItems: 'flex-start',
+    backgroundColor: colors.success + '10',
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
-    ...shadows.medium,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.success + '30',
   },
   infoIconContainer: {
     width: 40,
     height: 40,
     borderRadius: borderRadius.round,
-    backgroundColor: colors.highlight,
+    backgroundColor: colors.success + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -422,14 +428,16 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   infoLabel: {
-    ...typography.caption,
-    color: colors.textSecondary,
+    ...typography.captionBold,
+    color: colors.success,
     marginBottom: spacing.xs,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   infoValue: {
-    ...typography.body,
+    ...typography.small,
     color: colors.text,
-    fontWeight: '600',
+    lineHeight: 18,
   },
   section: {
     marginBottom: spacing.xl,

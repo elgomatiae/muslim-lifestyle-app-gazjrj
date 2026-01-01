@@ -23,6 +23,7 @@ import {
   formatLocation,
   getLocationName,
   UserLocation,
+  requestLocationPermission,
 } from "@/utils/locationService";
 
 interface DailyVerse {
@@ -48,7 +49,7 @@ export default function HomeScreen() {
     refreshData,
     updatePrayerGoals,
   } = useImanTracker();
-  const { settings, refreshPrayerTimesAndNotifications } = useNotifications();
+  const { settings, refreshPrayerTimesAndNotifications, requestPermissions } = useNotifications();
 
   const [prayers, setPrayers] = useState<PrayerTime[]>([]);
   const [nextPrayer, setNextPrayer] = useState<PrayerTime | null>(null);
@@ -72,10 +73,10 @@ export default function HomeScreen() {
   const loadPrayerTimes = async () => {
     try {
       setPrayerTimesLoading(true);
-      console.log('HomeScreen: Loading prayer times...');
+      console.log('🕌 HomeScreen: Loading prayer times...');
       
       const prayerTimes = await getPrayerTimes();
-      console.log('HomeScreen: Prayer times loaded:', prayerTimes);
+      console.log('✅ HomeScreen: Prayer times loaded:', prayerTimes.length, 'prayers');
       
       // Load location info
       const cachedData = await getCachedPrayerTimesData();
@@ -86,6 +87,7 @@ export default function HomeScreen() {
           locationName,
           accuracy: cachedData.location.accuracy || null,
         });
+        console.log('📍 Location:', locationName || formatLocation(cachedData.location));
       }
       
       // Sync with prayer goals from context
@@ -110,11 +112,20 @@ export default function HomeScreen() {
         setTimeUntilNext(getTimeUntilPrayer(next));
       }
     } catch (error) {
-      console.error('HomeScreen: Error loading prayer times:', error);
+      console.error('❌ HomeScreen: Error loading prayer times:', error);
       Alert.alert(
-        'Error Loading Prayer Times',
-        'Unable to load prayer times. Please check your location permissions in settings.',
-        [{ text: 'OK' }]
+        'Prayer Times',
+        'Unable to calculate prayer times. Please enable location permissions for accurate times.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Enable Location', 
+            onPress: async () => {
+              await requestPermissions();
+              await loadPrayerTimes();
+            }
+          }
+        ]
       );
     } finally {
       setPrayerTimesLoading(false);
@@ -513,17 +524,17 @@ export default function HomeScreen() {
               </View>
             </View>
             
-            {/* Location Info */}
+            {/* Location Info - Shows automatic calculation */}
             {locationInfo.location && (
               <View style={styles.locationInfo}>
                 <IconSymbol
                   ios_icon_name="location.fill"
                   android_material_icon_name="location-on"
                   size={12}
-                  color={colors.textSecondary}
+                  color={colors.success}
                 />
                 <Text style={styles.locationText}>
-                  {locationInfo.locationName || formatLocation(locationInfo.location)}
+                  Auto-calculated for {locationInfo.locationName || formatLocation(locationInfo.location)}
                 </Text>
                 {locationInfo.accuracy && locationInfo.accuracy < 100 && (
                   <View style={styles.accuracyBadge}>
@@ -534,7 +545,14 @@ export default function HomeScreen() {
             )}
             
             {!settings.locationPermissionGranted && (
-              <View style={styles.locationWarning}>
+              <TouchableOpacity 
+                style={styles.locationWarning}
+                onPress={async () => {
+                  await requestPermissions();
+                  await loadPrayerTimes();
+                }}
+                activeOpacity={0.7}
+              >
                 <IconSymbol
                   ios_icon_name="exclamationmark.triangle.fill"
                   android_material_icon_name="warning"
@@ -542,9 +560,9 @@ export default function HomeScreen() {
                   color={colors.warning}
                 />
                 <Text style={styles.locationWarningText}>
-                  Enable location for accurate prayer times
+                  Tap to enable location for accurate prayer times
                 </Text>
-              </View>
+              </TouchableOpacity>
             )}
           </View>
         )}
@@ -635,7 +653,7 @@ export default function HomeScreen() {
           {/* Prayer List */}
           {prayerTimesLoading ? (
             <View style={styles.loadingCard}>
-              <Text style={styles.loadingText}>Loading prayer times...</Text>
+              <Text style={styles.loadingText}>Calculating prayer times based on your location...</Text>
             </View>
           ) : (
             <View style={styles.prayerList}>
@@ -1009,6 +1027,7 @@ const styles = StyleSheet.create({
   loadingText: {
     ...typography.body,
     color: colors.textSecondary,
+    textAlign: 'center',
   },
   quoteIconContainer: {
     alignSelf: 'flex-start',
@@ -1157,8 +1176,9 @@ const styles = StyleSheet.create({
   },
   locationText: {
     ...typography.small,
-    color: colors.textSecondary,
+    color: colors.success,
     flex: 1,
+    fontWeight: '500',
   },
   accuracyBadge: {
     backgroundColor: colors.success + '20',

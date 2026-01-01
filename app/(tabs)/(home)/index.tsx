@@ -9,6 +9,7 @@ import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
+import { router } from "expo-router";
 import { 
   getPrayerTimes, 
   getNextPrayer, 
@@ -486,6 +487,18 @@ export default function HomeScreen() {
                 />
               </View>
               <Text style={styles.nextPrayerLabel}>Next Prayer</Text>
+              <TouchableOpacity
+                style={styles.settingsButton}
+                onPress={() => router.push('/(tabs)/profile/prayer-settings')}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="gear"
+                  android_material_icon_name="settings"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
             </View>
             <View style={styles.nextPrayerContent}>
               <View style={styles.nextPrayerInfo}>
@@ -1081,6 +1094,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.md,
     gap: spacing.sm,
+    flex: 1,
+  },
+  settingsButton: {
+    marginLeft: 'auto',
+    padding: spacing.xs,
   },
   nextPrayerIconContainer: {
     width: 28,

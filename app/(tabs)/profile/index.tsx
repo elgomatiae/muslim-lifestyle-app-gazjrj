@@ -240,7 +240,12 @@ export default function ProfileScreen() {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    Alert.alert('Prayer Settings', 'Prayer settings coming soon!');
+    try {
+      router.push('/(tabs)/profile/prayer-settings');
+    } catch (error) {
+      console.error('Navigation error:', error);
+      Alert.alert('Navigation Error', 'Failed to open prayer settings. Please try again.');
+    }
   };
 
   const handleAbout = () => {

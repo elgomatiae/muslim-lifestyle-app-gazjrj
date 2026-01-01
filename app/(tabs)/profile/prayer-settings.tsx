@@ -21,8 +21,6 @@ import {
   savePrayerTimeAdjustments,
   PrayerTimeAdjustments,
   refreshPrayerTimes,
-  shouldUseApi,
-  setUseApi,
 } from '@/utils/prayerTimeService';
 import { getCachedPrayerTimesData } from '@/utils/prayerTimeService';
 
@@ -31,7 +29,6 @@ export default function PrayerSettingsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [calculationMethod, setCalculationMethod] = useState('NorthAmerica');
-  const [useApiForTimes, setUseApiForTimes] = useState(true);
   const [adjustments, setAdjustments] = useState<PrayerTimeAdjustments>({
     fajr_offset: 0,
     dhuhr_offset: 0,
@@ -40,7 +37,8 @@ export default function PrayerSettingsScreen() {
     isha_offset: 0,
   });
   const [locationInfo, setLocationInfo] = useState<string>('');
-  const [source, setSource] = useState<'api' | 'calculation' | 'default'>('api');
+  const [source, setSource] = useState<string>('');
+  const [confidence, setConfidence] = useState<number>(0);
 
   useEffect(() => {
     loadSettings();
@@ -53,10 +51,6 @@ export default function PrayerSettingsScreen() {
       // Load calculation method
       const method = await getCalculationMethod();
       setCalculationMethod(method);
-
-      // Load API preference
-      const useApi = await shouldUseApi();
-      setUseApiForTimes(useApi);
 
       // Load adjustments
       const savedAdjustments = await getPrayerTimeAdjustments();
@@ -71,36 +65,13 @@ export default function PrayerSettingsScreen() {
           cachedData.locationName || 
           `${cachedData.location.latitude.toFixed(4)}, ${cachedData.location.longitude.toFixed(4)}`
         );
-        setSource(cachedData.source || 'api');
+        setSource(cachedData.source || 'Unknown');
+        setConfidence(cachedData.confidence || 0);
       }
     } catch (error) {
       console.error('Error loading prayer settings:', error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleApiToggle = async (value: boolean) => {
-    try {
-      setSaving(true);
-      setUseApiForTimes(value);
-      await setUseApi(value);
-      
-      // Refresh prayer times with new source
-      await refreshPrayerTimes();
-      
-      Alert.alert(
-        'Success',
-        value 
-          ? 'Now using online API for city-specific prayer times.'
-          : 'Now using local calculation for prayer times.',
-        [{ text: 'OK' }]
-      );
-    } catch (error) {
-      console.error('Error changing API preference:', error);
-      Alert.alert('Error', 'Failed to update prayer time source');
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -113,11 +84,12 @@ export default function PrayerSettingsScreen() {
       // Refresh prayer times with new method
       await refreshPrayerTimes();
       
+      // Reload settings to get updated source and confidence
+      await loadSettings();
+      
       Alert.alert(
         'Success',
-        useApiForTimes 
-          ? 'Calculation method updated. Prayer times have been fetched from online API for your location.'
-          : 'Calculation method updated. Prayer times have been recalculated based on your location.',
+        'Calculation method updated. Prayer times have been recalculated using multiple sources for maximum accuracy.',
         [{ text: 'OK' }]
       );
     } catch (error) {
@@ -183,6 +155,13 @@ export default function PrayerSettingsScreen() {
     );
   };
 
+  // Get confidence color
+  const getConfidenceColor = (conf: number) => {
+    if (conf >= 80) return colors.success;
+    if (conf >= 60) return colors.warning;
+    return colors.error;
+  };
+
   if (loading) {
     return (
       <View style={styles.container}>
@@ -229,120 +208,33 @@ export default function PrayerSettingsScreen() {
         {/* Prayer Time Source Card */}
         <View style={[
           styles.infoCard,
-          source === 'api' && { backgroundColor: colors.primary + '10', borderColor: colors.primary + '30' }
+          { backgroundColor: getConfidenceColor(confidence) + '10', borderColor: getConfidenceColor(confidence) + '30' }
         ]}>
           <View style={[
             styles.infoIconContainer,
-            source === 'api' && { backgroundColor: colors.primary + '20' }
+            { backgroundColor: getConfidenceColor(confidence) + '20' }
           ]}>
             <IconSymbol
-              ios_icon_name={source === 'api' ? 'globe' : 'location.fill.viewfinder'}
-              android_material_icon_name={source === 'api' ? 'public' : 'my-location'}
+              ios_icon_name="checkmark.seal.fill"
+              android_material_icon_name="verified"
               size={20}
-              color={source === 'api' ? colors.primary : colors.success}
+              color={getConfidenceColor(confidence)}
             />
           </View>
           <View style={styles.infoContent}>
             <Text style={[
               styles.infoLabel,
-              source === 'api' && { color: colors.primary }
+              { color: getConfidenceColor(confidence) }
             ]}>
-              {source === 'api' ? 'Online API (City-Specific)' : 'Local Calculation'}
+              Multi-Source Calculation ({confidence.toFixed(0)}% Confidence)
             </Text>
             <Text style={styles.infoValue}>
-              {source === 'api' 
-                ? `Prayer times are fetched from Aladhan API for your exact location.`
-                : `Prayer times are calculated locally using the adhan library.`
-              }
+              Prayer times are calculated using multiple sources and validated with a consensus algorithm.
               {locationInfo && ` Currently: ${locationInfo}`}
             </Text>
-          </View>
-        </View>
-
-        {/* API Toggle Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Prayer Time Source</Text>
-          <Text style={styles.sectionDescription}>
-            Choose between online API (city-specific times) or local calculation (regional times).
-            Online API provides more accurate times for your specific city.
-          </Text>
-
-          <View style={styles.toggleList}>
-            <TouchableOpacity
-              style={[
-                styles.toggleItem,
-                useApiForTimes && styles.toggleItemSelected,
-              ]}
-              onPress={() => handleApiToggle(true)}
-              disabled={saving}
-            >
-              <View style={styles.toggleIconContainer}>
-                <IconSymbol
-                  ios_icon_name="globe"
-                  android_material_icon_name="public"
-                  size={24}
-                  color={useApiForTimes ? colors.primary : colors.textSecondary}
-                />
-              </View>
-              <View style={styles.toggleContent}>
-                <Text style={[
-                  styles.toggleLabel,
-                  useApiForTimes && styles.toggleLabelSelected,
-                ]}>
-                  Online API (Recommended)
-                </Text>
-                <Text style={styles.toggleDescription}>
-                  Fetches city-specific prayer times from Aladhan API based on your exact GPS coordinates.
-                  More accurate for your specific location.
-                </Text>
-              </View>
-              {useApiForTimes && (
-                <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={24}
-                  color={colors.primary}
-                />
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.toggleItem,
-                !useApiForTimes && styles.toggleItemSelected,
-              ]}
-              onPress={() => handleApiToggle(false)}
-              disabled={saving}
-            >
-              <View style={styles.toggleIconContainer}>
-                <IconSymbol
-                  ios_icon_name="cpu"
-                  android_material_icon_name="memory"
-                  size={24}
-                  color={!useApiForTimes ? colors.primary : colors.textSecondary}
-                />
-              </View>
-              <View style={styles.toggleContent}>
-                <Text style={[
-                  styles.toggleLabel,
-                  !useApiForTimes && styles.toggleLabelSelected,
-                ]}>
-                  Local Calculation
-                </Text>
-                <Text style={styles.toggleDescription}>
-                  Calculates prayer times locally using the adhan library. Works offline but uses
-                  broad regional parameters.
-                </Text>
-              </View>
-              {!useApiForTimes && (
-                <IconSymbol
-                  ios_icon_name="checkmark.circle.fill"
-                  android_material_icon_name="check-circle"
-                  size={24}
-                  color={colors.primary}
-                />
-              )}
-            </TouchableOpacity>
+            <Text style={[styles.infoSource, { marginTop: spacing.xs }]}>
+              Primary Source: {source}
+            </Text>
           </View>
         </View>
 
@@ -351,15 +243,12 @@ export default function PrayerSettingsScreen() {
           <Text style={styles.sectionTitle}>Calculation Method</Text>
           <Text style={styles.sectionDescription}>
             Choose the calculation method that best matches your local mosque or Islamic center.
-            For Aurora (US/Canada), ISNA (North America) is recommended. 
-            {useApiForTimes 
-              ? ' The API will use this method to fetch city-specific times for your location.'
-              : ' Prayer times will be calculated locally based on your GPS location.'
-            }
+            For Aurora (US/Canada), ISNA (North America) is recommended. The system will use multiple
+            sources to verify and provide the most accurate times.
           </Text>
 
           <View style={styles.methodList}>
-            {Object.entries(CALCULATION_METHODS).map(([key, label]) => (
+            {Object.entries(CALCULATION_METHODS).map(([key, config]) => (
               <TouchableOpacity
                 key={key}
                 style={[
@@ -376,7 +265,7 @@ export default function PrayerSettingsScreen() {
                       calculationMethod === key && styles.methodLabelSelected,
                     ]}
                   >
-                    {label}
+                    {config.name}
                   </Text>
                   {key === 'NorthAmerica' && (
                     <View style={styles.recommendedBadge}>
@@ -401,10 +290,9 @@ export default function PrayerSettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fine-Tune Prayer Times</Text>
           <Text style={styles.sectionDescription}>
-            {useApiForTimes 
-              ? 'Prayer times are fetched from online API for your city. Use these adjustments to fine-tune the times if your local mosque times differ slightly.'
-              : 'Prayer times are calculated locally based on your location. Use these adjustments to fine-tune the times if your local mosque times differ slightly.'
-            } These are small offsets (±minutes) applied to the {useApiForTimes ? 'fetched' : 'calculated'} times.
+            Prayer times are calculated using advanced algorithms with multiple sources for accuracy.
+            Use these adjustments to fine-tune the times if your local mosque times differ slightly.
+            These are small offsets (±minutes) applied to the calculated times.
           </Text>
 
           <View style={styles.adjustmentList}>
@@ -489,25 +377,18 @@ export default function PrayerSettingsScreen() {
           <View style={styles.helpContent}>
             <Text style={styles.helpTitle}>How It Works</Text>
             <Text style={styles.helpText}>
-              {useApiForTimes ? 'Prayer times are fetched from online API using:' : 'Prayer times are calculated locally using:'}
+              Prayer times are calculated using a comprehensive multi-source system:
             </Text>
             <Text style={styles.helpBullet}>• Your GPS location (latitude & longitude)</Text>
-            {useApiForTimes ? (
-              <>
-                <Text style={styles.helpBullet}>• Aladhan API for city-specific times</Text>
-                <Text style={styles.helpBullet}>• Your selected calculation method</Text>
-                <Text style={styles.helpBullet}>• Optional fine-tuning adjustments</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.helpBullet}>• The adhan library for calculations</Text>
-                <Text style={styles.helpBullet}>• Your selected calculation method</Text>
-                <Text style={styles.helpBullet}>• Optional fine-tuning adjustments</Text>
-              </>
-            )}
+            <Text style={styles.helpBullet}>• Multiple prayer time APIs for cross-validation</Text>
+            <Text style={styles.helpBullet}>• Local astronomical calculations as backup</Text>
+            <Text style={styles.helpBullet}>• Consensus algorithm for maximum accuracy</Text>
+            <Text style={styles.helpBullet}>• Confidence scoring to verify reliability</Text>
+            <Text style={styles.helpBullet}>• Optional fine-tuning adjustments</Text>
             <Text style={styles.helpText} style={{ marginTop: spacing.sm }}>
               Times automatically update when you move to a new location (>5km).
-              {useApiForTimes && ' Online API provides more accurate city-specific times.'}
+              The system uses the most reliable source available and validates results
+              across multiple calculations.
             </Text>
           </View>
         </View>
@@ -559,18 +440,15 @@ const styles = StyleSheet.create({
   infoCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: colors.success + '10',
     borderRadius: borderRadius.md,
     padding: spacing.md,
     marginBottom: spacing.lg,
     borderWidth: 1,
-    borderColor: colors.success + '30',
   },
   infoIconContainer: {
     width: 40,
     height: 40,
     borderRadius: borderRadius.round,
-    backgroundColor: colors.success + '20',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: spacing.md,
@@ -580,7 +458,6 @@ const styles = StyleSheet.create({
   },
   infoLabel: {
     ...typography.captionBold,
-    color: colors.success,
     marginBottom: spacing.xs,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
@@ -589,6 +466,11 @@ const styles = StyleSheet.create({
     ...typography.small,
     color: colors.text,
     lineHeight: 18,
+  },
+  infoSource: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontWeight: '600',
   },
   section: {
     marginBottom: spacing.xl,
@@ -645,48 +527,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.success,
     fontWeight: '600',
-  },
-  toggleList: {
-    gap: spacing.md,
-  },
-  toggleItem: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: colors.card,
-    borderRadius: borderRadius.md,
-    padding: spacing.md,
-    borderWidth: 2,
-    borderColor: colors.border,
-  },
-  toggleItemSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.highlight,
-  },
-  toggleIconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: borderRadius.round,
-    backgroundColor: colors.highlight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.md,
-  },
-  toggleContent: {
-    flex: 1,
-  },
-  toggleLabel: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
-    marginBottom: spacing.xs,
-  },
-  toggleLabelSelected: {
-    color: colors.primary,
-  },
-  toggleDescription: {
-    ...typography.small,
-    color: colors.textSecondary,
-    lineHeight: 18,
   },
   adjustmentList: {
     gap: spacing.sm,

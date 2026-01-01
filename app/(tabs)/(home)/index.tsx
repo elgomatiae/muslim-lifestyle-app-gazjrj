@@ -63,12 +63,14 @@ export default function HomeScreen() {
     location: UserLocation | null;
     locationName: string | null;
     accuracy: number | null;
-    source: 'api' | 'calculation' | 'default';
+    source: string;
+    confidence: number;
   }>({
     location: null,
     locationName: null,
     accuracy: null,
-    source: 'api',
+    source: 'Calculating...',
+    confidence: 0,
   });
 
   // Load prayer times
@@ -88,10 +90,12 @@ export default function HomeScreen() {
           location: cachedData.location,
           locationName,
           accuracy: cachedData.location.accuracy || null,
-          source: cachedData.source || 'api',
+          source: cachedData.source || 'Unknown',
+          confidence: cachedData.confidence || 0,
         });
         console.log('📍 Location:', locationName || formatLocation(cachedData.location));
         console.log('🌐 Source:', cachedData.source);
+        console.log('📊 Confidence:', cachedData.confidence?.toFixed(1) + '%');
       }
       
       // Sync with prayer goals from context
@@ -456,6 +460,13 @@ export default function HomeScreen() {
     );
   };
 
+  // Get confidence color based on score
+  const getConfidenceColor = (confidence: number) => {
+    if (confidence >= 80) return colors.success;
+    if (confidence >= 60) return colors.warning;
+    return colors.error;
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -528,37 +539,44 @@ export default function HomeScreen() {
               </View>
             </View>
             
-            {/* Location Info - Shows online API source */}
+            {/* Enhanced Location Info with Confidence Score */}
             {locationInfo.location && (
               <View style={styles.locationInfo}>
-                <IconSymbol
-                  ios_icon_name={locationInfo.source === 'api' ? 'globe' : 'location.fill'}
-                  android_material_icon_name={locationInfo.source === 'api' ? 'public' : 'location-on'}
-                  size={12}
-                  color={locationInfo.source === 'api' ? colors.primary : colors.success}
-                />
-                <Text style={[
-                  styles.locationText,
-                  locationInfo.source === 'api' && { color: colors.primary }
-                ]}>
-                  {locationInfo.source === 'api' 
-                    ? `Online times for ${locationInfo.locationName || formatLocation(locationInfo.location)}`
-                    : `Calculated for ${locationInfo.locationName || formatLocation(locationInfo.location)}`
-                  }
-                </Text>
-                {locationInfo.accuracy && locationInfo.accuracy < 100 && (
-                  <View style={[
-                    styles.accuracyBadge,
-                    locationInfo.source === 'api' && { backgroundColor: colors.primary + '20' }
-                  ]}>
-                    <Text style={[
-                      styles.accuracyText,
-                      locationInfo.source === 'api' && { color: colors.primary }
-                    ]}>
-                      ±{Math.round(locationInfo.accuracy)}m
+                <View style={styles.locationRow}>
+                  <IconSymbol
+                    ios_icon_name="location.fill"
+                    android_material_icon_name="location-on"
+                    size={12}
+                    color={colors.primary}
+                  />
+                  <Text style={styles.locationText}>
+                    {locationInfo.locationName || formatLocation(locationInfo.location)}
+                  </Text>
+                  {locationInfo.accuracy && locationInfo.accuracy < 100 && (
+                    <View style={styles.accuracyBadge}>
+                      <Text style={styles.accuracyText}>
+                        ±{Math.round(locationInfo.accuracy)}m
+                      </Text>
+                    </View>
+                  )}
+                </View>
+                
+                <View style={styles.sourceRow}>
+                  <IconSymbol
+                    ios_icon_name="checkmark.seal.fill"
+                    android_material_icon_name="verified"
+                    size={12}
+                    color={getConfidenceColor(locationInfo.confidence)}
+                  />
+                  <Text style={[styles.sourceText, { color: getConfidenceColor(locationInfo.confidence) }]}>
+                    {locationInfo.source}
+                  </Text>
+                  <View style={[styles.confidenceBadge, { backgroundColor: getConfidenceColor(locationInfo.confidence) + '20' }]}>
+                    <Text style={[styles.confidenceText, { color: getConfidenceColor(locationInfo.confidence) }]}>
+                      {locationInfo.confidence.toFixed(0)}% confidence
                     </Text>
                   </View>
-                )}
+                </View>
               </View>
             )}
             
@@ -671,7 +689,7 @@ export default function HomeScreen() {
           {/* Prayer List */}
           {prayerTimesLoading ? (
             <View style={styles.loadingCard}>
-              <Text style={styles.loadingText}>Calculating prayer times based on your location...</Text>
+              <Text style={styles.loadingText}>Calculating prayer times with advanced algorithms...</Text>
             </View>
           ) : (
             <View style={styles.prayerList}>
@@ -1184,29 +1202,51 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   locationInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
     marginTop: spacing.md,
     paddingTop: spacing.md,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     gap: spacing.xs,
   },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
   locationText: {
     ...typography.small,
-    color: colors.success,
+    color: colors.primary,
     flex: 1,
     fontWeight: '500',
   },
   accuracyBadge: {
-    backgroundColor: colors.success + '20',
+    backgroundColor: colors.primary + '20',
     paddingHorizontal: spacing.xs,
     paddingVertical: 2,
     borderRadius: borderRadius.sm,
   },
   accuracyText: {
     fontSize: 10,
-    color: colors.success,
+    color: colors.primary,
+    fontWeight: '600',
+  },
+  sourceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+  },
+  sourceText: {
+    ...typography.small,
+    fontWeight: '500',
+  },
+  confidenceBadge: {
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: borderRadius.sm,
+    marginLeft: 'auto',
+  },
+  confidenceText: {
+    fontSize: 10,
     fontWeight: '600',
   },
   locationWarning: {

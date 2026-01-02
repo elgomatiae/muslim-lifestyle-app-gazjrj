@@ -391,9 +391,28 @@ export async function updateNotificationSettings(
 
     // If prayer notifications were toggled, update prayer notification scheduling
     if (settings.prayerNotifications !== undefined) {
-      const { schedulePrayerNotifications, getPrayerTimes } = await import('./prayerTimeService');
-      const prayerTimes = await getPrayerTimes();
-      await schedulePrayerNotifications(prayerTimes, settings.prayerNotifications);
+      const { schedulePrayerNotifications, getCachedPrayerTimesData } = await import('../services/PrayerTimeService');
+      const { getCurrentLocation } = await import('../services/LocationService');
+      
+      if (settings.prayerNotifications) {
+        // Enable prayer notifications - get current prayer times and schedule
+        const cachedTimes = await getCachedPrayerTimesData();
+        if (cachedTimes) {
+          const { schedulePrayerNotifications: scheduleNotifs } = await import('../services/PrayerNotificationService');
+          await scheduleNotifs(cachedTimes);
+        } else {
+          // If no cached times, calculate fresh ones
+          const location = await getCurrentLocation();
+          const { getTodayPrayerTimes } = await import('../services/PrayerTimeService');
+          const prayerTimes = await getTodayPrayerTimes(location, userId);
+          const { schedulePrayerNotifications: scheduleNotifs } = await import('../services/PrayerNotificationService');
+          await scheduleNotifs(prayerTimes);
+        }
+      } else {
+        // Disable prayer notifications - cancel all scheduled
+        const { cancelAllPrayerNotifications } = await import('../services/PrayerNotificationService');
+        await cancelAllPrayerNotifications();
+      }
     }
   } catch (error) {
     console.log('Error updating notification settings:', error);

@@ -11,20 +11,18 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useNotifications } from "@/contexts/NotificationContext";
 import { router } from "expo-router";
 import { 
-  getPrayerTimes, 
+  getTodayPrayerTimes,
   getNextPrayer, 
-  getTimeUntilPrayer, 
+  getTimeUntilNextPrayer, 
   PrayerTime,
-  savePrayerCompletionStatus,
-  getCachedPrayerTimesData,
-} from "@/utils/prayerTimeService";
+  DailyPrayerTimes,
+} from "@/services/PrayerTimeService";
 import { 
-  getLocationStatus, 
-  formatLocation,
-  getLocationName,
+  getCurrentLocation,
   UserLocation,
   requestLocationPermission,
-} from "@/utils/locationService";
+} from "@/services/LocationService";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface DailyVerse {
   id: string;
@@ -39,6 +37,14 @@ interface DailyHadith {
   translation: string;
   source: string;
 }
+
+interface CachedPrayerData {
+  location: UserLocation;
+  source: string;
+  confidence: number;
+}
+
+const PRAYER_CACHE_KEY = '@prayer_times_cache';
 
 export default function HomeScreen() {
   const { user } = useAuth();
@@ -79,28 +85,32 @@ export default function HomeScreen() {
       setPrayerTimesLoading(true);
       console.log('🕌 HomeScreen: Loading prayer times...');
       
-      const prayerTimes = await getPrayerTimes();
-      console.log('✅ HomeScreen: Prayer times loaded:', prayerTimes.length, 'prayers');
+      // Get location
+      const location = await getCurrentLocation(true);
+      console.log('📍 Location obtained:', location.city);
       
-      // Load location info
-      const cachedData = await getCachedPrayerTimesData();
-      if (cachedData?.location) {
-        const locationName = await getLocationName(cachedData.location);
-        setLocationInfo({
-          location: cachedData.location,
-          locationName,
-          accuracy: cachedData.location.accuracy || null,
-          source: cachedData.source || 'Unknown',
-          confidence: cachedData.confidence || 0,
-        });
-        console.log('📍 Location:', locationName || formatLocation(cachedData.location));
-        console.log('🌐 Source:', cachedData.source);
-        console.log('📊 Confidence:', cachedData.confidence?.toFixed(1) + '%');
-      }
+      // Get prayer times
+      const prayerTimesData = await getTodayPrayerTimes(
+        location,
+        user?.id,
+        'NorthAmerica',
+        true
+      );
+      
+      console.log('✅ HomeScreen: Prayer times loaded:', prayerTimesData.prayers.length, 'prayers');
+      
+      // Set location info
+      setLocationInfo({
+        location,
+        locationName: location.city,
+        accuracy: location.accuracy || null,
+        source: 'GPS',
+        confidence: 95,
+      });
       
       // Sync with prayer goals from context
       if (prayerGoals) {
-        const updatedPrayers = prayerTimes.map((prayer) => {
+        const updatedPrayers = prayerTimesData.prayers.map((prayer) => {
           const prayerKey = prayer.name.toLowerCase() as keyof typeof prayerGoals.fardPrayers;
           return {
             ...prayer,
@@ -109,15 +119,15 @@ export default function HomeScreen() {
         });
         setPrayers(updatedPrayers);
       } else {
-        setPrayers(prayerTimes);
+        setPrayers(prayerTimesData.prayers);
       }
 
       // Get next prayer
-      const next = getNextPrayer(prayerTimes);
+      const next = getNextPrayer(prayerTimesData);
       setNextPrayer(next);
       
       if (next) {
-        setTimeUntilNext(getTimeUntilPrayer(next));
+        setTimeUntilNext(getTimeUntilNextPrayer(next));
       }
     } catch (error) {
       console.error('❌ HomeScreen: Error loading prayer times:', error);
@@ -164,7 +174,7 @@ export default function HomeScreen() {
     if (!nextPrayer) return;
 
     const interval = setInterval(() => {
-      setTimeUntilNext(getTimeUntilPrayer(nextPrayer));
+      setTimeUntilNext(getTimeUntilNextPrayer(nextPrayer));
     }, 60000); // Update every minute
 
     return () => clearInterval(interval);
@@ -260,16 +270,6 @@ export default function HomeScreen() {
     };
 
     await updatePrayerGoals(updatedGoals);
-
-    // Also save to local storage for prayer time service
-    const completionStatus: Record<string, boolean> = {
-      fajr: updatedGoals.fardPrayers.fajr,
-      dhuhr: updatedGoals.fardPrayers.dhuhr,
-      asr: updatedGoals.fardPrayers.asr,
-      maghrib: updatedGoals.fardPrayers.maghrib,
-      isha: updatedGoals.fardPrayers.isha,
-    };
-    await savePrayerCompletionStatus(completionStatus);
   };
 
   const completedCount = prayers.filter(p => p.completed).length;
@@ -467,6 +467,11 @@ export default function HomeScreen() {
     return colors.error;
   };
 
+  // Format location for display
+  const formatLocation = (location: UserLocation) => {
+    return `${location.city}, ${location.country}`;
+  };
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -533,7 +538,7 @@ export default function HomeScreen() {
               </View>
               <View style={styles.nextPrayerTimeContainer}>
                 <Text style={styles.nextPrayerTime}>{nextPrayer.time}</Text>
-                {timeUntilNext && timeUntilNext !== 'Passed' && (
+                {timeUntilNext && timeUntilNext !== '0m' && (
                   <Text style={styles.nextPrayerCountdown}>in {timeUntilNext}</Text>
                 )}
               </View>

@@ -7,9 +7,11 @@
 import { Coordinates, CalculationMethod, PrayerTimes, Prayer, Madhab, HighLatitudeRule } from 'adhan';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
-import { UserLocation } from './LocationService';
+import { UserLocation, getCurrentLocation } from './LocationService';
 
 const PRAYER_CACHE_KEY = '@prayer_times_cache';
+const CALCULATION_METHOD_KEY = '@calculation_method';
+const PRAYER_ADJUSTMENTS_KEY = '@prayer_adjustments';
 
 export interface PrayerTime {
   name: string;
@@ -22,6 +24,7 @@ export interface PrayerTime {
 export interface DailyPrayerTimes {
   date: string; // YYYY-MM-DD
   location: UserLocation;
+  locationName?: string;
   calculationMethod: string;
   prayers: PrayerTime[];
   fajr: PrayerTime;
@@ -29,6 +32,8 @@ export interface DailyPrayerTimes {
   asr: PrayerTime;
   maghrib: PrayerTime;
   isha: PrayerTime;
+  source?: string;
+  confidence?: number;
 }
 
 export interface PrayerAdjustments {
@@ -37,6 +42,14 @@ export interface PrayerAdjustments {
   asr: number;
   maghrib: number;
   isha: number;
+}
+
+export interface PrayerTimeAdjustments {
+  fajr_offset: number;
+  dhuhr_offset: number;
+  asr_offset: number;
+  maghrib_offset: number;
+  isha_offset: number;
 }
 
 export type CalculationMethodName = 
@@ -53,10 +66,73 @@ export type CalculationMethodName =
   | 'Tehran'
   | 'Turkey';
 
+export const CALCULATION_METHODS: Record<string, { name: string; description: string; region: string }> = {
+  NorthAmerica: {
+    name: 'ISNA (North America)',
+    description: 'Islamic Society of North America',
+    region: 'USA, Canada, Mexico',
+  },
+  MuslimWorldLeague: {
+    name: 'Muslim World League',
+    description: 'Standard method used worldwide',
+    region: 'Europe, Far East, parts of USA',
+  },
+  Egyptian: {
+    name: 'Egyptian General Authority',
+    description: 'Egyptian General Authority of Survey',
+    region: 'Egypt, Middle East',
+  },
+  Karachi: {
+    name: 'University of Karachi',
+    description: 'University of Islamic Sciences, Karachi',
+    region: 'Pakistan, Bangladesh, India',
+  },
+  UmmAlQura: {
+    name: 'Umm Al-Qura',
+    description: 'Umm Al-Qura University, Makkah',
+    region: 'Saudi Arabia',
+  },
+  Dubai: {
+    name: 'Dubai',
+    description: 'Dubai Islamic Affairs',
+    region: 'United Arab Emirates',
+  },
+  Qatar: {
+    name: 'Qatar',
+    description: 'Qatar Calendar House',
+    region: 'Qatar',
+  },
+  Kuwait: {
+    name: 'Kuwait',
+    description: 'Kuwait Ministry of Awqaf',
+    region: 'Kuwait',
+  },
+  MoonsightingCommittee: {
+    name: 'Moonsighting Committee',
+    description: 'Moonsighting Committee Worldwide',
+    region: 'Worldwide',
+  },
+  Singapore: {
+    name: 'Singapore',
+    description: 'Majlis Ugama Islam Singapura',
+    region: 'Singapore, Malaysia',
+  },
+  Tehran: {
+    name: 'Tehran',
+    description: 'Institute of Geophysics, Tehran',
+    region: 'Iran',
+  },
+  Turkey: {
+    name: 'Turkey',
+    description: 'Presidency of Religious Affairs, Turkey',
+    region: 'Turkey',
+  },
+};
+
 /**
  * Get calculation method object from name
  */
-function getCalculationMethod(methodName: CalculationMethodName): CalculationMethod {
+function getCalculationMethodObject(methodName: CalculationMethodName): CalculationMethod {
   const methods: Record<CalculationMethodName, CalculationMethod> = {
     MuslimWorldLeague: CalculationMethod.MuslimWorldLeague(),
     Egyptian: CalculationMethod.Egyptian(),
@@ -115,7 +191,7 @@ export async function calculatePrayerTimes(
     const coordinates = new Coordinates(location.latitude, location.longitude);
 
     // Get calculation method
-    const method = getCalculationMethod(methodName);
+    const method = getCalculationMethodObject(methodName);
 
     // Set madhab to Shafi (standard for Asr calculation)
     method.madhab = Madhab.Shafi;
@@ -190,6 +266,7 @@ export async function calculatePrayerTimes(
     const result: DailyPrayerTimes = {
       date: dateString,
       location,
+      locationName: location.city,
       calculationMethod: methodName,
       prayers,
       fajr,
@@ -197,6 +274,8 @@ export async function calculatePrayerTimes(
       asr,
       maghrib,
       isha,
+      source: 'Local Astronomical Calculation',
+      confidence: 95,
     };
 
     console.log('Prayer times calculated successfully:', {
@@ -296,6 +375,13 @@ async function getCachedPrayerTimes(): Promise<DailyPrayerTimes | null> {
 }
 
 /**
+ * Get cached prayer times data (for settings screen)
+ */
+export async function getCachedPrayerTimesData(): Promise<DailyPrayerTimes | null> {
+  return getCachedPrayerTimes();
+}
+
+/**
  * Save prayer times to database
  */
 async function savePrayerTimesToDatabase(
@@ -391,6 +477,94 @@ export async function saveUserAdjustments(
     }
   } catch (error) {
     console.error('Error saving user adjustments:', error);
+  }
+}
+
+/**
+ * Get calculation method from storage
+ */
+export async function getCalculationMethod(): Promise<string> {
+  try {
+    const method = await AsyncStorage.getItem(CALCULATION_METHOD_KEY);
+    return method || 'NorthAmerica';
+  } catch (error) {
+    console.error('Error getting calculation method:', error);
+    return 'NorthAmerica';
+  }
+}
+
+/**
+ * Save calculation method to storage
+ */
+export async function saveCalculationMethod(method: string): Promise<void> {
+  try {
+    await AsyncStorage.setItem(CALCULATION_METHOD_KEY, method);
+    console.log('Calculation method saved:', method);
+  } catch (error) {
+    console.error('Error saving calculation method:', error);
+  }
+}
+
+/**
+ * Get prayer time adjustments from storage
+ */
+export async function getPrayerTimeAdjustments(): Promise<PrayerTimeAdjustments | null> {
+  try {
+    const adjustments = await AsyncStorage.getItem(PRAYER_ADJUSTMENTS_KEY);
+    if (!adjustments) return null;
+    return JSON.parse(adjustments);
+  } catch (error) {
+    console.error('Error getting prayer time adjustments:', error);
+    return null;
+  }
+}
+
+/**
+ * Save prayer time adjustments to storage
+ */
+export async function savePrayerTimeAdjustments(adjustments: PrayerTimeAdjustments): Promise<void> {
+  try {
+    await AsyncStorage.setItem(PRAYER_ADJUSTMENTS_KEY, JSON.stringify(adjustments));
+    console.log('Prayer time adjustments saved');
+  } catch (error) {
+    console.error('Error saving prayer time adjustments:', error);
+  }
+}
+
+/**
+ * Refresh prayer times (clear cache and recalculate)
+ */
+export async function refreshPrayerTimes(): Promise<void> {
+  try {
+    console.log('Refreshing prayer times...');
+    await clearPrayerTimesCache();
+    
+    // Get current location and recalculate
+    const location = await getCurrentLocation(true);
+    const method = await getCalculationMethod();
+    const adjustmentsData = await getPrayerTimeAdjustments();
+    
+    // Convert adjustments format
+    const adjustments: PrayerAdjustments | undefined = adjustmentsData ? {
+      fajr: adjustmentsData.fajr_offset,
+      dhuhr: adjustmentsData.dhuhr_offset,
+      asr: adjustmentsData.asr_offset,
+      maghrib: adjustmentsData.maghrib_offset,
+      isha: adjustmentsData.isha_offset,
+    } : undefined;
+    
+    const prayerTimes = await calculatePrayerTimes(
+      location,
+      new Date(),
+      method as CalculationMethodName,
+      adjustments
+    );
+    
+    await cachePrayerTimes(prayerTimes);
+    console.log('Prayer times refreshed successfully');
+  } catch (error) {
+    console.error('Error refreshing prayer times:', error);
+    throw error;
   }
 }
 

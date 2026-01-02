@@ -21,8 +21,8 @@ import {
   savePrayerTimeAdjustments,
   PrayerTimeAdjustments,
   refreshPrayerTimes,
-} from '@/utils/prayerTimeService';
-import { getCachedPrayerTimesData } from '@/utils/prayerTimeService';
+  getCachedPrayerTimesData,
+} from '@/services/PrayerTimeService';
 
 export default function PrayerSettingsScreen() {
   const router = useRouter();
@@ -379,13 +379,13 @@ export default function PrayerSettingsScreen() {
             <Text style={styles.helpText}>
               Prayer times are calculated using a comprehensive multi-source system:
             </Text>
-            <Text style={styles.helpBullet}>• Your GPS location (latitude & longitude)</Text>
-            <Text style={styles.helpBullet}>• Multiple prayer time APIs for cross-validation</Text>
-            <Text style={styles.helpBullet}>• Local astronomical calculations as backup</Text>
-            <Text style={styles.helpBullet}>• Consensus algorithm for maximum accuracy</Text>
-            <Text style={styles.helpBullet}>• Confidence scoring to verify reliability</Text>
-            <Text style={styles.helpBullet}>• Optional fine-tuning adjustments</Text>
-            <Text style={styles.helpText} style={{ marginTop: spacing.sm }}>
+            <Text style={styles.helpBullet}>- Your GPS location (latitude & longitude)</Text>
+            <Text style={styles.helpBullet}>- Multiple prayer time APIs for cross-validation</Text>
+            <Text style={styles.helpBullet}>- Local astronomical calculations as backup</Text>
+            <Text style={styles.helpBullet}>- Consensus algorithm for maximum accuracy</Text>
+            <Text style={styles.helpBullet}>- Confidence scoring to verify reliability</Text>
+            <Text style={styles.helpBullet}>- Optional fine-tuning adjustments</Text>
+            <Text style={[styles.helpText, { marginTop: spacing.sm }]}>
               Times automatically update when you move to a new location (>5km).
               The system uses the most reliable source available and validates results
               across multiple calculations.

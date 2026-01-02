@@ -4,17 +4,17 @@ import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { 
   requestNotificationPermission, 
-  areNotificationsEnabled,
+  hasNotificationPermission as areNotificationsEnabled,
   schedulePrayerNotifications,
   cancelAllPrayerNotifications,
   getScheduledNotificationCount,
-} from '@/utils/prayerNotificationService';
+} from '@/services/PrayerNotificationService';
 import { 
   requestLocationPermission, 
-  checkLocationPermission,
-  isLocationEnabled,
-} from '@/utils/locationService';
-import { getPrayerTimes, refreshPrayerTimes } from '@/utils/prayerTimeService';
+  hasLocationPermission as checkLocationPermission,
+  getCurrentLocation,
+} from '@/services/LocationService';
+import { getTodayPrayerTimes, refreshPrayerTimes } from '@/services/PrayerTimeService';
 import { useAuth } from './AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -50,6 +50,19 @@ interface NotificationContextType {
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+
+// Helper function to check if location services are enabled
+async function isLocationEnabled(): Promise<boolean> {
+  try {
+    // On mobile, we can check if we can get location
+    // This is a simple check - if permission is granted, services are likely enabled
+    const hasPermission = await checkLocationPermission();
+    return hasPermission;
+  } catch (error) {
+    console.error('Error checking location services:', error);
+    return false;
+  }
+}
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
@@ -195,7 +208,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
       // If both permissions granted, schedule prayer notifications
       if (notificationGranted && locationGranted && settings.prayerNotifications) {
-        const prayers = await getPrayerTimes();
+        const location = await getCurrentLocation(true);
+        const prayers = await getTodayPrayerTimes(location, user?.id);
         await schedulePrayerNotifications(prayers);
         const count = await getScheduledNotificationCount();
         setScheduledCount(count);
@@ -207,7 +221,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [settings]);
+  }, [settings, user]);
 
   // Update settings
   const updateSettings = useCallback(async (newSettings: Partial<NotificationSettings>) => {
@@ -224,7 +238,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // If prayer notifications were toggled, update notifications
       if (newSettings.prayerNotifications !== undefined) {
         if (newSettings.prayerNotifications && settings.notificationPermissionGranted) {
-          const prayers = await getPrayerTimes();
+          const location = await getCurrentLocation(true);
+          const prayers = await getTodayPrayerTimes(location, user?.id);
           await schedulePrayerNotifications(prayers);
         } else {
           await cancelAllPrayerNotifications();
@@ -239,7 +254,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     } finally {
       setLoading(false);
     }
-  }, [settings, saveSettingsToSupabase]);
+  }, [settings, saveSettingsToSupabase, user]);
 
   // Refresh settings
   const refreshSettings = useCallback(async () => {
@@ -251,9 +266,11 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     try {
       console.log('Refreshing prayer times and notifications...');
       
-      const prayers = await refreshPrayerTimes();
+      await refreshPrayerTimes();
       
       if (settings.prayerNotifications && settings.notificationPermissionGranted) {
+        const location = await getCurrentLocation(true);
+        const prayers = await getTodayPrayerTimes(location, user?.id);
         await schedulePrayerNotifications(prayers);
       }
       
@@ -264,7 +281,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error refreshing prayer times:', error);
     }
-  }, [settings.prayerNotifications, settings.notificationPermissionGranted]);
+  }, [settings.prayerNotifications, settings.notificationPermissionGranted, user]);
 
   // Load settings on mount
   useEffect(() => {
@@ -276,11 +293,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     if (settings.notificationPermissionGranted && 
         settings.locationPermissionGranted && 
         settings.prayerNotifications) {
-      getPrayerTimes().then(prayers => {
-        schedulePrayerNotifications(prayers);
+      getCurrentLocation(true).then(location => {
+        getTodayPrayerTimes(location, user?.id).then(prayers => {
+          schedulePrayerNotifications(prayers);
+        });
       });
     }
-  }, [settings.notificationPermissionGranted, settings.locationPermissionGranted, settings.prayerNotifications]);
+  }, [settings.notificationPermissionGranted, settings.locationPermissionGranted, settings.prayerNotifications, user]);
 
   // Set up notification listeners
   useEffect(() => {

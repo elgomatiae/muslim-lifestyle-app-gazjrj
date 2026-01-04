@@ -5,14 +5,8 @@ import {
   getOverallImanScore, 
   getCurrentSectionScores, 
   updateSectionScores,
-  checkAndHandleResets 
+  SectionScores 
 } from '@/utils/imanScoreCalculator';
-
-interface SectionScores {
-  ibadah: number;
-  ilm: number;
-  amanah: number;
-}
 
 interface ImanTrackerContextType {
   imanScore: number;
@@ -23,89 +17,53 @@ interface ImanTrackerContextType {
 
 const ImanTrackerContext = createContext<ImanTrackerContextType | undefined>(undefined);
 
-export function ImanTrackerProvider({ children }: { children: ReactNode }) {
+export const ImanTrackerProvider = ({ children }: { children: ReactNode }) => {
   const { user } = useAuth();
   const [imanScore, setImanScore] = useState(0);
-  const [sectionScores, setSectionScores] = useState<SectionScores>({
-    ibadah: 0,
-    ilm: 0,
-    amanah: 0,
-  });
+  const [sectionScores, setSectionScores] = useState<SectionScores>({ ibadah: 0, ilm: 0, amanah: 0 });
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshImanScore = async () => {
     try {
-      console.log('[ImanTrackerContext] Refreshing iman score...');
-      setIsLoading(true);
-
-      // Check and handle daily/weekly resets
-      await checkAndHandleResets();
-
-      // Update section scores based on current goals
+      console.log('Refreshing Iman score...');
       await updateSectionScores();
-
-      // Get the latest scores
       const overallScore = await getOverallImanScore();
       const sections = await getCurrentSectionScores();
-
-      console.log('[ImanTrackerContext] Overall score:', overallScore);
-      console.log('[ImanTrackerContext] Section scores:', sections);
-
+      console.log('Iman score refreshed:', { overallScore, sections });
       setImanScore(overallScore);
       setSectionScores(sections);
     } catch (error) {
-      console.error('[ImanTrackerContext] Error refreshing iman score:', error);
-      // Set default values on error
-      setImanScore(0);
-      setSectionScores({ ibadah: 0, ilm: 0, amanah: 0 });
-    } finally {
-      setIsLoading(false);
+      console.error('Error refreshing Iman score:', error);
     }
   };
 
-  // Initial load when user is available
   useEffect(() => {
+    console.log('ImanTrackerProvider: User changed', user ? 'User exists' : 'No user');
     if (user) {
-      console.log('[ImanTrackerContext] User available, loading iman score...');
-      refreshImanScore();
+      refreshImanScore().finally(() => {
+        console.log('ImanTrackerProvider: Loading complete');
+        setIsLoading(false);
+      });
     } else {
-      console.log('[ImanTrackerContext] No user, resetting scores...');
+      // If no user, set default values and stop loading
+      console.log('ImanTrackerProvider: No user, setting defaults');
       setImanScore(0);
       setSectionScores({ ibadah: 0, ilm: 0, amanah: 0 });
       setIsLoading(false);
     }
   }, [user]);
 
-  // Refresh scores every 5 minutes when app is active
-  useEffect(() => {
-    if (!user) return;
-
-    const interval = setInterval(() => {
-      console.log('[ImanTrackerContext] Auto-refreshing iman score...');
-      refreshImanScore();
-    }, 5 * 60 * 1000); // 5 minutes
-
-    return () => clearInterval(interval);
-  }, [user]);
-
   return (
-    <ImanTrackerContext.Provider 
-      value={{ 
-        imanScore, 
-        sectionScores, 
-        refreshImanScore, 
-        isLoading 
-      }}
-    >
+    <ImanTrackerContext.Provider value={{ imanScore, sectionScores, refreshImanScore, isLoading }}>
       {children}
     </ImanTrackerContext.Provider>
   );
-}
+};
 
-export function useImanTracker() {
+export const useImanTracker = () => {
   const context = useContext(ImanTrackerContext);
   if (!context) {
     throw new Error('useImanTracker must be used within an ImanTrackerProvider');
   }
   return context;
-}
+};

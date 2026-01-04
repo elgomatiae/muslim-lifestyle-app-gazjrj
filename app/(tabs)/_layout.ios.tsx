@@ -4,24 +4,27 @@ import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
-  // iOS also uses the custom floating tab bar for consistency
+  // iOS uses the same configuration as Android/web for consistency
   const tabs: TabBarItem[] = [
     {
       name: '(home)',
       route: '/(tabs)/(home)/',
       icon: 'home',
+      iosIcon: 'house.fill',
       label: 'Home',
     },
     {
       name: '(learning)',
       route: '/(tabs)/(learning)/',
       icon: 'school',
+      iosIcon: 'book.fill',
       label: 'Learning',
     },
     {
       name: '(iman)',
       route: '/(tabs)/(iman)/',
       icon: 'favorite',
+      iosIcon: 'heart.fill',
       label: 'Iman',
       isCenter: true,
     },
@@ -29,12 +32,14 @@ export default function TabLayout() {
       name: '(wellness)',
       route: '/(tabs)/(wellness)/',
       icon: 'spa',
+      iosIcon: 'leaf.fill',
       label: 'Wellness',
     },
     {
       name: 'profile',
       route: '/(tabs)/profile',
       icon: 'person',
+      iosIcon: 'person.fill',
       label: 'Profile',
     },
   ];
@@ -47,11 +52,11 @@ export default function TabLayout() {
           animation: 'none',
         }}
       >
-        <Stack.Screen key="home" name="(home)" />
-        <Stack.Screen key="iman" name="(iman)" />
-        <Stack.Screen key="learning" name="(learning)" />
-        <Stack.Screen key="wellness" name="(wellness)" />
-        <Stack.Screen key="profile" name="profile" />
+        <Stack.Screen name="(home)" />
+        <Stack.Screen name="(iman)" />
+        <Stack.Screen name="(learning)" />
+        <Stack.Screen name="(wellness)" />
+        <Stack.Screen name="profile" />
       </Stack>
       <FloatingTabBar tabs={tabs} />
     </>

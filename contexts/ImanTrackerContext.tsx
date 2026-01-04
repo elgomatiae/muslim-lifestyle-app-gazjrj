@@ -1,69 +1,98 @@
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAuth } from './AuthContext';
-import { 
-  getOverallImanScore, 
-  getCurrentSectionScores, 
+import {
+  getOverallImanScore,
+  getCurrentSectionScores,
   updateSectionScores,
-  SectionScores 
+  checkAndHandleResets,
+  SectionScores,
 } from '@/utils/imanScoreCalculator';
 
 interface ImanTrackerContextType {
   imanScore: number;
   sectionScores: SectionScores;
-  refreshImanScore: () => Promise<void>;
+  updateImanScore: (score: number) => void;
+  refreshScore: () => Promise<void>;
   isLoading: boolean;
 }
 
 const ImanTrackerContext = createContext<ImanTrackerContextType | undefined>(undefined);
 
-export const ImanTrackerProvider = ({ children }: { children: ReactNode }) => {
-  const { user } = useAuth();
+export function ImanTrackerProvider({ children }: { children: ReactNode }) {
   const [imanScore, setImanScore] = useState(0);
-  const [sectionScores, setSectionScores] = useState<SectionScores>({ ibadah: 0, ilm: 0, amanah: 0 });
+  const [sectionScores, setSectionScores] = useState<SectionScores>({
+    ibadah: 0,
+    ilm: 0,
+    amanah: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
 
-  const refreshImanScore = async () => {
+  const updateImanScore = (score: number) => {
+    setImanScore(score);
+  };
+
+  const refreshScore = async () => {
     try {
-      console.log('Refreshing Iman score...');
-      await updateSectionScores();
-      const overallScore = await getOverallImanScore();
-      const sections = await getCurrentSectionScores();
-      console.log('Iman score refreshed:', { overallScore, sections });
-      setImanScore(overallScore);
-      setSectionScores(sections);
+      console.log('🔄 Refreshing Iman scores...');
+      
+      // Check for daily/weekly resets
+      await checkAndHandleResets();
+      
+      // Get section scores
+      const scores = await getCurrentSectionScores();
+      setSectionScores(scores);
+      
+      // Get overall score
+      const overall = await getOverallImanScore();
+      setImanScore(overall);
+      
+      console.log('✅ Iman scores refreshed:', {
+        overall,
+        ibadah: scores.ibadah,
+        ilm: scores.ilm,
+        amanah: scores.amanah,
+      });
     } catch (error) {
-      console.error('Error refreshing Iman score:', error);
+      console.error('❌ Error refreshing Iman score:', error);
+      // Set default values on error
+      setImanScore(0);
+      setSectionScores({ ibadah: 0, ilm: 0, amanah: 0 });
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    console.log('ImanTrackerProvider: User changed', user ? 'User exists' : 'No user');
-    if (user) {
-      refreshImanScore().finally(() => {
-        console.log('ImanTrackerProvider: Loading complete');
-        setIsLoading(false);
-      });
-    } else {
-      // If no user, set default values and stop loading
-      console.log('ImanTrackerProvider: No user, setting defaults');
-      setImanScore(0);
-      setSectionScores({ ibadah: 0, ilm: 0, amanah: 0 });
-      setIsLoading(false);
-    }
-  }, [user]);
+    // Initial load
+    refreshScore();
+    
+    // Refresh every 5 minutes to keep scores up to date
+    const interval = setInterval(() => {
+      refreshScore();
+    }, 5 * 60 * 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <ImanTrackerContext.Provider value={{ imanScore, sectionScores, refreshImanScore, isLoading }}>
+    <ImanTrackerContext.Provider
+      value={{
+        imanScore,
+        sectionScores,
+        updateImanScore,
+        refreshScore,
+        isLoading,
+      }}
+    >
       {children}
     </ImanTrackerContext.Provider>
   );
-};
+}
 
-export const useImanTracker = () => {
+export function useImanTracker() {
   const context = useContext(ImanTrackerContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useImanTracker must be used within an ImanTrackerProvider');
   }
   return context;
-};
+}

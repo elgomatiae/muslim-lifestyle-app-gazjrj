@@ -6,10 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
+  Dimensions,
 } from 'react-native';
-import { useRouter, usePathname } from 'expo-router';
+import { useRouter, usePathname, useSegments } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
+import { BlurView } from 'expo-blur';
+import { useTheme } from '@react-navigation/native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -18,125 +21,89 @@ import Animated, {
 } from 'react-native-reanimated';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
-import { LinearGradient } from 'expo-linear-gradient';
-import * as Haptics from 'expo-haptics';
-import { BlurView } from 'expo-blur';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export interface TabBarItem {
   name: string;
   route: Href;
   icon: keyof typeof MaterialIcons.glyphMap;
-  iosIcon?: string;
   label: string;
 }
 
 interface FloatingTabBarProps {
   tabs: TabBarItem[];
+  containerWidth?: number;
+  borderRadius?: number;
+  bottomMargin?: number;
 }
 
-export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
+export default function FloatingTabBar({
+  tabs,
+  containerWidth = screenWidth / 2.5,
+  borderRadius = 35,
+  bottomMargin
+}: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
-  
-  // Initialize animation value at the top level
+  const segments = useSegments();
+  const theme = useTheme();
   const animatedValue = useSharedValue(0);
-  
-  // Create scale values for each tab - moved outside useMemo
-  const scaleValue0 = useSharedValue(1);
-  const scaleValue1 = useSharedValue(1);
-  const scaleValue2 = useSharedValue(1);
-  const scaleValue3 = useSharedValue(1);
-  const scaleValue4 = useSharedValue(1);
-  
-  // Store scale values in an array using useMemo (without calling hooks inside)
-  const scaleValues = React.useMemo(() => {
-    return [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4].slice(0, tabs.length);
-  }, [scaleValue0, scaleValue1, scaleValue2, scaleValue3, scaleValue4, tabs]);
 
-  // Find the center tab index (should be Iman)
-  const centerTabIndex = Math.floor(tabs.length / 2);
-
-  // Improved active tab detection with better path matching
+  // Enhanced active tab detection with improved segment-based matching
   const activeTabIndex = React.useMemo(() => {
-    console.log('Current pathname:', pathname);
+    console.log('FloatingTabBar - Current pathname:', pathname);
+    console.log('FloatingTabBar - Current segments:', segments);
     
-    // Extract the main tab segment from the pathname
-    // Pathname format: /(tabs)/(tabname)/...
-    const pathSegments = pathname.split('/').filter(Boolean);
-    console.log('Path segments:', pathSegments);
+    // Get the first segment after (tabs) - this is the main tab identifier
+    // segments will be like: ['(tabs)', '(home)'] or ['(tabs)', '(iman)', 'achievements']
+    const tabSegment = segments.length > 1 ? segments[1] : null;
     
-    // Find which tab matches the current path
-    let matchedIndex = -1;
+    console.log('FloatingTabBar - Tab segment:', tabSegment);
     
-    for (let i = 0; i < tabs.length; i++) {
-      const tab = tabs[i];
-      const tabName = tab.name; // e.g., "(home)", "(iman)", "profile"
+    // Find matching tab by checking the segment
+    const matchedIndex = tabs.findIndex(tab => {
+      const tabName = tab.name;
       
-      console.log(`Checking tab ${i}: ${tabName}`);
-      
-      // Check if the pathname contains this tab's name
-      // Handle both parenthesized names like "(home)" and regular names like "profile"
-      const cleanTabName = tabName.replace(/[()]/g, ''); // Remove parentheses
-      
-      // Check if pathname includes the tab name
-      if (pathname.includes(`/${tabName}/`) || pathname.includes(`/${tabName}`)) {
-        console.log(`✓ Matched tab ${i} (${tabName}) - exact match`);
-        matchedIndex = i;
-        break;
+      // Direct segment match (most reliable)
+      if (tabSegment === tabName) {
+        console.log(`FloatingTabBar - Direct match found: ${tabName} at index ${tabs.indexOf(tab)}`);
+        return true;
       }
       
-      // Also check without parentheses
-      if (pathname.includes(`/${cleanTabName}/`) || pathname.includes(`/${cleanTabName}`)) {
-        console.log(`✓ Matched tab ${i} (${tabName}) - clean name match`);
-        matchedIndex = i;
-        break;
+      // Fallback: Check if pathname contains the tab name
+      // This handles cases where segments might not be parsed correctly
+      if (pathname.includes(`/${tabName}/`)) {
+        console.log(`FloatingTabBar - Pathname match found: ${tabName} at index ${tabs.indexOf(tab)}`);
+        return true;
       }
-    }
+      
+      return false;
+    });
+
+    const finalIndex = matchedIndex >= 0 ? matchedIndex : 0;
+    console.log('FloatingTabBar - Active tab index:', finalIndex, '(', tabs[finalIndex]?.label, ')');
     
-    // If no match found, default to home (index 0)
-    if (matchedIndex === -1) {
-      console.log('No match found, defaulting to home (index 0)');
-      matchedIndex = 0;
-    }
-    
-    console.log('Active tab index:', matchedIndex);
-    return matchedIndex;
-  }, [pathname, tabs]);
+    return finalIndex;
+  }, [pathname, segments, tabs]);
 
   React.useEffect(() => {
-    if (activeTabIndex >= 0) {
-      animatedValue.value = withSpring(activeTabIndex, {
-        damping: 20,
-        stiffness: 120,
-        mass: 1,
-      });
+    animatedValue.value = withSpring(activeTabIndex, {
+      damping: 20,
+      stiffness: 120,
+      mass: 1,
+    });
+  }, [activeTabIndex, animatedValue]);
 
-      // Animate scale for active tab
-      scaleValues.forEach((scale, index) => {
-        if (index === activeTabIndex) {
-          scale.value = withSpring(1.1, {
-            damping: 15,
-            stiffness: 150,
-          });
-        } else {
-          scale.value = withSpring(1, {
-            damping: 15,
-            stiffness: 150,
-          });
-        }
-      });
-    }
-  }, [activeTabIndex, animatedValue, scaleValues]);
-
-  const handleTabPress = (route: Href, index: number) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+  const handleTabPress = (route: Href) => {
+    console.log('FloatingTabBar - Tab pressed, navigating to:', route);
     router.push(route);
   };
 
-  const tabWidth = 100 / tabs.length;
+  const tabWidthPercent = ((100 / tabs.length) - 0.5).toFixed(2);
 
   const indicatorStyle = useAnimatedStyle(() => {
+    const tabWidth = (containerWidth - 8) / tabs.length;
     return {
       transform: [
         {
@@ -147,281 +114,144 @@ export default function FloatingTabBar({ tabs }: FloatingTabBarProps) {
           ),
         },
       ],
-      width: `${tabWidth}%`,
     };
   });
 
+  const dynamicStyles = {
+    blurContainer: {
+      ...styles.blurContainer,
+      borderWidth: 1.2,
+      borderColor: 'rgba(255, 255, 255, 1)',
+      ...Platform.select({
+        ios: {
+          backgroundColor: theme.dark
+            ? 'rgba(28, 28, 30, 0.8)'
+            : 'rgba(255, 255, 255, 0.6)',
+        },
+        android: {
+          backgroundColor: theme.dark
+            ? 'rgba(28, 28, 30, 0.95)'
+            : 'rgba(255, 255, 255, 0.6)',
+        },
+        web: {
+          backgroundColor: theme.dark
+            ? 'rgba(28, 28, 30, 0.95)'
+            : 'rgba(255, 255, 255, 0.6)',
+          backdropFilter: 'blur(10px)',
+        },
+      }),
+    },
+    background: {
+      ...styles.background,
+    },
+    indicator: {
+      ...styles.indicator,
+      backgroundColor: theme.dark
+        ? 'rgba(255, 255, 255, 0.08)'
+        : 'rgba(0, 0, 0, 0.04)',
+      width: `${tabWidthPercent}%` as `${number}%`,
+    },
+  };
+
   return (
-    <View style={styles.wrapper}>
-      <BlurView intensity={80} tint="light" style={styles.blurContainer}>
-        <View style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['bottom']}>
+      <View style={[
+        styles.container,
+        {
+          width: containerWidth,
+          marginBottom: bottomMargin ?? 20
+        }
+      ]}>
+        <BlurView
+          intensity={80}
+          style={[dynamicStyles.blurContainer, { borderRadius }]}
+        >
+          <View style={dynamicStyles.background} />
+          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
-              const isCenterTab = index === centerTabIndex;
 
-              // Center tab (Iman) gets special treatment - SMALLER and FITS IN TAB BAR
-              if (isCenterTab) {
-                return (
-                  <React.Fragment key={index}>
-                    <TouchableOpacity
-                      style={styles.centerTabWrapper}
-                      onPress={() => handleTabPress(tab.route, index)}
-                      activeOpacity={0.8}
-                    >
-                      <AnimatedCenterTab
-                        scaleValue={scaleValues[index]}
-                        isActive={isActive}
-                        tab={tab}
-                      />
-                      <Text
-                        style={[
-                          styles.centerTabLabel,
-                          isActive && styles.centerTabLabelActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {tab.label}
-                      </Text>
-                    </TouchableOpacity>
-                  </React.Fragment>
-                );
-              }
-
-              // Regular tabs
               return (
-                <React.Fragment key={index}>
-                  <TouchableOpacity
-                    style={styles.tab}
-                    onPress={() => handleTabPress(tab.route, index)}
-                    activeOpacity={0.7}
-                  >
-                    <AnimatedRegularTab
-                      scaleValue={scaleValues[index]}
-                      isActive={isActive}
-                      tab={tab}
+                <TouchableOpacity
+                  key={`tab-${index}-${tab.name}`}
+                  style={styles.tab}
+                  onPress={() => handleTabPress(tab.route)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.tabContent}>
+                    <IconSymbol
+                      android_material_icon_name={tab.icon}
+                      ios_icon_name={tab.icon}
+                      size={22}
+                      color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#8E8E93')}
                     />
-                  </TouchableOpacity>
-                </React.Fragment>
+                    <Text
+                      style={[
+                        styles.tabLabel,
+                        { color: theme.dark ? '#98989D' : '#8E8E93' },
+                        isActive && { color: theme.colors.primary, fontWeight: '600' },
+                      ]}
+                    >
+                      {tab.label}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </View>
-        </View>
-      </BlurView>
-    </View>
-  );
-}
-
-// Separate component for animated center tab to avoid hooks in callbacks
-function AnimatedCenterTab({ 
-  scaleValue, 
-  isActive, 
-  tab 
-}: { 
-  scaleValue: Animated.SharedValue<number>; 
-  isActive: boolean; 
-  tab: TabBarItem;
-}) {
-  // Guard against undefined scaleValue
-  const animatedStyle = useAnimatedStyle(() => {
-    'worklet';
-    if (!scaleValue || scaleValue.value === undefined) {
-      return { transform: [{ scale: 1 }] };
-    }
-    return {
-      transform: [{ scale: scaleValue.value }],
-    };
-  });
-
-  return (
-    <Animated.View style={[styles.centerTab, animatedStyle]}>
-      <LinearGradient
-        colors={isActive ? colors.gradientOcean : colors.gradientPrimary}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.centerTabGradient}
-      >
-        <View style={styles.centerIconContainer}>
-          <IconSymbol
-            android_material_icon_name={tab.icon}
-            ios_icon_name={tab.iosIcon || tab.icon}
-            size={28}
-            color="#FFFFFF"
-          />
-        </View>
-      </LinearGradient>
-    </Animated.View>
-  );
-}
-
-// Separate component for animated regular tab to avoid hooks in callbacks
-function AnimatedRegularTab({ 
-  scaleValue, 
-  isActive, 
-  tab 
-}: { 
-  scaleValue: Animated.SharedValue<number>; 
-  isActive: boolean; 
-  tab: TabBarItem;
-}) {
-  // Guard against undefined scaleValue
-  const animatedStyle = useAnimatedStyle(() => {
-    'worklet';
-    if (!scaleValue || scaleValue.value === undefined) {
-      return { transform: [{ scale: 1 }] };
-    }
-    return {
-      transform: [{ scale: scaleValue.value }],
-    };
-  });
-
-  return (
-    <Animated.View style={[styles.tabContent, animatedStyle]}>
-      <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
-        <IconSymbol
-          android_material_icon_name={tab.icon}
-          ios_icon_name={tab.iosIcon || tab.icon}
-          size={24}
-          color={isActive ? colors.primary : colors.textSecondary}
-        />
+        </BlurView>
       </View>
-      <Text
-        style={[
-          styles.tabLabel,
-          isActive && styles.tabLabelActive,
-        ]}
-        numberOfLines={1}
-      >
-        {tab.label}
-      </Text>
-    </Animated.View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-      },
-      android: {
-        elevation: 12,
-      },
-      web: {
-        boxShadow: '0px -4px 12px rgba(139, 92, 246, 0.15)',
-      },
-    }),
+  safeArea: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    alignItems: 'center',
+  },
+  container: {
+    marginHorizontal: 20,
+    alignSelf: 'center',
   },
   blurContainer: {
     overflow: 'hidden',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
   },
-  container: {
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    width: '100%',
-    position: 'relative',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+  background: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  indicator: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    bottom: 4,
+    borderRadius: 27,
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 88,
+    height: 60,
     alignItems: 'center',
-    justifyContent: 'space-around',
-    paddingHorizontal: 8,
-    paddingTop: 12,
-    paddingBottom: 16,
+    paddingHorizontal: 4,
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 4,
+    paddingVertical: 8,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-  },
-  iconContainer: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 18,
-    backgroundColor: 'transparent',
-  },
-  iconContainerActive: {
-    backgroundColor: colors.highlight,
+    gap: 2,
   },
   tabLabel: {
-    fontSize: 12,
+    fontSize: 9,
     fontWeight: '500',
     marginTop: 2,
-    textAlign: 'center',
-    color: colors.textSecondary,
-  },
-  tabLabelActive: {
-    color: colors.primary,
-    fontWeight: '700',
-  },
-  // Center tab (Iman) special styles - SMALLER SIZE TO FIT IN TAB BAR
-  centerTabWrapper: {
-    flex: 1.2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 6,
-  },
-  centerTab: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    marginBottom: 6,
-    ...Platform.select({
-      ios: {
-        shadowColor: colors.primary,
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-      },
-      android: {
-        elevation: 8,
-      },
-      web: {
-        boxShadow: '0px 4px 8px rgba(139, 92, 246, 0.3)',
-      },
-    }),
-  },
-  centerTabGradient: {
-    width: '100%',
-    height: '100%',
-    borderRadius: 26,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#FFFFFF',
-  },
-  centerIconContainer: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centerTabLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    textAlign: 'center',
-    color: colors.textSecondary,
-  },
-  centerTabLabelActive: {
-    color: colors.primary,
-    fontWeight: '800',
   },
 });

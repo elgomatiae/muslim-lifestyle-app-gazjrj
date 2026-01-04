@@ -28,9 +28,7 @@ export interface TabBarItem {
   name: string;
   route: Href;
   icon: keyof typeof MaterialIcons.glyphMap;
-  iosIcon?: string;
   label: string;
-  isCenter?: boolean;
 }
 
 interface FloatingTabBarProps {
@@ -42,104 +40,116 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = screenWidth * 0.9,
+  containerWidth = screenWidth / 2.5,
   borderRadius = 35,
-  bottomMargin = 20
+  bottomMargin
 }: FloatingTabBarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
-  // Improved active tab detection
+  // Improved active tab detection with better path matching
   const activeTabIndex = React.useMemo(() => {
-    // Normalize pathname by removing trailing slashes
-    const normalizedPath = pathname.replace(/\/$/, '');
-    
-    for (let i = 0; i < tabs.length; i++) {
-      const tab = tabs[i];
-      const normalizedRoute = String(tab.route).replace(/\/$/, '');
-      
-      // Exact match
-      if (normalizedPath === normalizedRoute) {
-        return i;
+    // Find the best matching tab based on the current pathname
+    let bestMatch = -1;
+    let bestMatchScore = 0;
+
+    tabs.forEach((tab, index) => {
+      let score = 0;
+
+      // Exact route match gets highest score
+      if (pathname === tab.route) {
+        score = 100;
       }
-      
-      // Check if current path starts with tab route (for nested routes)
-      if (normalizedPath.startsWith(normalizedRoute) && normalizedRoute !== '') {
-        return i;
+      // Check if pathname starts with tab route (for nested routes)
+      else if (pathname.startsWith(tab.route as string)) {
+        score = 80;
       }
-      
-      // Check if pathname contains the tab name (handle nested routes)
-      const tabNameMatch = tab.name.replace(/[()]/g, ''); // Remove parentheses
-      if (normalizedPath.includes(`/${tabNameMatch}`)) {
-        return i;
+      // Check if pathname contains the tab name
+      else if (pathname.includes(tab.name)) {
+        score = 60;
       }
-    }
-    
-    // Default to first tab
-    return 0;
+      // Check for partial matches in the route
+      else if (tab.route.includes('/(tabs)/') && pathname.includes(tab.route.split('/(tabs)/')[1])) {
+        score = 40;
+      }
+
+      if (score > bestMatchScore) {
+        bestMatchScore = score;
+        bestMatch = index;
+      }
+    });
+
+    // Default to first tab if no match found
+    return bestMatch >= 0 ? bestMatch : 0;
   }, [pathname, tabs]);
 
   React.useEffect(() => {
-    animatedValue.value = withSpring(activeTabIndex, {
-      damping: 20,
-      stiffness: 120,
-      mass: 1,
-    });
-  }, [activeTabIndex]);
+    if (activeTabIndex >= 0) {
+      animatedValue.value = withSpring(activeTabIndex, {
+        damping: 20,
+        stiffness: 120,
+        mass: 1,
+      });
+    }
+  }, [activeTabIndex, animatedValue]);
 
-  const handleTabPress = (route: Href, index: number) => {
+  const handleTabPress = (route: Href) => {
     router.push(route);
   };
 
   const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
 
   const indicatorStyle = useAnimatedStyle(() => {
-    const tabWidth = (containerWidth - 8) / tabs.length;
+    const tabWidth = (containerWidth - 8) / tabs.length; // Account for container padding (4px on each side)
     return {
       transform: [
         {
           translateX: interpolate(
             animatedValue.value,
-            tabs.map((_, i) => i),
-            tabs.map((_, i) => tabWidth * i)
+            [0, tabs.length - 1],
+            [0, tabWidth * (tabs.length - 1)]
           ),
         },
       ],
     };
   });
 
+  // Dynamic styles based on theme
   const dynamicStyles = {
     blurContainer: {
       ...styles.blurContainer,
       borderWidth: 1.2,
-      borderColor: theme.dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
+      borderColor: 'rgba(255, 255, 255, 1)',
       ...Platform.select({
         ios: {
           backgroundColor: theme.dark
             ? 'rgba(28, 28, 30, 0.8)'
-            : 'rgba(255, 255, 255, 0.8)',
+            : 'rgba(255, 255, 255, 0.6)',
         },
         android: {
           backgroundColor: theme.dark
             ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
+            : 'rgba(255, 255, 255, 0.6)',
         },
         web: {
           backgroundColor: theme.dark
             ? 'rgba(28, 28, 30, 0.95)'
-            : 'rgba(255, 255, 255, 0.95)',
+            : 'rgba(255, 255, 255, 0.6)',
           backdropFilter: 'blur(10px)',
         },
       }),
     },
+    background: {
+      ...styles.background,
+    },
     indicator: {
       ...styles.indicator,
       backgroundColor: theme.dark
-        ? 'rgba(167, 139, 250, 0.2)' // Purple with transparency
-        : 'rgba(139, 92, 246, 0.15)',
-      width: `${tabWidthPercent}%` as `${number}%`,
+        ? 'rgba(255, 255, 255, 0.08)' // Subtle white overlay in dark mode
+        : 'rgba(0, 0, 0, 0.04)', // Subtle black overlay in light mode
+      width: `${tabWidthPercent}%` as `${number}%`, // Dynamic width based on number of tabs
     },
   };
 
@@ -149,67 +159,38 @@ export default function FloatingTabBar({
         styles.container,
         {
           width: containerWidth,
-          marginBottom: bottomMargin
+          marginBottom: bottomMargin ?? 20
         }
       ]}>
         <BlurView
           intensity={80}
           style={[dynamicStyles.blurContainer, { borderRadius }]}
         >
+          <View style={dynamicStyles.background} />
           <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
-              const isCenter = tab.isCenter === true;
 
               return (
                 <TouchableOpacity
-                  key={`tab-${index}-${tab.name}`}
-                  style={[
-                    styles.tab,
-                    isCenter && styles.centerTab
-                  ]}
-                  onPress={() => handleTabPress(tab.route, index)}
+                  key={index}
+                  style={styles.tab}
+                  onPress={() => handleTabPress(tab.route)}
                   activeOpacity={0.7}
                 >
-                  <View style={[
-                    styles.tabContent,
-                    isCenter && styles.centerTabContent
-                  ]}>
-                    {isCenter ? (
-                      <View style={[
-                        styles.centerIconContainer,
-                        {
-                          backgroundColor: isActive 
-                            ? theme.colors.primary 
-                            : (theme.dark ? 'rgba(167, 139, 250, 0.3)' : 'rgba(139, 92, 246, 0.2)'),
-                          borderColor: theme.dark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.1)',
-                        }
-                      ]}>
-                        <IconSymbol
-                          android_material_icon_name={tab.icon}
-                          ios_icon_name={tab.iosIcon || tab.icon}
-                          size={32}
-                          color={isActive ? '#FFFFFF' : (theme.dark ? '#FFFFFF' : theme.colors.primary)}
-                        />
-                      </View>
-                    ) : (
-                      <IconSymbol
-                        android_material_icon_name={tab.icon}
-                        ios_icon_name={tab.iosIcon || tab.icon}
-                        size={24}
-                        color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#8E8E93')}
-                      />
-                    )}
+                  <View style={styles.tabContent}>
+                    <IconSymbol
+                      android_material_icon_name={tab.icon}
+                      ios_icon_name={tab.icon}
+                      size={24}
+                      color={isActive ? theme.colors.primary : (theme.dark ? '#98989D' : '#000000')}
+                    />
                     <Text
                       style={[
                         styles.tabLabel,
                         { color: theme.dark ? '#98989D' : '#8E8E93' },
-                        isActive && { 
-                          color: theme.colors.primary, 
-                          fontWeight: '600' 
-                        },
-                        isCenter && styles.centerTabLabel
+                        isActive && { color: theme.colors.primary, fontWeight: '600' },
                       ]}
                     >
                       {tab.label}
@@ -232,25 +213,33 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 1000,
-    alignItems: 'center',
+    alignItems: 'center', // Center the content
   },
   container: {
     marginHorizontal: 20,
     alignSelf: 'center',
+    // width and marginBottom handled dynamically via props
   },
   blurContainer: {
     overflow: 'hidden',
+    // borderRadius and other styling applied dynamically
+  },
+  background: {
+    ...StyleSheet.absoluteFillObject,
+    // Dynamic styling applied in component
   },
   indicator: {
     position: 'absolute',
     top: 4,
-    left: 4,
+    left: 2,
     bottom: 4,
     borderRadius: 27,
+    width: `${(100 / 2) - 1}%`, // Default for 2 tabs, will be overridden by dynamic styles
+    // Dynamic styling applied in component
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 70,
+    height: 60,
     alignItems: 'center',
     paddingHorizontal: 4,
   },
@@ -259,42 +248,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    zIndex: 10,
-  },
-  centerTab: {
-    marginTop: -20,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
-  centerTabContent: {
-    gap: 4,
-  },
-  centerIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.3,
-    shadowRadius: 4.65,
-    elevation: 8,
-  },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: '500',
     marginTop: 2,
-  },
-  centerTabLabel: {
-    fontSize: 11,
-    fontWeight: '600',
+    // Dynamic styling applied in component
   },
 });

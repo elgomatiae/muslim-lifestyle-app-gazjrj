@@ -2,79 +2,101 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Platform } from 'react-native';
+
+interface NotificationSettings {
+  notificationPermissionGranted: boolean;
+  locationPermissionGranted: boolean;
+  prayerNotifications: boolean;
+}
 
 interface NotificationContextType {
-  notificationsEnabled: boolean;
-  setNotificationsEnabled: (enabled: boolean) => Promise<void>;
-  requestPermissions: () => Promise<boolean>;
-  permissionStatus: Notifications.PermissionStatus | null;
+  settings: NotificationSettings;
+  updateSettings: (newSettings: Partial<NotificationSettings>) => Promise<void>;
+  refreshPrayerTimesAndNotifications: () => Promise<void>;
+  scheduledCount: number;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-const NOTIFICATION_ENABLED_KEY = '@notifications_enabled';
+const SETTINGS_KEY = '@notification_settings';
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notificationsEnabled, setNotificationsEnabledState] = useState(false);
-  const [permissionStatus, setPermissionStatus] = useState<Notifications.PermissionStatus | null>(null);
+  const [settings, setSettings] = useState<NotificationSettings>({
+    notificationPermissionGranted: false,
+    locationPermissionGranted: false,
+    prayerNotifications: false,
+  });
+  const [scheduledCount, setScheduledCount] = useState(0);
 
   useEffect(() => {
-    loadNotificationSettings();
-    checkPermissions();
+    initializeSettings();
   }, []);
 
-  const loadNotificationSettings = async () => {
+  const initializeSettings = async () => {
     try {
-      const enabled = await AsyncStorage.getItem(NOTIFICATION_ENABLED_KEY);
-      setNotificationsEnabledState(enabled === 'true');
-    } catch (error) {
-      console.error('Failed to load notification settings:', error);
-    }
-  };
-
-  const checkPermissions = async () => {
-    try {
-      const { status } = await Notifications.getPermissionsAsync();
-      setPermissionStatus(status);
-    } catch (error) {
-      console.error('Failed to check notification permissions:', error);
-    }
-  };
-
-  const requestPermissions = async (): Promise<boolean> => {
-    try {
-      const { status } = await Notifications.requestPermissionsAsync();
-      setPermissionStatus(status);
-      return status === 'granted';
-    } catch (error) {
-      console.error('Failed to request notification permissions:', error);
-      return false;
-    }
-  };
-
-  const setNotificationsEnabled = async (enabled: boolean) => {
-    try {
-      if (enabled && permissionStatus !== 'granted') {
-        const granted = await requestPermissions();
-        if (!granted) {
-          return;
-        }
+      console.log('Initializing notification settings...');
+      
+      // Load saved settings
+      const saved = await AsyncStorage.getItem(SETTINGS_KEY);
+      if (saved) {
+        const parsedSettings = JSON.parse(saved);
+        console.log('Loaded saved settings:', parsedSettings);
+        setSettings(parsedSettings);
       }
-      await AsyncStorage.setItem(NOTIFICATION_ENABLED_KEY, enabled.toString());
-      setNotificationsEnabledState(enabled);
+
+      // Check notification permission
+      const { status } = await Notifications.getPermissionsAsync();
+      const granted = status === 'granted';
+      console.log('Notification permission status:', status, 'granted:', granted);
+      
+      setSettings(prev => ({
+        ...prev,
+        notificationPermissionGranted: granted,
+      }));
+
+      // Get scheduled notification count
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      setScheduledCount(scheduled.length);
+      console.log('Scheduled notifications count:', scheduled.length);
     } catch (error) {
-      console.error('Failed to set notification enabled:', error);
+      console.error('Failed to initialize notification settings:', error);
+    }
+  };
+
+  const updateSettings = async (newSettings: Partial<NotificationSettings>) => {
+    try {
+      console.log('Updating settings with:', newSettings);
+      const updated = { ...settings, ...newSettings };
+      setSettings(updated);
+      await AsyncStorage.setItem(SETTINGS_KEY, JSON.stringify(updated));
+      console.log('Settings updated successfully');
+    } catch (error) {
+      console.error('Failed to update settings:', error);
+    }
+  };
+
+  const refreshPrayerTimesAndNotifications = async () => {
+    try {
+      console.log('Refreshing prayer times and notifications');
+      // TODO: Backend Integration - Fetch updated prayer times from backend API
+      // This will be implemented when prayer notification scheduling is integrated
+      
+      // Update scheduled count
+      const scheduled = await Notifications.getAllScheduledNotificationsAsync();
+      setScheduledCount(scheduled.length);
+      console.log('Refreshed scheduled notifications count:', scheduled.length);
+    } catch (error) {
+      console.error('Failed to refresh prayer notifications:', error);
     }
   };
 
   return (
     <NotificationContext.Provider
       value={{
-        notificationsEnabled,
-        setNotificationsEnabled,
-        requestPermissions,
-        permissionStatus,
+        settings,
+        updateSettings,
+        refreshPrayerTimesAndNotifications,
+        scheduledCount,
       }}
     >
       {children}
@@ -85,7 +107,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error('useNotifications must be used within a NotificationProvider');
+    throw new Error('useNotifications must be used within NotificationProvider');
   }
   return context;
 }

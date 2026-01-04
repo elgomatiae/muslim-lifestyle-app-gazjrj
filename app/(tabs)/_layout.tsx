@@ -1,64 +1,101 @@
 
 import React from 'react';
-import { Stack } from 'expo-router';
-import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
+import { Tabs } from 'expo-router';
+import { Platform } from 'react-native';
+import { IconSymbol } from '@/components/IconSymbol';
+import { colors } from '@/styles/commonStyles';
 
-export default function TabLayout() {
-  // Define all 5 tabs configuration
-  const tabs: TabBarItem[] = [
-    {
-      name: '(home)',
-      route: '/(tabs)/(home)/',
-      icon: 'home',
-      iosIcon: 'house.fill',
-      label: 'Home',
-    },
-    {
-      name: '(learning)',
-      route: '/(tabs)/(learning)/',
-      icon: 'school',
-      iosIcon: 'book.fill',
-      label: 'Learning',
-    },
-    {
-      name: '(iman)',
-      route: '/(tabs)/(iman)/',
-      icon: 'favorite',
-      iosIcon: 'heart.fill',
-      label: 'Iman',
-      isCenter: true,
-    },
-    {
-      name: '(wellness)',
-      route: '/(tabs)/(wellness)/',
-      icon: 'spa',
-      iosIcon: 'leaf.fill',
-      label: 'Wellness',
-    },
-    {
-      name: 'profile',
-      route: '/(tabs)/profile',
-      icon: 'person',
-      iosIcon: 'person.fill',
-      label: 'Profile',
-    },
-  ];
-
+export default function TabsLayout() {
   return (
-    <>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#9333EA', // Purple accent
+        tabBarInactiveTintColor: '#9CA3AF',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          height: Platform.OS === 'ios' ? 88 : 65,
+          paddingBottom: Platform.OS === 'ios' ? 28 : 8,
+          paddingTop: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: '600',
+        },
+      }}
+    >
+      <Tabs.Screen
+        name="(home)"
+        options={{
+          title: 'Home',
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol
+              ios_icon_name="house.fill"
+              android_material_icon_name="home"
+              size={size}
+              color={color}
+            />
+          ),
         }}
-      >
-        <Stack.Screen name="(home)" />
-        <Stack.Screen name="(iman)" />
-        <Stack.Screen name="(learning)" />
-        <Stack.Screen name="(wellness)" />
-        <Stack.Screen name="profile" />
-      </Stack>
-      <FloatingTabBar tabs={tabs} />
-    </>
+      />
+      <Tabs.Screen
+        name="(learning)"
+        options={{
+          title: 'Learning',
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol
+              ios_icon_name="book.fill"
+              android_material_icon_name="menu-book"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(iman)"
+        options={{
+          title: 'Iman',
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol
+              ios_icon_name="heart.fill"
+              android_material_icon_name="favorite"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(wellness)"
+        options={{
+          title: 'Wellness',
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol
+              ios_icon_name="leaf.fill"
+              android_material_icon_name="spa"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ color, size }) => (
+            <IconSymbol
+              ios_icon_name="person.fill"
+              android_material_icon_name="person"
+              size={size}
+              color={color}
+            />
+          ),
+        }}
+      />
+    </Tabs>
   );
 }

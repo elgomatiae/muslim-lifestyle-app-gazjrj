@@ -22,6 +22,7 @@ import {
   UserLocation,
   requestLocationPermission,
 } from "@/services/LocationService";
+import { schedulePrayerNotifications } from "@/services/PrayerNotificationService";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface DailyVerse {
@@ -55,7 +56,7 @@ export default function HomeScreen() {
     refreshData,
     updatePrayerGoals,
   } = useImanTracker();
-  const { settings, refreshPrayerTimesAndNotifications, requestPermissions } = useNotifications();
+  const { settings, refreshPrayerTimesAndNotifications, requestPermissions, scheduledCount } = useNotifications();
 
   const [prayers, setPrayers] = useState<PrayerTime[]>([]);
   const [nextPrayer, setNextPrayer] = useState<PrayerTime | null>(null);
@@ -128,6 +129,12 @@ export default function HomeScreen() {
       
       if (next) {
         setTimeUntilNext(getTimeUntilNextPrayer(next));
+      }
+      
+      // Schedule notifications if permissions are granted
+      if (settings.notificationPermissionGranted && settings.locationPermissionGranted && settings.prayerNotifications) {
+        console.log('🔔 Scheduling prayer notifications from home screen...');
+        await schedulePrayerNotifications(prayerTimesData);
       }
     } catch (error) {
       console.error('❌ HomeScreen: Error loading prayer times:', error);
@@ -582,6 +589,21 @@ export default function HomeScreen() {
                     </Text>
                   </View>
                 </View>
+                
+                {/* Notification Status */}
+                {settings.notificationPermissionGranted && settings.prayerNotifications && (
+                  <View style={styles.notificationStatus}>
+                    <IconSymbol
+                      ios_icon_name="bell.badge.fill"
+                      android_material_icon_name="notifications-active"
+                      size={12}
+                      color={colors.success}
+                    />
+                    <Text style={[styles.notificationStatusText, { color: colors.success }]}>
+                      {scheduledCount} prayer notifications scheduled
+                    </Text>
+                  </View>
+                )}
               </View>
             )}
             
@@ -602,6 +624,27 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.locationWarningText}>
                   Tap to enable location for accurate prayer times
+                </Text>
+              </TouchableOpacity>
+            )}
+            
+            {!settings.notificationPermissionGranted && settings.locationPermissionGranted && (
+              <TouchableOpacity 
+                style={styles.locationWarning}
+                onPress={async () => {
+                  await requestPermissions();
+                  await loadPrayerTimes();
+                }}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="bell.slash.fill"
+                  android_material_icon_name="notifications-off"
+                  size={14}
+                  color={colors.warning}
+                />
+                <Text style={styles.locationWarningText}>
+                  Tap to enable notifications for prayer reminders
                 </Text>
               </TouchableOpacity>
             )}
@@ -1253,6 +1296,16 @@ const styles = StyleSheet.create({
   confidenceText: {
     fontSize: 10,
     fontWeight: '600',
+  },
+  notificationStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  notificationStatusText: {
+    ...typography.small,
+    fontWeight: '500',
   },
   locationWarning: {
     flexDirection: 'row',

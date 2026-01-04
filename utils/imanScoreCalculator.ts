@@ -174,12 +174,20 @@ const DECAY_CONFIG = {
  */
 async function getDuePrayers(): Promise<{ duePrayers: string[]; totalDue: number }> {
   try {
-    const prayerTimes = await getPrayerTimes();
-    const now = new Date();
+    console.log('🕌 Getting due prayers...');
     
+    // Get location
+    const location = await getCurrentLocation(true);
+    console.log('📍 Location obtained:', location.city);
+    
+    // Get prayer times for today
+    const prayerTimesData = await getTodayPrayerTimes(location, undefined, 'NorthAmerica', true);
+    console.log('✅ Prayer times loaded:', prayerTimesData.prayers.length, 'prayers');
+    
+    const now = new Date();
     const duePrayers: string[] = [];
     
-    for (const prayer of prayerTimes) {
+    for (const prayer of prayerTimesData.prayers) {
       if (prayer.date <= now) {
         duePrayers.push(prayer.name.toLowerCase());
       }
@@ -193,7 +201,8 @@ async function getDuePrayers(): Promise<{ duePrayers: string[]; totalDue: number
       totalDue: duePrayers.length,
     };
   } catch (error) {
-    console.log('Error getting due prayers, assuming all 5 are due:', error);
+    console.error('❌ Error getting due prayers:', error);
+    console.log('⚠️ Fallback: assuming all 5 prayers are due');
     // Fallback: assume all prayers are due
     return {
       duePrayers: ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'],
@@ -516,7 +525,7 @@ async function loadMomentumState(): Promise<MomentumState> {
       return JSON.parse(saved);
     }
   } catch (error) {
-    console.log('Error loading momentum state:', error);
+    console.error('Error loading momentum state:', error);
   }
   
   return {
@@ -532,7 +541,7 @@ async function saveMomentumState(state: MomentumState): Promise<void> {
   try {
     await AsyncStorage.setItem('imanMomentumState', JSON.stringify(state));
   } catch (error) {
-    console.log('Error saving momentum state:', error);
+    console.error('Error saving momentum state:', error);
   }
 }
 
@@ -688,7 +697,7 @@ export async function getCurrentSectionScores(): Promise<SectionScores> {
     
     return scores;
   } catch (error) {
-    console.log('Error getting current section scores:', error);
+    console.error('Error getting current section scores:', error);
     return { ibadah: 0, ilm: 0, amanah: 0 };
   }
 }
@@ -753,7 +762,7 @@ export async function resetDailyGoals(): Promise<void> {
     
     console.log('✅ Daily goals reset successfully');
   } catch (error) {
-    console.log('❌ Error resetting daily goals:', error);
+    console.error('❌ Error resetting daily goals:', error);
   }
 }
 
@@ -788,7 +797,7 @@ export async function resetWeeklyGoals(): Promise<void> {
     
     console.log('✅ Weekly goals reset successfully');
   } catch (error) {
-    console.log('❌ Error resetting weekly goals:', error);
+    console.error('❌ Error resetting weekly goals:', error);
   }
 }
 
@@ -813,7 +822,7 @@ export async function checkAndHandleResets(): Promise<void> {
       await AsyncStorage.setItem('lastWeeklyResetDate', today);
     }
   } catch (error) {
-    console.log('❌ Error checking and handling resets:', error);
+    console.error('❌ Error checking and handling resets:', error);
   }
 }
 
@@ -828,7 +837,7 @@ export async function loadIbadahGoals(): Promise<IbadahGoals> {
       return JSON.parse(saved);
     }
   } catch (error) {
-    console.log('Error loading ibadah goals:', error);
+    console.error('Error loading ibadah goals:', error);
   }
   
   return {
@@ -873,7 +882,7 @@ export async function loadIlmGoals(): Promise<IlmGoals> {
       return parsed;
     }
   } catch (error) {
-    console.log('Error loading ilm goals:', error);
+    console.error('Error loading ilm goals:', error);
   }
   
   return {
@@ -912,7 +921,7 @@ export async function loadAmanahGoals(): Promise<AmanahGoals> {
       return parsed;
     }
   } catch (error) {
-    console.log('Error loading amanah goals:', error);
+    console.error('Error loading amanah goals:', error);
   }
   
   return {
@@ -1091,7 +1100,7 @@ export async function savePrayerGoals(goals: PrayerGoals): Promise<void> {
       // The achievement service will handle the counting
       console.log(`🕌 ${newlyCompleted} new prayers completed, triggering achievement check`);
     } catch (error) {
-      console.log('Error importing activity integration:', error);
+      console.error('Error importing activity integration:', error);
     }
   }
 }
@@ -1122,7 +1131,7 @@ export async function saveDhikrGoals(goals: DhikrGoals): Promise<void> {
       const { trackDhikrCompletion } = await import('./imanActivityIntegration');
       console.log(`📿 ${totalIncrease} new dhikr completed, triggering achievement check`);
     } catch (error) {
-      console.log('Error importing activity integration:', error);
+      console.error('Error importing activity integration:', error);
     }
   }
 }
@@ -1150,7 +1159,7 @@ export async function saveQuranGoals(goals: QuranGoals): Promise<void> {
       const { trackQuranReading } = await import('./imanActivityIntegration');
       console.log(`📖 ${pagesIncrease} new Quran pages read, triggering achievement check`);
     } catch (error) {
-      console.log('Error importing activity integration:', error);
+      console.error('Error importing activity integration:', error);
     }
   }
 }

@@ -16,8 +16,7 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
-import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
-import { AuthProvider } from "@/contexts/AuthContext";
+import { NotificationProvider } from "@/contexts/NotificationContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -59,7 +58,7 @@ export default function RootLayout() {
     ...DefaultTheme,
     dark: false,
     colors: {
-      primary: "rgb(139, 92, 246)", // Purple color for selected tabs
+      primary: "rgb(0, 122, 255)", // System Blue
       background: "rgb(242, 242, 247)", // Light mode background
       card: "rgb(255, 255, 255)", // White cards/surfaces
       text: "rgb(0, 0, 0)", // Black text for light mode
@@ -71,7 +70,7 @@ export default function RootLayout() {
   const CustomDarkTheme: Theme = {
     ...DarkTheme,
     colors: {
-      primary: "rgb(167, 139, 250)", // Purple color for selected tabs (dark mode)
+      primary: "rgb(10, 132, 255)", // System Blue (Dark Mode)
       background: "rgb(1, 1, 1)", // True black background for OLED displays
       card: "rgb(28, 28, 30)", // Dark card/surface color
       text: "rgb(255, 255, 255)", // White text for dark mode
@@ -79,52 +78,49 @@ export default function RootLayout() {
       notification: "rgb(255, 69, 58)", // System Red (Dark Mode)
     },
   };
-  
   return (
     <>
       <StatusBar style="auto" animated />
         <ThemeProvider
           value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
         >
-          <AuthProvider>
-            <ImanTrackerProvider>
-              <WidgetProvider>
-                <GestureHandlerRootView>
-                <Stack>
-                  {/* Main app with tabs */}
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <NotificationProvider>
+            <WidgetProvider>
+              <GestureHandlerRootView>
+              <Stack>
+                {/* Main app with tabs */}
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-                  {/* Modal Demo Screens */}
-                  <Stack.Screen
-                    name="modal"
-                    options={{
-                      presentation: "modal",
-                      title: "Standard Modal",
-                    }}
-                  />
-                  <Stack.Screen
-                    name="formsheet"
-                    options={{
-                      presentation: "formSheet",
-                      title: "Form Sheet Modal",
-                      sheetGrabberVisible: true,
-                      sheetAllowedDetents: [0.5, 0.8, 1.0],
-                      sheetCornerRadius: 20,
-                    }}
-                  />
-                  <Stack.Screen
-                    name="transparent-modal"
-                    options={{
-                      presentation: "transparentModal",
-                      headerShown: false,
-                    }}
-                  />
-                </Stack>
-                <SystemBars style={"auto"} />
-                </GestureHandlerRootView>
-              </WidgetProvider>
-            </ImanTrackerProvider>
-          </AuthProvider>
+                {/* Modal Demo Screens */}
+                <Stack.Screen
+                  name="modal"
+                  options={{
+                    presentation: "modal",
+                    title: "Standard Modal",
+                  }}
+                />
+                <Stack.Screen
+                  name="formsheet"
+                  options={{
+                    presentation: "formSheet",
+                    title: "Form Sheet Modal",
+                    sheetGrabberVisible: true,
+                    sheetAllowedDetents: [0.5, 0.8, 1.0],
+                    sheetCornerRadius: 20,
+                  }}
+                />
+                <Stack.Screen
+                  name="transparent-modal"
+                  options={{
+                    presentation: "transparentModal",
+                    headerShown: false,
+                  }}
+                />
+              </Stack>
+              <SystemBars style={"auto"} />
+              </GestureHandlerRootView>
+            </WidgetProvider>
+          </NotificationProvider>
         </ThemeProvider>
     </>
   );

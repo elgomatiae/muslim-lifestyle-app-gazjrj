@@ -1,6 +1,7 @@
 
-import React from 'react';
 import { Tabs } from 'expo-router';
+import React from 'react';
+import { Platform } from 'react-native';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors } from '@/styles/commonStyles';
 
@@ -9,14 +10,19 @@ export default function TabLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textSecondary,
+        tabBarActiveTintColor: colors.primary || '#9333EA',
+        tabBarInactiveTintColor: colors.text,
         tabBarStyle: {
-          backgroundColor: colors.surface,
-          borderTopColor: colors.border,
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 8,
+          backgroundColor: colors.background,
+          borderTopColor: colors.border || '#E5E7EB',
+          borderTopWidth: 1,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 10,
+          paddingTop: 10,
+          height: Platform.OS === 'ios' ? 88 : 68,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
         },
       }}
     >
@@ -24,37 +30,12 @@ export default function TabLayout() {
         name="(home)"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="house.fill" 
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              ios_icon_name={focused ? 'house.fill' : 'house'}
               android_material_icon_name="home"
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="(prayer)"
-        options={{
-          title: 'Prayer',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="moon.stars.fill" 
-              android_material_icon_name="nightlight"
-              color={color} 
-            />
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="(iman)"
-        options={{
-          title: 'Iman',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="chart.line.uptrend.xyaxis" 
-              android_material_icon_name="trending-up"
-              color={color} 
+              size={28}
+              color={color}
             />
           ),
         }}
@@ -63,11 +44,26 @@ export default function TabLayout() {
         name="(learning)"
         options={{
           title: 'Learning',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="book.fill" 
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              ios_icon_name={focused ? 'book.fill' : 'book'}
               android_material_icon_name="menu-book"
-              color={color} 
+              size={28}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="(iman)"
+        options={{
+          title: 'Iman',
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              ios_icon_name={focused ? 'chart.pie.fill' : 'chart.pie'}
+              android_material_icon_name="pie-chart"
+              size={28}
+              color={color}
             />
           ),
         }}
@@ -76,11 +72,12 @@ export default function TabLayout() {
         name="(wellness)"
         options={{
           title: 'Wellness',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="heart.fill" 
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              ios_icon_name={focused ? 'heart.fill' : 'heart'}
               android_material_icon_name="favorite"
-              color={color} 
+              size={28}
+              color={color}
             />
           ),
         }}
@@ -89,11 +86,12 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
-          tabBarIcon: ({ color }) => (
-            <IconSymbol 
-              ios_icon_name="person.fill" 
+          tabBarIcon: ({ color, focused }) => (
+            <IconSymbol
+              ios_icon_name={focused ? 'person.fill' : 'person'}
               android_material_icon_name="person"
-              color={color} 
+              size={28}
+              color={color}
             />
           ),
         }}

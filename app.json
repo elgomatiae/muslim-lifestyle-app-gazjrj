@@ -17,9 +17,10 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.Natively",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      },
-      "buildNumber": "1"
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSLocationWhenInUseUsageDescription": "We need your location to calculate accurate prayer times based on your current position.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to provide prayer time notifications even when the app is in the background."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -27,7 +28,11 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively"
+      "package": "com.anonymous.Natively",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
@@ -40,7 +45,9 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow Natively to use your location to calculate accurate prayer times."
+          "locationAlwaysAndWhenInUsePermission": "We need your location to calculate accurate prayer times based on your current position.",
+          "locationWhenInUsePermission": "We need your location to calculate accurate prayer times.",
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       [
@@ -48,7 +55,8 @@
         {
           "icon": "./assets/images/natively-dark.png",
           "color": "#000000",
-          "sounds": []
+          "sounds": [],
+          "mode": "production"
         }
       ]
     ],

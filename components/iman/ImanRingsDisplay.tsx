@@ -7,7 +7,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
-import AchievementsBadges from "./AchievementsBadges";
 
 interface ImanRingsDisplayProps {
   onRefresh?: () => void;
@@ -429,9 +428,6 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
           </View>
         </View>
       </View>
-
-      {/* ACHIEVEMENTS BADGES - NOW DISPLAYED HERE */}
-      <AchievementsBadges />
     </LinearGradient>
   );
 }

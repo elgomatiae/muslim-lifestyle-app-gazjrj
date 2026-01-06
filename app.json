@@ -1,8 +1,7 @@
-
 {
   "expo": {
-    "name": "Natively",
-    "slug": "Natively",
+    "name": "Muslim Life Hub",
+    "slug": "Muslim Life Hub",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -67,5 +66,6 @@
     "extra": {
       "router": {}
     }
-  }
+  },
+  "scheme": "Muslim Life Hub"
 }

@@ -4,7 +4,7 @@ import { Stack } from 'expo-router';
 import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
-  // Define the tabs configuration with Iman Tracker in the middle
+  // Define the tabs configuration
   const tabs: TabBarItem[] = [
     {
       name: '(home)',
@@ -13,17 +13,16 @@ export default function TabLayout() {
       label: 'Home',
     },
     {
-      name: '(learning)',
-      route: '/(tabs)/(learning)/',
-      icon: 'school',
-      label: 'Learning',
-    },
-    {
       name: '(iman)',
       route: '/(tabs)/(iman)/',
       icon: 'favorite',
       label: 'Iman',
-      isMainFeature: true, // Flag to make this icon larger
+    },
+    {
+      name: '(learning)',
+      route: '/(tabs)/(learning)/',
+      icon: 'school',
+      label: 'Learn',
     },
     {
       name: '(wellness)',
@@ -44,13 +43,12 @@ export default function TabLayout() {
       <Stack
         screenOptions={{
           headerShown: false,
-          animation: 'none',
-          contentStyle: { backgroundColor: '#FFFFFF' }, // White background
+          animation: 'none', // Remove fade animation to prevent black screen flash
         }}
       >
         <Stack.Screen key="home" name="(home)" />
-        <Stack.Screen key="learning" name="(learning)" />
         <Stack.Screen key="iman" name="(iman)" />
+        <Stack.Screen key="learning" name="(learning)" />
         <Stack.Screen key="wellness" name="(wellness)" />
         <Stack.Screen key="profile" name="profile" />
       </Stack>

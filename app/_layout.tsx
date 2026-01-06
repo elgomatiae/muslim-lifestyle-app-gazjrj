@@ -2,7 +2,7 @@
 import "react-native-reanimated";
 import React, { useEffect } from "react";
 import { useFonts } from "expo-font";
-import { Stack, router } from "expo-router";
+import { Stack, router, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -16,16 +16,75 @@ import {
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { NotificationProvider } from "@/contexts/NotificationContext";
-import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
+import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  initialRouteName: "(tabs)", // Ensure any route can link back to `/`
-};
+function RootLayoutNav() {
+  const { user, loading } = useAuth();
+  const segments = useSegments();
+
+  useEffect(() => {
+    if (loading) return;
+
+    const inAuthGroup = segments[0] === '(auth)';
+    const inTabsGroup = segments[0] === '(tabs)';
+
+    if (!user && inTabsGroup) {
+      // User is not signed in and trying to access protected route
+      console.log('Redirecting to login - user not authenticated');
+      router.replace('/(auth)/login');
+    } else if (user && inAuthGroup) {
+      // User is signed in but on auth screen, redirect to home
+      console.log('Redirecting to home - user already authenticated');
+      router.replace('/(tabs)/(home)/');
+    } else if (!user && !inAuthGroup && !inTabsGroup) {
+      // User is not signed in and not in auth or tabs, redirect to login
+      console.log('Redirecting to login - initial load');
+      router.replace('/(auth)/login');
+    }
+  }, [user, loading, segments]);
+
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      {/* Auth screens - accessible without authentication */}
+      <Stack.Screen name="(auth)" options={{ headerShown: false }} />
+      
+      {/* Main app with tabs - protected */}
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+      {/* Admin screen */}
+      <Stack.Screen name="admin" options={{ headerShown: false }} />
+
+      {/* Modal Demo Screens */}
+      <Stack.Screen
+        name="modal"
+        options={{
+          presentation: "modal",
+          title: "Standard Modal",
+        }}
+      />
+      <Stack.Screen
+        name="formsheet"
+        options={{
+          presentation: "formSheet",
+          title: "Form Sheet Modal",
+          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.5, 0.8, 1.0],
+          sheetCornerRadius: 20,
+        }}
+      />
+      <Stack.Screen
+        name="transparent-modal"
+        options={{
+          presentation: "transparentModal",
+          headerShown: false,
+        }}
+      />
+    </Stack>
+  );
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -80,54 +139,22 @@ export default function RootLayout() {
       notification: "rgb(255, 69, 58)", // System Red (Dark Mode)
     },
   };
+  
   return (
     <>
       <StatusBar style="auto" animated />
-        <ThemeProvider
-          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
-        >
-          <AuthProvider>
-            <NotificationProvider>
-              <ImanTrackerProvider>
-                <WidgetProvider>
-                  <GestureHandlerRootView>
-                  <Stack>
-                    {/* Main app with tabs */}
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-                    {/* Modal Demo Screens */}
-                    <Stack.Screen
-                      name="modal"
-                      options={{
-                        presentation: "modal",
-                        title: "Standard Modal",
-                      }}
-                    />
-                    <Stack.Screen
-                      name="formsheet"
-                      options={{
-                        presentation: "formSheet",
-                        title: "Form Sheet Modal",
-                        sheetGrabberVisible: true,
-                        sheetAllowedDetents: [0.5, 0.8, 1.0],
-                        sheetCornerRadius: 20,
-                      }}
-                    />
-                    <Stack.Screen
-                      name="transparent-modal"
-                      options={{
-                        presentation: "transparentModal",
-                        headerShown: false,
-                      }}
-                    />
-                  </Stack>
-                  <SystemBars style={"auto"} />
-                  </GestureHandlerRootView>
-                </WidgetProvider>
-              </ImanTrackerProvider>
-            </NotificationProvider>
-          </AuthProvider>
-        </ThemeProvider>
+      <ThemeProvider
+        value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+      >
+        <AuthProvider>
+          <WidgetProvider>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+              <RootLayoutNav />
+              <SystemBars style={"auto"} />
+            </GestureHandlerRootView>
+          </WidgetProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </>
   );
 }

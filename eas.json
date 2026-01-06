@@ -1,7 +1,7 @@
 
 {
   "cli": {
-    "version": ">= 13.2.0"
+    "version": ">= 14.0.0"
   },
   "build": {
     "development": {
@@ -9,37 +9,24 @@
       "distribution": "internal",
       "autoIncrement": true,
       "ios": {
-        "simulator": true,
-        "resourceClass": "default"
+        "resourceClass": "m-medium"
       }
     },
     "preview": {
       "distribution": "internal",
       "autoIncrement": true,
       "ios": {
-        "simulator": false,
-        "buildConfiguration": "Release",
-        "resourceClass": "default"
+        "resourceClass": "m-medium"
       }
     },
     "production": {
       "autoIncrement": true,
       "ios": {
-        "buildConfiguration": "Release",
-        "resourceClass": "default"
-      },
-      "android": {
-        "buildType": "apk"
+        "resourceClass": "m-medium"
       }
     }
   },
   "submit": {
-    "production": {
-      "ios": {
-        "appleId": "your-apple-id@example.com",
-        "ascAppId": "your-asc-app-id",
-        "appleTeamId": "your-apple-team-id"
-      }
-    }
+    "production": {}
   }
 }

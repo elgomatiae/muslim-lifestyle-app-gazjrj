@@ -16,12 +16,8 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.Natively",
-      "buildNumber": "1",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
-        "NSLocationWhenInUseUsageDescription": "We need your location to calculate accurate prayer times.",
-        "NSCameraUsageDescription": "Allow access to camera for profile pictures.",
-        "NSPhotoLibraryUsageDescription": "Allow access to photos for profile pictures."
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -30,12 +26,7 @@
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.anonymous.Natively",
-      "versionCode": 1,
-      "permissions": [
-        "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
-      ]
+      "package": "com.anonymous.Natively"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
@@ -44,13 +35,7 @@
     "plugins": [
       "expo-font",
       "expo-router",
-      "expo-web-browser",
-      [
-        "expo-location",
-        {
-          "locationAlwaysAndWhenInUsePermission": "Allow Natively to use your location for accurate prayer times."
-        }
-      ]
+      "expo-web-browser"
     ],
     "scheme": "natively",
     "experiments": {

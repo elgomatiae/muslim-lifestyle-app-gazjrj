@@ -97,25 +97,30 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const centerX = 200;
   const centerY = 200;
   
+  // Safely access sectionScores with fallback values
+  const ibadahScore = sectionScores?.ibadah ?? 0;
+  const ilmScore = sectionScores?.ilm ?? 0;
+  const amanahScore = sectionScores?.amanah ?? 0;
+  
   // ʿIbādah ring (outer) - GREEN
   const ibadahRadius = 170;
   const ibadahStroke = 24;
   const ibadahCircumference = 2 * Math.PI * ibadahRadius;
-  const ibadahProgress = sectionScores.ibadah / 100;
+  const ibadahProgress = ibadahScore / 100;
   const ibadahOffset = ibadahCircumference * (1 - ibadahProgress);
   
   // ʿIlm ring (middle) - BLUE
   const ilmRadius = 125;
   const ilmStroke = 22;
   const ilmCircumference = 2 * Math.PI * ilmRadius;
-  const ilmProgress = sectionScores.ilm / 100;
+  const ilmProgress = ilmScore / 100;
   const ilmOffset = ilmCircumference * (1 - ilmProgress);
   
   // Amanah ring (inner) - YELLOW/GOLD
   const amanahRadius = 80;
   const amanahStroke = 20;
   const amanahCircumference = 2 * Math.PI * amanahRadius;
-  const amanahProgress = sectionScores.amanah / 100;
+  const amanahProgress = amanahScore / 100;
   const amanahOffset = amanahCircumference * (1 - amanahProgress);
 
   const spin = rotateAnim.interpolate({
@@ -345,7 +350,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
                 </View>
               </View>
               <Text style={[styles.breakdownValue, { color: ibadahColor }]}>
-                {Math.round(sectionScores.ibadah)}%
+                {Math.round(ibadahScore)}%
               </Text>
             </View>
             <View style={styles.breakdownRow}>
@@ -357,7 +362,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
                 </View>
               </View>
               <Text style={[styles.breakdownValue, { color: ilmColor }]}>
-                {Math.round(sectionScores.ilm)}%
+                {Math.round(ilmScore)}%
               </Text>
             </View>
             <View style={styles.breakdownRow}>
@@ -369,7 +374,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
                 </View>
               </View>
               <Text style={[styles.breakdownValue, { color: amanahColor }]}>
-                {Math.round(sectionScores.amanah)}%
+                {Math.round(amanahScore)}%
               </Text>
             </View>
           </View>
@@ -397,7 +402,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: ibadahColor }]}>
-              {Math.round(sectionScores.ibadah)}%
+              {Math.round(ibadahScore)}%
             </Text>
           </View>
         </View>
@@ -410,7 +415,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: ilmColor }]}>
-              {Math.round(sectionScores.ilm)}%
+              {Math.round(ilmScore)}%
             </Text>
           </View>
         </View>
@@ -423,7 +428,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
           </View>
           <View style={styles.ringLabelPercentage}>
             <Text style={[styles.ringLabelPercentText, { color: amanahColor }]}>
-              {Math.round(sectionScores.amanah)}%
+              {Math.round(amanahScore)}%
             </Text>
           </View>
         </View>

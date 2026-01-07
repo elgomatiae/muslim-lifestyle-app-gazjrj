@@ -1,5 +1,5 @@
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 import { 
   loadIbadahGoals, 
   loadIlmGoals, 
@@ -7,49 +7,55 @@ import {
   saveIbadahGoals,
   saveIlmGoals,
   saveAmanahGoals,
-  getOverallImanScore,
-  updateSectionScores,
-  getCurrentSectionScores,
   IbadahGoals,
   IlmGoals,
   AmanahGoals,
-  SectionScores
+  getOverallImanScore,
+  getCurrentSectionScores,
+  checkAndHandleResets
 } from '@/utils/imanScoreCalculator';
 
 interface ImanTrackerContextType {
-  imanScore: number;
-  sectionScores: SectionScores;
   ibadahGoals: IbadahGoals;
   ilmGoals: IlmGoals;
   amanahGoals: AmanahGoals;
+  imanScore: number;
+  sectionScores: { ibadah: number; ilm: number; amanah: number };
+  updateIbadahGoals: (goals: Partial<IbadahGoals>) => Promise<void>;
+  updateIlmGoals: (goals: Partial<IlmGoals>) => Promise<void>;
+  updateAmanahGoals: (goals: Partial<AmanahGoals>) => Promise<void>;
   refreshScores: () => Promise<void>;
-  updateIbadahGoals: (newGoals: Partial<IbadahGoals>) => Promise<void>;
-  updateIlmGoals: (newGoals: Partial<IlmGoals>) => Promise<void>;
-  updateAmanahGoals: (newGoals: Partial<AmanahGoals>) => Promise<void>;
   isLoading: boolean;
   error: string | null;
 }
 
 const ImanTrackerContext = createContext<ImanTrackerContextType | undefined>(undefined);
 
-export function ImanTrackerProvider({ children }: { children: ReactNode }) {
-  const [imanScore, setImanScore] = useState(0);
-  const [sectionScores, setSectionScores] = useState<SectionScores>({ ibadah: 0, ilm: 0, amanah: 0 });
+export const ImanTrackerProvider = ({ children }: { children: ReactNode }) => {
   const [ibadahGoals, setIbadahGoals] = useState<IbadahGoals>({} as IbadahGoals);
   const [ilmGoals, setIlmGoals] = useState<IlmGoals>({} as IlmGoals);
   const [amanahGoals, setAmanahGoals] = useState<AmanahGoals>({} as AmanahGoals);
+  const [imanScore, setImanScore] = useState(0);
+  const [sectionScores, setSectionScores] = useState({ ibadah: 0, ilm: 0, amanah: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Load all goals on mount
   useEffect(() => {
     loadAllGoals();
+    
+    // Check for daily/weekly resets
+    checkAndHandleResets().catch(err => {
+      console.error('Error checking resets:', err);
+    });
   }, []);
 
-  const loadAllGoals = async () => {
+  const loadAllGoals = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      console.log('ImanTrackerContext: Loading all goals...');
+      
+      console.log('📥 Loading all goals...');
       
       const [ibadah, ilm, amanah] = await Promise.all([
         loadIbadahGoals(),
@@ -57,7 +63,10 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
         loadAmanahGoals()
       ]);
       
-      console.log('ImanTrackerContext: Goals loaded', { ibadah, ilm, amanah });
+      console.log('✅ Goals loaded successfully');
+      console.log('   Ibadah goals:', ibadah);
+      console.log('   Ilm goals:', ilm);
+      console.log('   Amanah goals:', amanah);
       
       setIbadahGoals(ibadah);
       setIlmGoals(ilm);
@@ -65,96 +74,141 @@ export function ImanTrackerProvider({ children }: { children: ReactNode }) {
       
       await refreshScores();
     } catch (err) {
-      console.error('ImanTrackerContext: Error loading goals:', err);
+      console.error('❌ Error loading goals:', err);
       setError('Failed to load goals. Please try again.');
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const refreshScores = async () => {
+  const updateIbadahGoals = useCallback(async (goals: Partial<IbadahGoals>) => {
     try {
-      console.log('ImanTrackerContext: Refreshing scores...');
-      await updateSectionScores();
+      console.log('🔄 Updating Ibadah goals...', goals);
       
-      const [score, sections] = await Promise.all([
+      const updated = { ...ibadahGoals, ...goals };
+      
+      // Optimistically update UI
+      setIbadahGoals(updated);
+      
+      // Save to storage
+      await saveIbadahGoals(updated);
+      
+      // Refresh scores in background
+      refreshScores().catch(err => {
+        console.error('Error refreshing scores after Ibadah update:', err);
+      });
+      
+      console.log('✅ Ibadah goals updated successfully');
+    } catch (err) {
+      console.error('❌ Error updating Ibadah goals:', err);
+      setError('Failed to update Ibadah goals. Please try again.');
+      
+      // Reload goals to ensure consistency
+      loadAllGoals();
+    }
+  }, [ibadahGoals]);
+
+  const updateIlmGoals = useCallback(async (goals: Partial<IlmGoals>) => {
+    try {
+      console.log('🔄 Updating Ilm goals...', goals);
+      
+      const updated = { ...ilmGoals, ...goals };
+      
+      // Optimistically update UI
+      setIlmGoals(updated);
+      
+      // Save to storage
+      await saveIlmGoals(updated);
+      
+      // Refresh scores in background
+      refreshScores().catch(err => {
+        console.error('Error refreshing scores after Ilm update:', err);
+      });
+      
+      console.log('✅ Ilm goals updated successfully');
+    } catch (err) {
+      console.error('❌ Error updating Ilm goals:', err);
+      setError('Failed to update Ilm goals. Please try again.');
+      
+      // Reload goals to ensure consistency
+      loadAllGoals();
+    }
+  }, [ilmGoals]);
+
+  const updateAmanahGoals = useCallback(async (goals: Partial<AmanahGoals>) => {
+    try {
+      console.log('🔄 Updating Amanah goals...', goals);
+      
+      const updated = { ...amanahGoals, ...goals };
+      
+      // Optimistically update UI
+      setAmanahGoals(updated);
+      
+      // Save to storage
+      await saveAmanahGoals(updated);
+      
+      // Refresh scores in background
+      refreshScores().catch(err => {
+        console.error('Error refreshing scores after Amanah update:', err);
+      });
+      
+      console.log('✅ Amanah goals updated successfully');
+    } catch (err) {
+      console.error('❌ Error updating Amanah goals:', err);
+      setError('Failed to update Amanah goals. Please try again.');
+      
+      // Reload goals to ensure consistency
+      loadAllGoals();
+    }
+  }, [amanahGoals]);
+
+  const refreshScores = useCallback(async () => {
+    try {
+      console.log('🔄 Refreshing scores...');
+      
+      const [overall, sections] = await Promise.all([
         getOverallImanScore(),
         getCurrentSectionScores()
       ]);
       
-      console.log('ImanTrackerContext: Scores updated:', { score, sections });
-      setImanScore(score);
-      setSectionScores(sections || { ibadah: 0, ilm: 0, amanah: 0 });
+      console.log('✅ Scores refreshed:');
+      console.log('   Overall:', overall);
+      console.log('   Sections:', sections);
+      
+      setImanScore(overall);
+      setSectionScores(sections);
     } catch (err) {
-      console.error('ImanTrackerContext: Error refreshing scores:', err);
-      setError('Failed to refresh scores. Please try again.');
+      console.error('❌ Error refreshing scores:', err);
+      // Don't set error here as this is a background operation
+      // Just log it and continue
     }
-  };
+  }, []);
 
-  const updateIbadahGoals = async (newGoals: Partial<IbadahGoals>) => {
-    try {
-      console.log('ImanTrackerContext: Updating Ibadah goals:', newGoals);
-      const updated = { ...ibadahGoals, ...newGoals };
-      await saveIbadahGoals(updated);
-      setIbadahGoals(updated);
-      await refreshScores();
-    } catch (err) {
-      console.error('ImanTrackerContext: Error updating Ibadah goals:', err);
-      throw err;
-    }
-  };
-
-  const updateIlmGoals = async (newGoals: Partial<IlmGoals>) => {
-    try {
-      console.log('ImanTrackerContext: Updating Ilm goals:', newGoals);
-      const updated = { ...ilmGoals, ...newGoals };
-      await saveIlmGoals(updated);
-      setIlmGoals(updated);
-      await refreshScores();
-    } catch (err) {
-      console.error('ImanTrackerContext: Error updating Ilm goals:', err);
-      throw err;
-    }
-  };
-
-  const updateAmanahGoals = async (newGoals: Partial<AmanahGoals>) => {
-    try {
-      console.log('ImanTrackerContext: Updating Amanah goals:', newGoals);
-      const updated = { ...amanahGoals, ...newGoals };
-      await saveAmanahGoals(updated);
-      setAmanahGoals(updated);
-      await refreshScores();
-    } catch (err) {
-      console.error('ImanTrackerContext: Error updating Amanah goals:', err);
-      throw err;
-    }
+  const value: ImanTrackerContextType = {
+    ibadahGoals,
+    ilmGoals,
+    amanahGoals,
+    imanScore,
+    sectionScores,
+    updateIbadahGoals,
+    updateIlmGoals,
+    updateAmanahGoals,
+    refreshScores,
+    isLoading,
+    error
   };
 
   return (
-    <ImanTrackerContext.Provider
-      value={{
-        imanScore,
-        sectionScores,
-        ibadahGoals,
-        ilmGoals,
-        amanahGoals,
-        refreshScores,
-        updateIbadahGoals,
-        updateIlmGoals,
-        updateAmanahGoals,
-        isLoading,
-        error,
-      }}
-    >
+    <ImanTrackerContext.Provider value={value}>
       {children}
     </ImanTrackerContext.Provider>
   );
-}
+};
 
-export function useImanTracker() {
+export const useImanTracker = () => {
   const context = useContext(ImanTrackerContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error('useImanTracker must be used within an ImanTrackerProvider');
   }
   return context;
-}
+};

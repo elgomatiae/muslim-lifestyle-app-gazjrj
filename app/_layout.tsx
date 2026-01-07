@@ -15,10 +15,10 @@ import {
   ThemeProvider,
 } from "@react-navigation/native";
 import { StatusBar } from "expo-status-bar";
-import { AuthProvider } from "@/contexts/AuthContext";
 import { WidgetProvider } from "@/contexts/WidgetContext";
-import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
+import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync();
@@ -80,34 +80,20 @@ export default function RootLayout() {
       notification: "rgb(255, 69, 58)", // System Red (Dark Mode)
     },
   };
-
   return (
     <>
       <StatusBar style="auto" animated />
-      <ThemeProvider
-        value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
-      >
-        <AuthProvider>
-          <NotificationProvider>
-            <ImanTrackerProvider>
-              <WidgetProvider>
-                <GestureHandlerRootView style={{ flex: 1 }}>
+        <ThemeProvider
+          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+        >
+          <AuthProvider>
+            <NotificationProvider>
+              <ImanTrackerProvider>
+                <WidgetProvider>
+                  <GestureHandlerRootView>
                   <Stack>
                     {/* Main app with tabs */}
                     <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-
-                    {/* Auth screens */}
-                    <Stack.Screen name="(auth)" options={{ headerShown: false }} />
-
-                    {/* Admin screen */}
-                    <Stack.Screen 
-                      name="admin" 
-                      options={{ 
-                        headerShown: true,
-                        title: "Admin Panel",
-                        presentation: "modal"
-                      }} 
-                    />
 
                     {/* Modal Demo Screens */}
                     <Stack.Screen
@@ -136,12 +122,12 @@ export default function RootLayout() {
                     />
                   </Stack>
                   <SystemBars style={"auto"} />
-                </GestureHandlerRootView>
-              </WidgetProvider>
-            </ImanTrackerProvider>
-          </NotificationProvider>
-        </AuthProvider>
-      </ThemeProvider>
+                  </GestureHandlerRootView>
+                </WidgetProvider>
+              </ImanTrackerProvider>
+            </NotificationProvider>
+          </AuthProvider>
+        </ThemeProvider>
     </>
   );
 }

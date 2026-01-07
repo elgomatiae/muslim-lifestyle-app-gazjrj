@@ -194,48 +194,113 @@ export default function HomeScreen() {
   }, [user]);
 
   const loadDailyContent = async () => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
+    console.log('📖 HomeScreen: Loading daily content...');
+    console.log('👤 User:', user ? `ID: ${user.id}` : 'Not logged in');
+    
     try {
       const today = new Date().toISOString().split('T')[0];
+      console.log('📅 Today:', today);
 
-      // Check if user already has content for today
-      const { data: existingContent } = await supabase
-        .from('user_daily_content')
-        .select('*, daily_verses(*), daily_hadiths(*)')
-        .eq('user_id', user.id)
-        .eq('date', today)
-        .single();
-
-      if (existingContent && existingContent.daily_verses && existingContent.daily_hadiths) {
-        // User already has content for today
-        setDailyVerse(existingContent.daily_verses);
-        setDailyHadith(existingContent.daily_hadiths);
-      } else {
-        // Get random verse and hadith
-        const { data: verses } = await supabase
+      if (!user) {
+        console.log('⚠️ No user logged in, loading random content without saving');
+        
+        // Load random content without user-specific tracking
+        const { data: verses, error: versesError } = await supabase
           .from('daily_verses')
           .select('*')
           .eq('is_active', true);
 
-        const { data: hadiths } = await supabase
+        if (versesError) {
+          console.error('❌ Error loading verses:', versesError);
+        } else {
+          console.log(`✅ Loaded ${verses?.length || 0} verses`);
+          if (verses && verses.length > 0) {
+            const randomVerse = verses[Math.floor(Math.random() * verses.length)];
+            setDailyVerse(randomVerse);
+            console.log('✅ Set random verse:', randomVerse.reference);
+          }
+        }
+
+        const { data: hadiths, error: hadithsError } = await supabase
           .from('daily_hadiths')
           .select('*')
           .eq('is_active', true);
+
+        if (hadithsError) {
+          console.error('❌ Error loading hadiths:', hadithsError);
+        } else {
+          console.log(`✅ Loaded ${hadiths?.length || 0} hadiths`);
+          if (hadiths && hadiths.length > 0) {
+            const randomHadith = hadiths[Math.floor(Math.random() * hadiths.length)];
+            setDailyHadith(randomHadith);
+            console.log('✅ Set random hadith:', randomHadith.source);
+          }
+        }
+        
+        setLoading(false);
+        return;
+      }
+
+      // Check if user already has content for today
+      console.log('🔍 Checking for existing daily content...');
+      const { data: existingContent, error: existingError } = await supabase
+        .from('user_daily_content')
+        .select('*, daily_verses(*), daily_hadiths(*)')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .maybeSingle();
+
+      if (existingError) {
+        console.error('❌ Error checking existing content:', existingError);
+      } else {
+        console.log('📦 Existing content:', existingContent ? 'Found' : 'Not found');
+      }
+
+      if (existingContent && existingContent.daily_verses && existingContent.daily_hadiths) {
+        // User already has content for today
+        console.log('✅ Using existing daily content');
+        setDailyVerse(existingContent.daily_verses);
+        setDailyHadith(existingContent.daily_hadiths);
+      } else {
+        // Get random verse and hadith
+        console.log('🎲 Fetching random verse and hadith...');
+        
+        const { data: verses, error: versesError } = await supabase
+          .from('daily_verses')
+          .select('*')
+          .eq('is_active', true);
+
+        if (versesError) {
+          console.error('❌ Error fetching verses:', versesError);
+        } else {
+          console.log(`✅ Fetched ${verses?.length || 0} verses`);
+        }
+
+        const { data: hadiths, error: hadithsError } = await supabase
+          .from('daily_hadiths')
+          .select('*')
+          .eq('is_active', true);
+
+        if (hadithsError) {
+          console.error('❌ Error fetching hadiths:', hadithsError);
+        } else {
+          console.log(`✅ Fetched ${hadiths?.length || 0} hadiths`);
+        }
 
         if (verses && verses.length > 0 && hadiths && hadiths.length > 0) {
           // Select random verse and hadith
           const randomVerse = verses[Math.floor(Math.random() * verses.length)];
           const randomHadith = hadiths[Math.floor(Math.random() * hadiths.length)];
 
+          console.log('✅ Selected random verse:', randomVerse.reference);
+          console.log('✅ Selected random hadith:', randomHadith.source);
+
           setDailyVerse(randomVerse);
           setDailyHadith(randomHadith);
 
           // Save to user_daily_content
-          await supabase
+          console.log('💾 Saving daily content selection...');
+          const { error: upsertError } = await supabase
             .from('user_daily_content')
             .upsert({
               user_id: user.id,
@@ -243,12 +308,27 @@ export default function HomeScreen() {
               verse_id: randomVerse.id,
               hadith_id: randomHadith.id,
             });
+
+          if (upsertError) {
+            console.error('❌ Error saving daily content:', upsertError);
+          } else {
+            console.log('✅ Daily content saved successfully');
+          }
+        } else {
+          console.warn('⚠️ No verses or hadiths available');
+          if (!verses || verses.length === 0) {
+            console.warn('⚠️ No active verses in database');
+          }
+          if (!hadiths || hadiths.length === 0) {
+            console.warn('⚠️ No active hadiths in database');
+          }
         }
       }
     } catch (error) {
-      console.error('Error loading daily content:', error);
+      console.error('❌ Error loading daily content:', error);
     } finally {
       setLoading(false);
+      console.log('✅ Daily content loading complete');
     }
   };
 
@@ -700,7 +780,7 @@ export default function HomeScreen() {
             </LinearGradient>
           ) : (
             <View style={styles.contentCard}>
-              <Text style={styles.contentText}>No verse available today</Text>
+              <Text style={styles.contentText}>No verse available today. Pull down to refresh.</Text>
             </View>
           )}
         </View>
@@ -859,7 +939,7 @@ export default function HomeScreen() {
             </View>
           ) : (
             <View style={styles.contentCard}>
-              <Text style={styles.contentText}>No hadith available today</Text>
+              <Text style={styles.contentText}>No hadith available today. Pull down to refresh.</Text>
             </View>
           )}
         </View>

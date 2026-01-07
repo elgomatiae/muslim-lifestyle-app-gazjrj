@@ -17,6 +17,7 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const glowAnim = useMemo(() => new Animated.Value(0), []);
   const rotateAnim = useMemo(() => new Animated.Value(0), []);
   
+  // Destructure all values from the context hook
   const { sectionScores, imanScore, isLoading, error } = useImanTracker();
   const [showBreakdown, setShowBreakdown] = useState(false);
 
@@ -97,10 +98,12 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
   const centerX = 200;
   const centerY = 200;
   
-  // Safely access sectionScores with fallback values
+  // Safely extract scores with nullish coalescing - this ensures we always have valid numbers
   const ibadahScore = sectionScores?.ibadah ?? 0;
   const ilmScore = sectionScores?.ilm ?? 0;
   const amanahScore = sectionScores?.amanah ?? 0;
+  
+  console.log('ImanRingsDisplay: Rendering with scores:', { ibadahScore, ilmScore, amanahScore, imanScore });
   
   // ʿIbādah ring (outer) - GREEN
   const ibadahRadius = 170;
@@ -177,13 +180,15 @@ export default function ImanRingsDisplay({ onRefresh }: ImanRingsDisplayProps) {
             color={colors.error}
           />
           <Text style={styles.errorText}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={onRefresh}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          {onRefresh && (
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={onRefresh}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </LinearGradient>
     );

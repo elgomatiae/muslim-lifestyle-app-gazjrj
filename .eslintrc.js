@@ -1,0 +1,16 @@
+
+module.exports = {
+  extends: ['expo', 'prettier'],
+  plugins: ['prettier'],
+  rules: {
+    'prettier/prettier': 'error',
+  },
+  overrides: [
+    {
+      files: ['supabase/functions/**/*.ts'],
+      rules: {
+        'import/no-unresolved': 'off',
+      },
+    },
+  ],
+};

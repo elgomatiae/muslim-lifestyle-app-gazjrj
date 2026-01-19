@@ -153,10 +153,28 @@ function hoursBetween(a: Date, b: Date) {
 /**
  * Exponential decay:
  * multiplier = floor + (1 - floor) * 0.5^(hours / halfLifeHours)
+ * 
+ * Decay is proportional to incomplete actions:
+ * - If all actions complete (incompleteRatio = 0), no decay is applied
+ * - Decay strength scales with incompleteRatio (0-1)
  */
-function applyDecay(rawScore: number, hoursInactive: number, ring: RingType) {
+function applyDecay(rawScore: number, hoursInactive: number, ring: RingType, incompleteRatio: number = 1.0) {
+  // If all actions are complete, no decay
+  if (incompleteRatio <= 0) {
+    return rawScore;
+  }
+  
   const { halfLifeHours, floor } = DECAY_CONFIG[ring];
-  const multiplier = floor + (1 - floor) * Math.pow(0.5, hoursInactive / halfLifeHours);
+  // Base decay multiplier
+  const baseMultiplier = floor + (1 - floor) * Math.pow(0.5, hoursInactive / halfLifeHours);
+  
+  // Scale decay by incomplete ratio: more incomplete actions = more decay
+  // When incompleteRatio = 1.0, full decay applies
+  // When incompleteRatio = 0.0, no decay (already handled above)
+  const decayAmount = 1.0 - baseMultiplier;
+  const scaledDecay = decayAmount * incompleteRatio;
+  const multiplier = 1.0 - scaledDecay;
+  
   return Math.round(rawScore * multiplier);
 }
 
@@ -280,13 +298,18 @@ export async function calculateIbadahScore(goals: IbadahGoals, userId?: string |
     finalScore = 100;
     console.log(`✅ All enabled goals complete - returning 100% (no decay applied)`);
   } else if (userId) {
-    // Not all goals complete - apply decay
+    // Not all goals complete - apply decay proportional to incomplete actions
     finalScore = Math.round(rawScore);
     const last = await getLastActivity(userId, 'ibadah');
     const inactiveHours = last ? hoursBetween(last, new Date()) : 0;
+    
+    // Calculate incomplete ratio: how many actions are incomplete
+    const incompleteCount = items.filter(item => item.progress < 1.0).length;
+    const incompleteRatio = items.length > 0 ? incompleteCount / items.length : 1.0;
+    
     const beforeDecay = finalScore;
-    finalScore = applyDecay(finalScore, inactiveHours, 'ibadah');
-    console.log(`⏳ Decay: inactive ${inactiveHours.toFixed(1)}h, ${beforeDecay}% -> ${finalScore}%`);
+    finalScore = applyDecay(finalScore, inactiveHours, 'ibadah', incompleteRatio);
+    console.log(`⏳ Decay: inactive ${inactiveHours.toFixed(1)}h, incomplete ratio ${incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${finalScore}%`);
   } else {
     finalScore = Math.round(rawScore);
     console.log(`ℹ️ No userId provided - skipping decay`);
@@ -306,8 +329,9 @@ export async function calculateIbadahScore(goals: IbadahGoals, userId?: string |
 /**
  * Calculate Ilm score based purely on completed actions vs enabled goals
  * Each enabled goal contributes equally to the final score
+ * Returns both the score and completion status
  */
-export function calculateIlmScore(goals: IlmGoals): number {
+export function calculateIlmScore(goals: IlmGoals): { score: number; allComplete: boolean; incompleteRatio: number } {
   console.log('\n📚 ========== ILM SCORE CALCULATION (NEW SYSTEM) ==========');
   
   const progressions: number[] = [];
@@ -348,6 +372,16 @@ export function calculateIlmScore(goals: IlmGoals): number {
     finalScore = (sum / progressions.length) * 100;
   }
   
+  // Check if all goals are complete
+  const allComplete = progressions.length > 0 && progressions.every(p => p >= 1.0);
+  const incompleteCount = progressions.filter(p => p < 1.0).length;
+  const incompleteRatio = progressions.length > 0 ? incompleteCount / progressions.length : 1.0;
+  
+  if (allComplete) {
+    finalScore = 100; // Always 100% when all complete
+    console.log(`✅ All enabled goals complete - returning 100%`);
+  }
+  
   console.log(`\n✨ ILM FINAL: ${finalScore.toFixed(1)}%`);
   console.log(`   Enabled goals: ${enabledGoals.length} (${enabledGoals.join(', ')})`);
   console.log(`   Average progress: ${finalScore.toFixed(1)}%`);
@@ -356,7 +390,7 @@ export function calculateIlmScore(goals: IlmGoals): number {
   }
   console.log(`================================================\n`);
   
-  return Math.round(finalScore);
+  return { score: Math.round(finalScore), allComplete, incompleteRatio };
 }
 
 // ============================================================================
@@ -366,8 +400,9 @@ export function calculateIlmScore(goals: IlmGoals): number {
 /**
  * Calculate Amanah score based purely on completed actions vs enabled goals
  * Each enabled goal contributes equally to the final score
+ * Returns both the score and completion status
  */
-export function calculateAmanahScore(goals: AmanahGoals): number {
+export function calculateAmanahScore(goals: AmanahGoals): { score: number; allComplete: boolean; incompleteRatio: number } {
   console.log('\n💪 ========== AMANAH SCORE CALCULATION (NEW SYSTEM) ==========');
   
   const progressions: number[] = [];
@@ -429,6 +464,16 @@ export function calculateAmanahScore(goals: AmanahGoals): number {
     finalScore = (sum / progressions.length) * 100;
   }
   
+  // Check if all goals are complete
+  const allComplete = progressions.length > 0 && progressions.every(p => p >= 1.0);
+  const incompleteCount = progressions.filter(p => p < 1.0).length;
+  const incompleteRatio = progressions.length > 0 ? incompleteCount / progressions.length : 1.0;
+  
+  if (allComplete) {
+    finalScore = 100; // Always 100% when all complete
+    console.log(`✅ All enabled goals complete - returning 100%`);
+  }
+  
   console.log(`\n✨ AMANAH FINAL: ${finalScore.toFixed(1)}%`);
   console.log(`   Enabled goals: ${enabledGoals.length} (${enabledGoals.join(', ')})`);
   console.log(`   Average progress: ${finalScore.toFixed(1)}%`);
@@ -437,7 +482,7 @@ export function calculateAmanahScore(goals: AmanahGoals): number {
   }
   console.log(`================================================\n`);
   
-  return Math.round(finalScore);
+  return { score: Math.round(finalScore), allComplete, incompleteRatio };
 }
 
 // ============================================================================
@@ -454,10 +499,14 @@ export async function calculateAllSectionScores(
   amanahGoals: AmanahGoals,
   userId?: string | null
 ): Promise<SectionScores> {
+  const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
+  const ilmResult = calculateIlmScore(ilmGoals);
+  const amanahResult = calculateAmanahScore(amanahGoals);
+  
   const scores: SectionScores = {
-    ibadah: await calculateIbadahScore(ibadahGoals, userId),
-    ilm: calculateIlmScore(ilmGoals),
-    amanah: calculateAmanahScore(amanahGoals),
+    ibadah: ibadahResult,
+    ilm: ilmResult.score,
+    amanah: amanahResult.score,
   };
 
   // save section scores (your existing logic)
@@ -479,22 +528,54 @@ export async function getCurrentSectionScores(userId?: string | null): Promise<S
     const ilmGoals = await loadIlmGoals(userId);
     const amanahGoals = await loadAmanahGoals(userId);
 
-    // compute raw
-    const scores = await calculateAllSectionScores(ibadahGoals, ilmGoals, amanahGoals, userId);
+    // Get raw scores with completion info
+    const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
+    const ilmResult = calculateIlmScore(ilmGoals);
+    const amanahResult = calculateAmanahScore(amanahGoals);
 
-    // apply decay to ILM + AMANAH here (ibadah already decays inside calculateIbadahScore)
+    let scores: SectionScores = {
+      ibadah: ibadahResult,
+      ilm: ilmResult.score,
+      amanah: amanahResult.score,
+    };
+
+    // Apply decay to ILM + AMANAH only if NOT all complete
+    // (ibadah already handles decay internally)
     if (userId) {
-      const ilmLast = await getLastActivity(userId, 'ilm');
-      const amanahLast = await getLastActivity(userId, 'amanah');
+      // Only apply decay if there are incomplete actions
+      if (!ilmResult.allComplete) {
+        const ilmLast = await getLastActivity(userId, 'ilm');
+        const ilmInactive = ilmLast ? hoursBetween(ilmLast, new Date()) : 0;
+        const beforeDecay = scores.ilm;
+        scores.ilm = applyDecay(scores.ilm, ilmInactive, 'ilm', ilmResult.incompleteRatio);
+        if (beforeDecay !== scores.ilm) {
+          console.log(`⏳ Ilm decay: inactive ${ilmInactive.toFixed(1)}h, incomplete ratio ${ilmResult.incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${scores.ilm}%`);
+        }
+      } else {
+        console.log(`✅ All Ilm goals complete - no decay applied`);
+      }
 
-      const ilmInactive = ilmLast ? hoursBetween(ilmLast, new Date()) : 0;
-      const amanahInactive = amanahLast ? hoursBetween(amanahLast, new Date()) : 0;
+      if (!amanahResult.allComplete) {
+        const amanahLast = await getLastActivity(userId, 'amanah');
+        const amanahInactive = amanahLast ? hoursBetween(amanahLast, new Date()) : 0;
+        const beforeDecay = scores.amanah;
+        scores.amanah = applyDecay(scores.amanah, amanahInactive, 'amanah', amanahResult.incompleteRatio);
+        if (beforeDecay !== scores.amanah) {
+          console.log(`⏳ Amanah decay: inactive ${amanahInactive.toFixed(1)}h, incomplete ratio ${amanahResult.incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${scores.amanah}%`);
+        }
+      } else {
+        console.log(`✅ All Amanah goals complete - no decay applied`);
+      }
+    }
 
-      return {
-        ...scores,
-        ilm: applyDecay(scores.ilm, ilmInactive, 'ilm'),
-        amanah: applyDecay(scores.amanah, amanahInactive, 'amanah'),
-      };
+    // Save section scores
+    if (userId) {
+      try {
+        await AsyncStorage.setItem(`sectionScores_${userId}`, JSON.stringify(scores));
+        await AsyncStorage.setItem(`sectionScoresLastUpdated_${userId}`, new Date().toISOString());
+      } catch (error) {
+        console.error('Error saving section scores:', error);
+      }
     }
 
     return scores;
@@ -550,10 +631,40 @@ export async function getOverallImanScore(userId?: string | null): Promise<numbe
     (scores.ilm * WEIGHTS.ilm) +
     (scores.amanah * WEIGHTS.amanah);
   
+  // Check if all actions are complete across all sections
+  const ibadahGoals = await loadIbadahGoals(userId);
+  const ilmGoals = await loadIlmGoals(userId);
+  const amanahGoals = await loadAmanahGoals(userId);
+  
+  const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
+  const ilmResult = calculateIlmScore(ilmGoals);
+  const amanahResult = calculateAmanahScore(amanahGoals);
+  
+  const allActionsComplete = ibadahResult === 100 && ilmResult.allComplete && amanahResult.allComplete;
+  
   // Get historical average
   const { average: historicalAvg, lastUpdate } = await getHistoricalScore(userId ?? null);
   
-  // Apply decay to historical score if there's been inactivity
+  let finalScore: number;
+  
+  if (allActionsComplete) {
+    // All actions are complete - return 100% directly, no historical blending or decay
+    finalScore = 100;
+    console.log(`\n🌟 ========== OVERALL IMAN SCORE ==========`);
+    console.log(`   ✅ All actions complete - returning 100% (no decay, no historical blending)`);
+    console.log(`   Today's Score: ${Math.round(todayScore)}%`);
+    console.log(`   Ring Breakdown: Ibadah ${scores.ibadah}%, Ilm ${scores.ilm}%, Amanah ${scores.amanah}%`);
+    console.log(`================================================\n`);
+    
+    // Still update historical average (but use today's 100% score)
+    const newHistoricalAvg = (historicalAvg * 0.8) + (todayScore * 0.2);
+    await saveHistoricalScore(userId ?? null, Math.max(LONG_TERM_CONFIG.minHistoryScore, newHistoricalAvg));
+    
+    return finalScore;
+  }
+  
+  // Not all complete - apply historical blending with decay
+  // Apply decay to historical score only if there are incomplete actions
   let decayedHistorical = historicalAvg;
   if (lastUpdate) {
     const daysSinceUpdate = Math.floor(
@@ -586,7 +697,7 @@ export async function getOverallImanScore(userId?: string | null): Promise<numbe
   const newHistoricalAvg = (historicalAvg * 0.8) + (todayScore * 0.2);
   await saveHistoricalScore(userId ?? null, Math.max(LONG_TERM_CONFIG.minHistoryScore, newHistoricalAvg));
   
-  const finalScore = Math.round(Math.max(LONG_TERM_CONFIG.minHistoryScore, blendedScore));
+  finalScore = Math.round(Math.max(LONG_TERM_CONFIG.minHistoryScore, blendedScore));
   
   console.log(`\n🌟 ========== OVERALL IMAN SCORE (LONG-TERM) ==========`);
   console.log(`   Today's Score: ${Math.round(todayScore)}%`);

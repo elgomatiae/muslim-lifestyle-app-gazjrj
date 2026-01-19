@@ -94,21 +94,62 @@ export default function TrendsScreen() {
         return;
       }
 
-      // Group by date and take the latest score for each day
-      const groupedByDate: { [key: string]: ScoreData } = {};
+      // Group by date and aggregate based on period
+      const groupedByDate: { [key: string]: ScoreData[] } = {};
       
       data?.forEach(record => {
-        const date = new Date(record.recorded_at).toISOString().split('T')[0];
-        groupedByDate[date] = {
-          date,
+        let dateKey: string;
+        
+        if (period === 'year') {
+          // For year view, group by month
+          const date = new Date(record.recorded_at);
+          dateKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        } else {
+          // For week and month views, group by day
+          dateKey = new Date(record.recorded_at).toISOString().split('T')[0];
+        }
+        
+        if (!groupedByDate[dateKey]) {
+          groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey].push({
+          date: dateKey,
           overall_score: record.overall_score,
           ibadah_score: record.ibadah_score,
           ilm_score: record.ilm_score,
           amanah_score: record.amanah_score,
-        };
+        });
       });
 
-      const history = Object.values(groupedByDate).sort((a, b) => 
+      // Process grouped data: for year view, average by month; for day view, take latest of day
+      const processedHistory: ScoreData[] = [];
+      
+      Object.keys(groupedByDate).forEach(dateKey => {
+        const records = groupedByDate[dateKey];
+        
+        if (period === 'year') {
+          // Average scores for the month
+          const avgOverall = Math.round(records.reduce((sum, r) => sum + r.overall_score, 0) / records.length);
+          const avgIbadah = Math.round(records.reduce((sum, r) => sum + r.ibadah_score, 0) / records.length);
+          const avgIlm = Math.round(records.reduce((sum, r) => sum + r.ilm_score, 0) / records.length);
+          const avgAmanah = Math.round(records.reduce((sum, r) => sum + r.amanah_score, 0) / records.length);
+          
+          processedHistory.push({
+            date: dateKey + '-01', // Add day for consistent date format
+            overall_score: avgOverall,
+            ibadah_score: avgIbadah,
+            ilm_score: avgIlm,
+            amanah_score: avgAmanah,
+          });
+        } else {
+          // Take the latest score for each day
+          const latestRecord = records[records.length - 1];
+          processedHistory.push(latestRecord);
+        }
+      });
+
+      // Sort by date
+      const history = processedHistory.sort((a, b) => 
         new Date(a.date).getTime() - new Date(b.date).getTime()
       );
 
@@ -141,6 +182,33 @@ export default function TrendsScreen() {
     });
   };
 
+  const formatDateLabel = (dateString: string) => {
+    try {
+      // Handle year format (YYYY-MM) by adding day
+      const normalizedDate = dateString.includes('-') && dateString.split('-').length === 2 
+        ? `${dateString}-01` 
+        : dateString;
+      
+      const date = new Date(normalizedDate);
+      if (isNaN(date.getTime())) {
+        return dateString;
+      }
+      
+      if (period === 'week') {
+        // Show day name for week
+        return date.toLocaleDateString('en-US', { weekday: 'short' });
+      } else if (period === 'month') {
+        // Show day of month for month
+        return date.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
+      } else {
+        // Show month name for year
+        return date.toLocaleDateString('en-US', { month: 'short' });
+      }
+    } catch {
+      return dateString;
+    }
+  };
+
   const renderChart = () => {
     if (scoreHistory.length === 0) {
       return (
@@ -164,18 +232,56 @@ export default function TrendsScreen() {
     const minScore = Math.min(...data, 0);
     const scoreRange = maxScore - minScore || 1;
 
-    const points = data.map((score, index) => {
-      const x = CHART_PADDING + (index / (data.length - 1 || 1)) * (CHART_WIDTH - CHART_PADDING * 2);
+    // Calculate x positions based on actual dates (not just evenly spaced)
+    const now = new Date();
+    let startDate = new Date();
+    if (period === 'week') {
+      startDate.setDate(now.getDate() - 7);
+    } else if (period === 'month') {
+      startDate.setMonth(now.getMonth() - 1);
+    } else if (period === 'year') {
+      startDate.setFullYear(now.getFullYear() - 1);
+    }
+
+    const points = scoreHistory.map((item, index) => {
+      const itemDate = new Date(item.date);
+      const daysSinceStart = (itemDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const totalDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+      const x = CHART_PADDING + (daysSinceStart / totalDays) * (CHART_WIDTH - CHART_PADDING * 2);
+      const score = data[index];
       const y = CHART_HEIGHT - CHART_PADDING - ((score - minScore) / scoreRange) * (CHART_HEIGHT - CHART_PADDING * 2);
-      return { x, y, score };
+      return { x: Math.max(CHART_PADDING, Math.min(CHART_WIDTH - CHART_PADDING, x)), y, score, date: item.date };
     });
 
     const linePoints = points.map(p => `${p.x},${p.y}`).join(' ');
     const metricColor = getMetricColor(selectedMetric);
 
+    // Calculate x-axis label positions
+    const xAxisLabelCount = period === 'week' ? 7 : period === 'month' ? 5 : 12;
+    const xAxisLabels: { x: number; label: string }[] = [];
+    
+    // Create date range for x-axis labels
+    for (let i = 0; i <= xAxisLabelCount; i++) {
+      const date = new Date(startDate);
+      if (period === 'week') {
+        date.setDate(startDate.getDate() + (i * 7 / xAxisLabelCount));
+      } else if (period === 'month') {
+        date.setDate(startDate.getDate() + (i * 30 / xAxisLabelCount));
+      } else {
+        date.setMonth(startDate.getMonth() + (i * 12 / xAxisLabelCount));
+      }
+      const daysSinceStart = (date.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24);
+      const totalDays = period === 'week' ? 7 : period === 'month' ? 30 : 365;
+      const x = CHART_PADDING + (daysSinceStart / totalDays) * (CHART_WIDTH - CHART_PADDING * 2);
+      xAxisLabels.push({
+        x: Math.max(CHART_PADDING, Math.min(CHART_WIDTH - CHART_PADDING, x)),
+        label: formatDateLabel(date.toISOString().split('T')[0])
+      });
+    }
+
     return (
       <View style={styles.chartContainer}>
-        <Svg width={CHART_WIDTH} height={CHART_HEIGHT}>
+        <Svg width={CHART_WIDTH} height={CHART_HEIGHT + 30}>
           {/* Grid lines */}
           {[0, 25, 50, 75, 100].map((value, index) => {
             const y = CHART_HEIGHT - CHART_PADDING - ((value - minScore) / scoreRange) * (CHART_HEIGHT - CHART_PADDING * 2);
@@ -202,6 +308,30 @@ export default function TrendsScreen() {
               </React.Fragment>
             );
           })}
+
+          {/* X-axis labels */}
+          {xAxisLabels.map((label, index) => (
+            <SvgText
+              key={index}
+              x={label.x}
+              y={CHART_HEIGHT + 15}
+              fontSize="9"
+              fill={colors.textSecondary}
+              textAnchor="middle"
+            >
+              {label.label}
+            </SvgText>
+          ))}
+
+          {/* X-axis line */}
+          <Line
+            x1={CHART_PADDING}
+            y1={CHART_HEIGHT - CHART_PADDING}
+            x2={CHART_WIDTH - CHART_PADDING}
+            y2={CHART_HEIGHT - CHART_PADDING}
+            stroke={colors.border}
+            strokeWidth="2"
+          />
 
           {/* Line chart */}
           <Polyline

@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Natively",
-    "slug": "Natively",
+    "slug": "muslim-space",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/natively-dark.png",
@@ -59,6 +59,13 @@
           "sounds": [],
           "mode": "production"
         }
+      ],
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2757517181313212~3571222456",
+          "iosAppId": "ca-app-pub-2757517181313212~3571222456"
+        }
       ]
     ],
     "scheme": "natively",
@@ -68,7 +75,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "b1a800b2-1371-4161-bd61-2413d38bda1a"
+        "projectId": "ea7602b5-852b-4c20-8cbd-e714a459435c"
       }
     }
   }

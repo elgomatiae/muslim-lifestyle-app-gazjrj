@@ -185,6 +185,19 @@ export const ImanTrackerProvider = ({ children }: { children: ReactNode }) => {
     setPreviousUserId(user.id);
     loadAllGoals();
     
+    // Initialize streak data on user load
+    import('@/utils/streakTracker').then(({ initializeStreakData, checkAndUpdateStreak }) => {
+      initializeStreakData(user.id).catch(err => {
+        console.error('Error initializing streak data:', err);
+      });
+      // Check and update streak status
+      checkAndUpdateStreak(user.id).catch(err => {
+        console.error('Error checking streak:', err);
+      });
+    }).catch(err => {
+      console.error('Error loading streak tracker:', err);
+    });
+    
     // Check for daily/weekly resets on initial load
     checkAndHandleResets(user.id).catch(err => {
       console.error('Error checking resets:', err);
@@ -239,6 +252,24 @@ export const ImanTrackerProvider = ({ children }: { children: ReactNode }) => {
           console.log('Error logging Ibadah activity:', err);
         }
       });
+
+      // Check if all 5 prayers are completed and update prayer streak
+      const allPrayersCompleted = 
+        updated.fardPrayers?.fajr &&
+        updated.fardPrayers?.dhuhr &&
+        updated.fardPrayers?.asr &&
+        updated.fardPrayers?.maghrib &&
+        updated.fardPrayers?.isha;
+      
+      if (allPrayersCompleted) {
+        import('@/utils/multiStreakTracker').then(({ updatePrayerStreak }) => {
+          updatePrayerStreak(user.id, true).catch(err => {
+            if (__DEV__) {
+              console.log('Error updating prayer streak:', err);
+            }
+          });
+        }).catch(() => {});
+      }
       
       // Check achievements after updating goals (non-blocking)
       const { checkAndUnlockAchievements } = await import('@/utils/achievementService');

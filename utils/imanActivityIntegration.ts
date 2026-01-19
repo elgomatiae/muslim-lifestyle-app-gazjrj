@@ -8,6 +8,8 @@
  */
 
 import { incrementPrayerCount, incrementDhikrCount, incrementQuranPagesCount, checkAndUnlockAchievements } from './achievementService';
+import { updateStreakOnAction } from './streakTracker';
+import { updateWorkoutStreak, updateQuranStreak } from './multiStreakTracker';
 
 /**
  * Track prayer completion
@@ -16,6 +18,13 @@ import { incrementPrayerCount, incrementDhikrCount, incrementQuranPagesCount, ch
 export async function trackPrayerCompletion(userId: string, prayerName: string): Promise<void> {
   try {
     console.log(`🕌 Tracking prayer completion: ${prayerName} for user ${userId}`);
+    
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after prayer:', err);
+      }
+    });
     
     // Increment prayer count in user_stats
     await incrementPrayerCount(userId, 1);
@@ -37,6 +46,13 @@ export async function trackDhikrCompletion(userId: string, count: number): Promi
   try {
     console.log(`📿 Tracking dhikr completion: ${count} for user ${userId}`);
     
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after dhikr:', err);
+      }
+    });
+    
     // Increment dhikr count in user_stats
     await incrementDhikrCount(userId, count);
     
@@ -56,6 +72,20 @@ export async function trackDhikrCompletion(userId: string, count: number): Promi
 export async function trackQuranReading(userId: string, pages: number): Promise<void> {
   try {
     console.log(`📖 Tracking Quran reading: ${pages} pages for user ${userId}`);
+    
+    // Update streaks (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating general streak after Quran reading:', err);
+      }
+    });
+    
+    // Update Quran streak
+    updateQuranStreak(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating Quran streak:', err);
+      }
+    });
     
     // Increment Quran pages count in user_stats
     await incrementQuranPagesCount(userId, pages);
@@ -78,6 +108,13 @@ export async function trackLectureCompletion(userId: string): Promise<void> {
   try {
     console.log(`🎓 Tracking lecture completion for user ${userId}`);
     
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after lecture:', err);
+      }
+    });
+    
     // Check for new achievements
     await checkAndUnlockAchievements(userId);
     
@@ -95,6 +132,13 @@ export async function trackLectureCompletion(userId: string): Promise<void> {
 export async function trackQuizCompletion(userId: string): Promise<void> {
   try {
     console.log(`❓ Tracking quiz completion for user ${userId}`);
+    
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after quiz:', err);
+      }
+    });
     
     // Check for new achievements
     await checkAndUnlockAchievements(userId);
@@ -114,6 +158,20 @@ export async function trackWorkoutCompletion(userId: string): Promise<void> {
   try {
     console.log(`🏋️ Tracking workout completion for user ${userId}`);
     
+    // Update streaks (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating general streak after workout:', err);
+      }
+    });
+    
+    // Update workout streak
+    updateWorkoutStreak(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating workout streak:', err);
+      }
+    });
+    
     // Check for new achievements
     await checkAndUnlockAchievements(userId);
     
@@ -132,6 +190,13 @@ export async function trackMeditationSession(userId: string): Promise<void> {
   try {
     console.log(`🧘 Tracking meditation session for user ${userId}`);
     
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after meditation:', err);
+      }
+    });
+    
     // Check for new achievements
     await checkAndUnlockAchievements(userId);
     
@@ -148,6 +213,13 @@ export async function trackMeditationSession(userId: string): Promise<void> {
 export async function trackJournalEntry(userId: string): Promise<void> {
   try {
     console.log(`📔 Tracking journal entry for user ${userId}`);
+    
+    // Update streak (non-blocking)
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after journal entry:', err);
+      }
+    });
     
     // Check for new achievements
     await checkAndUnlockAchievements(userId);

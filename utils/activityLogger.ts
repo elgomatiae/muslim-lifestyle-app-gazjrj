@@ -5,6 +5,8 @@
  */
 
 import { supabase } from '@/lib/supabase';
+import { updateStreakOnAction } from './streakTracker';
+import { updateWorkoutStreak, updateQuranStreak } from './multiStreakTracker';
 
 export type ActivityType =
   | 'prayer_completed'
@@ -84,6 +86,34 @@ export async function logActivity(params: LogActivityParams): Promise<void> {
       }
     } else if (__DEV__) {
       console.log('Activity logged successfully:', params.activityTitle);
+    }
+
+    // Update streaks when any activity is logged (non-blocking)
+    // Skip achievement_unlocked to avoid double-counting
+    if (params.activityType !== 'achievement_unlocked') {
+      // General activity streak
+      updateStreakOnAction(params.userId).catch(err => {
+        if (__DEV__) {
+          console.log('Error updating general streak after activity log:', err);
+        }
+      });
+
+      // Specific streak types
+      if (params.activityType === 'workout_completed') {
+        updateWorkoutStreak(params.userId).catch(err => {
+          if (__DEV__) {
+            console.log('Error updating workout streak:', err);
+          }
+        });
+      }
+
+      if (params.activityType === 'quran_reading') {
+        updateQuranStreak(params.userId).catch(err => {
+          if (__DEV__) {
+            console.log('Error updating Quran streak:', err);
+          }
+        });
+      }
     }
   } catch (error: any) {
     if (error?.code === 'PGRST205' || error?.message?.includes('does not exist')) {

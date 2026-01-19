@@ -21,11 +21,38 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+// Ad managers are loaded conditionally to avoid crashes in Expo Go
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore errors if splash screen is already prevented
 });
+
+// Initialize AdMob (lazy load to avoid crashes in Expo Go)
+// This will only work after rebuilding with native code
+// Completely skip in Expo Go to prevent any module loading
+try {
+  const Constants = require('expo-constants');
+  const isExpoGo = Constants.executionEnvironment === 'storeClient';
+  
+  if (!isExpoGo) {
+    // Not in Expo Go, try to initialize ads after a delay
+    setTimeout(() => {
+      import('@/utils/adConfig').then((module) => {
+        module.initializeAds().catch((error) => {
+          // Silently fail - ads just won't work without native code
+          if (__DEV__) {
+            console.log('AdMob initialization skipped (native module not available)');
+          }
+        });
+      }).catch(() => {
+        // Ignore import errors - expected in Expo Go
+      });
+    }, 3000); // Delay to avoid blocking app startup
+  }
+} catch {
+  // Can't check environment, skip ad initialization to be safe
+}
 
 export const unstable_settings = {
   initialRouteName: "index", // Start at index which checks auth and redirects
@@ -115,6 +142,10 @@ export default function RootLayout() {
 
                     </Stack>
                     <SystemBars style={"auto"} />
+                    {/* Ad managers disabled in Expo Go - enable after rebuilding with native code */}
+                    {/* Uncomment after running: npx expo prebuild && npx expo run:ios/android */}
+                    {/* <InterstitialAdManager />
+                    <RewardedAdManager /> */}
                     </GestureHandlerRootView>
                   </WidgetProvider>
                 </ImanTrackerProvider>

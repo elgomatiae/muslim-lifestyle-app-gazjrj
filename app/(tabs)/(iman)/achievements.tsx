@@ -181,7 +181,7 @@ export default function AchievementsScreen() {
         router.push('/(tabs)/(ilm)' as any);
         break;
       case 'workouts_completed':
-        router.push('/(tabs)/(wellness)/physical-health' as any);
+        router.push('/(tabs)/(wellness)/activity-tracker' as any);
         break;
       case 'meditation_sessions':
         router.push('/(tabs)/(wellness)/mental-health' as any);

@@ -15,6 +15,8 @@ import DailyHadithWidget from '@/components/DailyHadithWidget';
 import AchievementsHomeWidget from '@/components/iman/AchievementsHomeWidget';
 import { useAchievementCelebration } from '@/contexts/AchievementCelebrationContext';
 import { checkAndUnlockAchievements } from '@/utils/achievementService';
+import StreakDisplay from '@/components/iman/StreakDisplay';
+import AllStreaksDisplay from '@/components/iman/AllStreaksDisplay';
 
 
 export default function HomeScreen() {
@@ -288,6 +290,22 @@ export default function HomeScreen() {
           <View style={styles.imanScoreCard}>
             {renderImanRings()}
           </View>
+        </View>
+
+        {/* All Streaks Display */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <View style={styles.sectionIconContainer}>
+              <IconSymbol
+                ios_icon_name="flame.fill"
+                android_material_icon_name="local-fire-department"
+                size={18}
+                color={colors.error}
+              />
+            </View>
+            <Text style={styles.sectionTitle}>Your Streaks</Text>
+          </View>
+          <AllStreaksDisplay />
         </View>
         
         {/* Achievements Widget */}

@@ -37,6 +37,11 @@ export interface CommunityMember {
   joinedAt: string;
   hideScore: boolean;
   imanScore: number;
+  sectionScores?: {
+    ibadah: number;
+    ilm: number;
+    amanah: number;
+  };
 }
 
 export interface CommunityInvite {
@@ -192,6 +197,15 @@ export async function createCommunity(
     
     const communities = await getAllCommunities();
     
+    // Get creator's Iman score and section scores
+    const creatorImanScore = await getUserImanScore(creatorId);
+    let creatorSectionScores = { ibadah: 0, ilm: 0, amanah: 0 };
+    try {
+      creatorSectionScores = await getCurrentSectionScores(creatorId);
+    } catch (error) {
+      console.log(`ℹ️ Could not fetch section scores for ${creatorId}:`, error);
+    }
+
     const newCommunity: LocalCommunity = {
       id: `community_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       name,
@@ -205,7 +219,8 @@ export async function createCommunity(
           role: 'admin',
           joinedAt: new Date().toISOString(),
           hideScore: false,
-          imanScore: await getUserImanScore(creatorId),
+          imanScore: creatorImanScore,
+          sectionScores: creatorSectionScores,
         },
       ],
     };
@@ -296,6 +311,14 @@ export async function getUserCommunities(userId: string): Promise<LocalCommunity
           const username = profile?.full_name || 'User';
           const imanScore = await getUserImanScore(userId);
           
+          // Get section scores
+          let sectionScores = { ibadah: 0, ilm: 0, amanah: 0 };
+          try {
+            sectionScores = await getCurrentSectionScores(userId);
+          } catch (error) {
+            console.log(`ℹ️ Could not fetch section scores for ${userId}:`, error);
+          }
+
           community.members.unshift({
             userId: userId,
             username: username,
@@ -303,6 +326,7 @@ export async function getUserCommunities(userId: string): Promise<LocalCommunity
             joinedAt: community.createdAt,
             hideScore: false,
             imanScore: imanScore,
+            sectionScores,
           });
           
           // Save the updated community
@@ -363,6 +387,14 @@ export async function addMemberToCommunity(
       // Continue with provided username as fallback
     }
     
+    // Get section scores
+    let sectionScores = { ibadah: 0, ilm: 0, amanah: 0 };
+    try {
+      sectionScores = await getCurrentSectionScores(userId);
+    } catch (error) {
+      console.log(`ℹ️ Could not fetch section scores for ${userId}:`, error);
+    }
+
     const newMember: CommunityMember = {
       userId,
       username,
@@ -370,6 +402,7 @@ export async function addMemberToCommunity(
       joinedAt: new Date().toISOString(),
       hideScore: false,
       imanScore: await getUserImanScore(userId),
+      sectionScores,
     };
     
     community.members.push(newMember);
@@ -428,6 +461,12 @@ export async function updateMemberScore(communityId: string, userId: string): Pr
     const member = community.members.find(m => m.userId === userId);
     if (member) {
       member.imanScore = await getUserImanScore(userId);
+      // Also update section scores
+      try {
+        member.sectionScores = await getCurrentSectionScores(userId);
+      } catch (error) {
+        console.log(`ℹ️ Could not fetch section scores for ${userId}:`, error);
+      }
       await saveCommunities(communities);
       console.log(`✅ Member score updated in community ${community.name}: ${member.imanScore}`);
     } else {
@@ -453,6 +492,14 @@ export async function updateAllMemberScores(communityId: string): Promise<void> 
     
     for (const member of community.members) {
       member.imanScore = await getUserImanScore(member.userId);
+      // Also fetch section scores
+      try {
+        const sectionScores = await getCurrentSectionScores(member.userId);
+        member.sectionScores = sectionScores;
+      } catch (error) {
+        console.log(`ℹ️ Could not fetch section scores for ${member.userId}:`, error);
+        member.sectionScores = { ibadah: 0, ilm: 0, amanah: 0 };
+      }
     }
     
     await saveCommunities(communities);

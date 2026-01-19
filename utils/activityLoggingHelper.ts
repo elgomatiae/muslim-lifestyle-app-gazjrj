@@ -8,6 +8,8 @@
 import { logActivity, ActivityType, ActivityCategory } from './activityLogger';
 import { IbadahGoals, IlmGoals, AmanahGoals } from './imanScoreCalculator';
 import { checkAndUnlockAchievements } from './achievementService';
+import { updateStreakOnAction } from './streakTracker';
+import { updatePrayerStreak, updateQuranStreak, updateWorkoutStreak, updateStreak } from './multiStreakTracker';
 
 /**
  * Log activity when Ibadah goals are updated
@@ -211,6 +213,41 @@ export async function logIbadahActivity(
     }
   }
 
+  // Update streaks (non-blocking)
+  if (userId) {
+    // General activity streak
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating general streak after Ibadah activity:', err);
+      }
+    });
+
+    // Check if all 5 prayers are completed
+    const allPrayersCompleted = 
+      newGoals.fardPrayers?.fajr &&
+      newGoals.fardPrayers?.dhuhr &&
+      newGoals.fardPrayers?.asr &&
+      newGoals.fardPrayers?.maghrib &&
+      newGoals.fardPrayers?.isha;
+    
+    if (allPrayersCompleted) {
+      updatePrayerStreak(userId, true).catch(err => {
+        if (__DEV__) {
+          console.log('Error updating prayer streak:', err);
+        }
+      });
+    }
+
+    // Check if Quran was read
+    if (newGoals.quranDailyPagesCompleted > (oldGoals.quranDailyPagesCompleted || 0)) {
+      updateQuranStreak(userId).catch(err => {
+        if (__DEV__) {
+          console.log('Error updating Quran streak:', err);
+        }
+      });
+    }
+  }
+
   // Check achievements after logging activities (non-blocking)
   if (userId) {
     checkAndUnlockAchievements(userId).catch(err => {
@@ -352,6 +389,15 @@ export async function logIlmActivity(
     if (__DEV__) {
       console.log('Error logging Ilm activity:', error);
     }
+  }
+
+  // Update streak (non-blocking)
+  if (userId) {
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating streak after Ilm activity:', err);
+      }
+    });
   }
 
   // Check achievements after logging activities (non-blocking)
@@ -569,6 +615,25 @@ export async function logAmanahActivity(
   } catch (error) {
     if (__DEV__) {
       console.log('Error logging Amanah activity:', error);
+    }
+  }
+
+  // Update streaks (non-blocking)
+  if (userId) {
+    // General activity streak
+    updateStreakOnAction(userId).catch(err => {
+      if (__DEV__) {
+        console.log('Error updating general streak after Amanah activity:', err);
+      }
+    });
+
+    // Check if workout was completed
+    if (newGoals.weeklyWorkoutCompleted > (oldGoals.weeklyWorkoutCompleted || 0)) {
+      updateWorkoutStreak(userId).catch(err => {
+        if (__DEV__) {
+          console.log('Error updating workout streak:', err);
+        }
+      });
     }
   }
 

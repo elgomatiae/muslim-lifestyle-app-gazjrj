@@ -15,6 +15,8 @@ import IbadahSection from "./ibadah-section";
 import IlmSection from "./ilm-section";
 import AmanahSection from "./amanah-section";
 import AchievementsBadges from "@/components/iman/AchievementsBadges";
+import StreakDisplay from "@/components/iman/StreakDisplay";
+import AllStreaksDisplay from "@/components/iman/AllStreaksDisplay";
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -267,6 +269,12 @@ export default function ImanTrackerScreen() {
         >
           {/* IMAN RINGS DISPLAY */}
           <ImanRingsDisplay onRefresh={onRefresh} />
+
+          {/* ALL STREAKS DISPLAY */}
+          <View style={styles.streakSection}>
+            <Text style={styles.streakSectionTitle}>Your Streaks</Text>
+            <AllStreaksDisplay />
+          </View>
 
           {/* QUICK ACCESS FEATURES - MOVED UP */}
           <View style={styles.quickAccessSection}>
@@ -528,6 +536,18 @@ const styles = StyleSheet.create({
   quickAccessSection: {
     marginBottom: spacing.xl,
     marginTop: spacing.md,
+  },
+  streakSection: {
+    marginHorizontal: spacing.lg,
+    marginBottom: spacing.xl,
+    marginTop: spacing.md,
+  },
+  streakSectionTitle: {
+    ...typography.h3,
+    fontSize: 20,
+    color: colors.text,
+    marginBottom: spacing.md,
+    fontWeight: '700',
   },
   sectionHeader: {
     ...typography.h3,

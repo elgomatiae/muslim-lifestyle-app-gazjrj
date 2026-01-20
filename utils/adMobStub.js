@@ -52,6 +52,22 @@ export const RewardedAd = {
   },
 };
 
+// RewardedInterstitialAd stub (this is what your ad unit uses)
+export const RewardedInterstitialAd = {
+  createForAdRequest: (adUnitId, requestOptions) => {
+    if (__DEV__) {
+      console.log('[AdMob Stub] RewardedInterstitialAd.createForAdRequest() called');
+    }
+    return {
+      load: async () => Promise.resolve(),
+      show: async () => Promise.resolve(),
+      loaded: false,
+      addAdEventListener: (eventType, listener) => () => {},
+      removeAllListeners: () => {},
+    };
+  },
+};
+
 // BannerAdSize constants
 export const BannerAdSize = {
   BANNER: 'BANNER',

@@ -10,7 +10,7 @@ import { supabase } from '@/app/integrations/supabase/client';
 export interface PrayerTime {
   name: string;
   arabicName: string;
-  time: string; // HH:MM format
+  time: string; // 12-hour format with AM/PM (e.g., "3:45 PM")
   date: Date;
   completed: boolean;
 }
@@ -28,12 +28,19 @@ export interface DailyPrayerTimes {
 }
 
 /**
- * Format date to HH:MM string
+ * Format date to 12-hour format with AM/PM (e.g., "3:45 PM")
  */
 function formatTime(date: Date): string {
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${hours}:${minutes}`;
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  
+  // Convert to 12-hour format
+  hours = hours % 12;
+  hours = hours ? hours : 12; // 0 should be 12
+  
+  const minutesStr = minutes.toString().padStart(2, '0');
+  return `${hours}:${minutesStr} ${ampm}`;
 }
 
 /**

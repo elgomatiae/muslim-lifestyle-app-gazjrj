@@ -44,17 +44,20 @@ export default function BannerAd({
   const [adUnitId, setAdUnitId] = useState<string>(unitId || '');
   const [adReady, setAdReady] = useState(false);
 
-  // Check if we're in Expo Go
+  // Load ad module and setup banner ad
   useEffect(() => {
-    // Check if Expo Go
+    // Check if Expo Go - skip in Expo Go
     try {
       const Constants = require('expo-constants');
       if (Constants.executionEnvironment === 'storeClient') {
         // In Expo Go - don't try to load ads
+        if (__DEV__) {
+          console.log('[BannerAd] Skipped - running in Expo Go');
+        }
         return;
       }
     } catch {
-      // Can't check, assume Expo Go to be safe
+      // Can't check, skip to be safe
       return;
     }
     
@@ -64,30 +67,34 @@ export default function BannerAd({
     adModuleLoading = true;
     
     // Load ad config and ad module
-    // Metro config will stub react-native-google-mobile-ads in Expo Go
+    // Try require first to bypass Metro redirect, then fallback to import
     Promise.all([
       import('@/utils/adConfig').catch(() => null),
-      import('react-native-google-mobile-ads').catch(() => null)
+      new Promise((resolve) => {
+        try {
+          // Try require first - bypasses Metro redirect in native builds
+          const module = require('react-native-google-mobile-ads');
+          resolve(module);
+        } catch {
+          // If require fails, try import (will get stub)
+          import('react-native-google-mobile-ads').then(resolve).catch(() => resolve(null));
+        }
+      })
     ])
       .then(([adConfig, adModule]) => {
         if (!adModule || !adConfig) {
           adModuleLoading = false;
           if (__DEV__) {
-            console.log('[BannerAd] Module or config not available');
+            console.log('[BannerAd] Module not available (expected in Expo Go)');
           }
           return;
         }
         
-        // Check if we're using the stub (in Expo Go)
-        // Stub will have BannerAd as a function that returns null
-        // Real module will have BannerAd as a component class
-        const isStub = typeof adModule.BannerAd === 'function' && adModule.BannerAd.length === 0;
-        
-        if (isStub) {
-          // Using stub - don't try to render ads
+        // Verify we have the real module (BannerAd should be a component)
+        if (!adModule.BannerAd || typeof adModule.BannerAd !== 'function') {
           adModuleLoading = false;
           if (__DEV__) {
-            console.log('[BannerAd] Using stub module - ads disabled in Expo Go');
+            console.log('[BannerAd] Invalid module - BannerAd not found');
           }
           return;
         }
@@ -109,11 +116,12 @@ export default function BannerAd({
         }
         
         setAdReady(true);
+        console.log('[BannerAd] Ready with unit ID:', unitIdToUse);
       })
       .catch((error) => {
         adModuleLoading = false;
         if (__DEV__) {
-          console.log('[BannerAd] Error loading module:', error);
+          console.log('[BannerAd] Error loading module:', error?.message || error);
         }
       });
   }, [unitId]);

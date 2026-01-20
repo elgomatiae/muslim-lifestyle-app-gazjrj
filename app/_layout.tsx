@@ -29,20 +29,23 @@ SplashScreen.preventAutoHideAsync().catch(() => {
 });
 
 // Initialize AdMob (lazy load to avoid crashes in Expo Go)
-// Metro config will stub the module, so this is safe to call
-// In Expo Go, the stub will be used and initialization will be a no-op
+// This will only work in native builds after running: npx expo prebuild
+// In Expo Go, it will gracefully skip initialization
 setTimeout(() => {
   import('@/utils/adConfig')
     .then((module) => {
       module.initializeAds().catch((error) => {
         // Silently fail - this is expected in Expo Go
         if (__DEV__) {
-          console.log('[AdMob] Initialization skipped (using stub in Expo Go)');
+          console.log('[AdMob] Initialization skipped (expected in Expo Go)');
         }
       });
     })
-    .catch(() => {
-      // Ignore import errors
+    .catch((error) => {
+      // Ignore import errors - expected in Expo Go
+      if (__DEV__) {
+        console.log('[AdMob] Import failed (expected in Expo Go)');
+      }
     });
 }, 2000); // Delay to avoid blocking app startup
 

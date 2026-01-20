@@ -108,11 +108,16 @@ export default function ImanTrackerScreen() {
         ]}
       >
         <LinearGradient
-          colors={colors.gradientOcean}
+          colors={['#667EEA', '#764BA2', '#8B5CF6']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={styles.headerGradient}
         >
+          <View style={styles.headerPattern}>
+            <View style={styles.headerPatternCircle1} />
+            <View style={styles.headerPatternCircle2} />
+            <View style={styles.headerPatternCircle3} />
+          </View>
           <Animated.View 
             style={[
               styles.headerContent,
@@ -126,12 +131,17 @@ export default function ImanTrackerScreen() {
               ]}
             >
               <View style={styles.headerIconContainer}>
-                <IconSymbol
-                  ios_icon_name="sparkles"
-                  android_material_icon_name="auto-awesome"
-                  size={48}
-                  color="#FFFFFF"
-                />
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.1)']}
+                  style={styles.headerIconGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="sparkles"
+                    android_material_icon_name="auto-awesome"
+                    size={32}
+                    color="#FFFFFF"
+                  />
+                </LinearGradient>
               </View>
               <View style={styles.headerTextContainer}>
                 <Text style={styles.header}>Iman Tracker</Text>
@@ -142,12 +152,17 @@ export default function ImanTrackerScreen() {
                 onPress={() => router.push('/(tabs)/(iman)/activity')}
                 activeOpacity={0.7}
               >
-                <IconSymbol
-                  ios_icon_name="list.bullet.clipboard.fill"
-                  android_material_icon_name="assignment"
-                  size={24}
-                  color="#FFFFFF"
-                />
+                <LinearGradient
+                  colors={['rgba(255, 255, 255, 0.25)', 'rgba(255, 255, 255, 0.15)']}
+                  style={styles.activityButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="list.bullet.clipboard.fill"
+                    android_material_icon_name="assignment"
+                    size={22}
+                    color="#FFFFFF"
+                  />
+                </LinearGradient>
               </TouchableOpacity>
             </Animated.View>
           </Animated.View>
@@ -216,7 +231,7 @@ export default function ImanTrackerScreen() {
                   size={20}
                   color="#FFFFFF"
                 />
-                <Text style={styles.tabTextActive}>Achievements</Text>
+                <Text style={styles.tabTextActive} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Achievements</Text>
               </LinearGradient>
             ) : (
               <View style={styles.tabInactive}>
@@ -226,7 +241,7 @@ export default function ImanTrackerScreen() {
                   size={20}
                   color={colors.textSecondary}
                 />
-                <Text style={styles.tabText}>Achievements</Text>
+                <Text style={styles.tabText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Achievements</Text>
               </View>
             )}
           </TouchableOpacity>
@@ -246,7 +261,7 @@ export default function ImanTrackerScreen() {
                 size={20}
                 color={colors.textSecondary}
               />
-              <Text style={styles.tabText}>Communities</Text>
+                <Text style={styles.tabText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>Communities</Text>
             </View>
           </TouchableOpacity>
         </View>
@@ -286,10 +301,10 @@ export default function ImanTrackerScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/(tabs)/(iman)/activity' as any);
                 }}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={['#8B5CF6', '#7C3AED']}
+                  colors={['#A78BFA', '#8B5CF6', '#7C3AED']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.quickAccessGradient}
@@ -298,7 +313,7 @@ export default function ImanTrackerScreen() {
                     <IconSymbol
                       ios_icon_name="list.bullet.clipboard.fill"
                       android_material_icon_name="assignment"
-                      size={28}
+                      size={30}
                       color="#FFFFFF"
                     />
                   </View>
@@ -313,10 +328,10 @@ export default function ImanTrackerScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/(tabs)/(iman)/trends' as any);
                 }}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={['#F59E0B', '#D97706']}
+                  colors={['#FBBF24', '#F59E0B', '#D97706']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.quickAccessGradient}
@@ -325,7 +340,7 @@ export default function ImanTrackerScreen() {
                     <IconSymbol
                       ios_icon_name="chart.line.uptrend.xyaxis"
                       android_material_icon_name="trending-up"
-                      size={28}
+                      size={30}
                       color="#FFFFFF"
                     />
                   </View>
@@ -340,10 +355,10 @@ export default function ImanTrackerScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push('/(tabs)/(iman)/goals-settings' as any);
                 }}
-                activeOpacity={0.8}
+                activeOpacity={0.85}
               >
                 <LinearGradient
-                  colors={['#10B981', '#059669']}
+                  colors={['#34D399', '#10B981', '#059669']}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                   style={styles.quickAccessGradient}
@@ -352,7 +367,7 @@ export default function ImanTrackerScreen() {
                     <IconSymbol
                       ios_icon_name="target"
                       android_material_icon_name="flag"
-                      size={28}
+                      size={30}
                       color="#FFFFFF"
                     />
                   </View>
@@ -423,13 +438,65 @@ const styles = StyleSheet.create({
   headerSection: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.xl + 4,
     overflow: 'hidden',
     ...shadows.large,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerGradient: {
     flex: 1,
-    padding: spacing.lg,
+    padding: spacing.lg + 4,
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  headerPattern: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    opacity: 0.15,
+  },
+  headerPatternCircle1: {
+    position: 'absolute',
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#FFFFFF',
+    top: -40,
+    right: -40,
+  },
+  headerPatternCircle2: {
+    position: 'absolute',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#FFFFFF',
+    bottom: -20,
+    left: -20,
+  },
+  headerPatternCircle3: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#FFFFFF',
+    top: '50%',
+    right: 20,
+  },
+  headerIconGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  activityButtonGradient: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 24,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   headerContent: {
@@ -441,12 +508,14 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   headerIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.3)',
   },
   headerTextContainer: {
     flex: 1,
@@ -466,12 +535,15 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)',
   },
   activityButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    overflow: 'hidden',
   },
   tabsContainer: {
     paddingHorizontal: spacing.lg,
@@ -480,11 +552,13 @@ const styles = StyleSheet.create({
   },
   tabsWrapper: {
     flexDirection: 'row',
-    gap: spacing.md,
+    gap: spacing.sm,
     backgroundColor: colors.card,
-    borderRadius: borderRadius.lg,
-    padding: spacing.xs,
-    ...shadows.medium,
+    borderRadius: borderRadius.xl,
+    padding: spacing.xs + 2,
+    ...shadows.large,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tab: {
     flex: 1,
@@ -499,36 +573,42 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
+    minWidth: 0,
+    borderRadius: borderRadius.md,
   },
   tabInactive: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xs,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.xs,
+    paddingVertical: spacing.sm + 2,
+    paddingHorizontal: spacing.sm,
     backgroundColor: 'transparent',
+    minWidth: 0,
+    borderRadius: borderRadius.md,
   },
   tabText: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 12,
     color: colors.textSecondary,
     fontWeight: '600',
+    flexShrink: 1,
   },
   tabTextActive: {
     ...typography.caption,
-    fontSize: 13,
+    fontSize: 12,
     color: '#FFFFFF',
     fontWeight: '700',
+    flexShrink: 1,
   },
   scrollView: {
     flex: 1,
   },
   contentContainer: {
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingTop: spacing.lg,
   },
   bottomPadding: {
     height: 100,
@@ -544,17 +624,20 @@ const styles = StyleSheet.create({
   },
   streakSectionTitle: {
     ...typography.h3,
-    fontSize: 20,
+    fontSize: 22,
     color: colors.text,
-    marginBottom: spacing.md,
-    fontWeight: '700',
+    marginBottom: spacing.lg,
+    fontWeight: '800',
+    letterSpacing: -0.5,
   },
   sectionHeader: {
     ...typography.h3,
     color: colors.text,
-    fontWeight: '700',
-    marginBottom: spacing.md,
+    fontWeight: '800',
+    marginBottom: spacing.lg,
     paddingHorizontal: spacing.xs,
+    fontSize: 22,
+    letterSpacing: -0.5,
   },
   quickAccessGrid: {
     flexDirection: 'row',
@@ -562,56 +645,69 @@ const styles = StyleSheet.create({
   },
   quickAccessCard: {
     flex: 1,
-    borderRadius: borderRadius.xl,
+    borderRadius: borderRadius.xl + 2,
     overflow: 'hidden',
     ...shadows.large,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
   },
   quickAccessGradient: {
-    padding: spacing.lg,
+    padding: spacing.lg + 4,
     alignItems: 'center',
-    minHeight: 130,
+    minHeight: 140,
     justifyContent: 'center',
-    gap: spacing.xs,
+    gap: spacing.sm,
+    position: 'relative',
   },
   quickAccessIconContainer: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255, 255, 255, 0.25)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: spacing.xs,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+    ...shadows.medium,
   },
   quickAccessTitle: {
     ...typography.bodyBold,
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     textAlign: 'center',
     fontWeight: '700',
+    textShadowColor: 'rgba(0, 0, 0, 0.2)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   quickAccessSubtitle: {
     ...typography.caption,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(255, 255, 255, 0.95)',
     textAlign: 'center',
-    fontSize: 11,
+    fontSize: 12,
+    fontWeight: '500',
   },
   sectionDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: spacing.xl,
+    marginVertical: spacing.xxl,
     gap: spacing.md,
+    paddingHorizontal: spacing.xs,
   },
   dividerLine: {
     flex: 1,
-    height: 1,
+    height: 2,
     backgroundColor: colors.border,
+    borderRadius: 1,
   },
   dividerText: {
     ...typography.caption,
     color: colors.textSecondary,
-    fontWeight: '600',
+    fontWeight: '700',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontSize: 11,
+    letterSpacing: 1.5,
+    fontSize: 12,
+    paddingHorizontal: spacing.sm,
   },
 });

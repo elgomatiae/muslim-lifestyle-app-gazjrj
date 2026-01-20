@@ -25,7 +25,7 @@ let mobileAdsModule: any = null;
 const IS_EXPO_GO = isExpoGo();
 
 async function getMobileAds() {
-  // Completely skip in Expo Go - return early before any import
+  // In Expo Go, skip early to avoid attempting import
   if (IS_EXPO_GO) {
     return false;
   }
@@ -35,13 +35,34 @@ async function getMobileAds() {
   }
   
   try {
-    // Import will resolve to stub in Expo Go via Metro config
-    // In native builds, this will be the real module
+    // Metro will redirect this import to our stub module
+    // The stub prevents Metro from trying to load the native module
+    // In Expo Go, we get the stub (which is fine - we skip anyway)
+    // In native builds, Metro still redirects to stub, but we detect it and skip
     const module = await import('react-native-google-mobile-ads');
     
-    // Check if this is the stub (stub has console.log in initialize)
-    // Real module will have native methods
-    if (module && typeof module.default === 'object' && module.default.initialize) {
+    // Check if we got the stub (stub's BannerAd is a function that returns null)
+    // Real module's BannerAd is a component class
+    if (module && typeof module.BannerAd === 'function') {
+      try {
+        const testResult = module.BannerAd();
+        if (testResult === null) {
+          // This is the stub - Metro redirected us here
+          // In native builds, we can't use the stub, so return false
+          // In Expo Go, this is expected and we already check IS_EXPO_GO
+          if (__DEV__) {
+            console.log('[AdMob] Stub module loaded via Metro redirect');
+          }
+          mobileAdsModule = false;
+          return false;
+        }
+      } catch {
+        // BannerAd might be a component class - this is fine, it's the real module
+      }
+    }
+    
+    // Verify we have a valid module
+    if (module && module.default) {
       mobileAdsModule = module;
       return mobileAdsModule;
     }
@@ -49,9 +70,9 @@ async function getMobileAds() {
     mobileAdsModule = false;
     return false;
   } catch (e: any) {
-    // Import failed
+    // Import failed - this is expected in Expo Go
     if (__DEV__) {
-      console.log('[AdMob] Module import failed:', e?.message || e);
+      console.log('[AdMob] Module not available (expected in Expo Go):', e?.message || 'native module required');
     }
     mobileAdsModule = false;
     return false;
@@ -63,7 +84,7 @@ export async function initializeAds() {
   // Skip completely in Expo Go
   if (IS_EXPO_GO) {
     if (__DEV__) {
-      console.log('AdMob skipped - running in Expo Go. Rebuild with native code to enable ads.');
+      console.log('[AdMob] Skipped - running in Expo Go. Rebuild with native code to enable ads.');
     }
     return;
   }
@@ -72,15 +93,19 @@ export async function initializeAds() {
     const module = await getMobileAds();
     if (!module || !module.default) {
       if (__DEV__) {
-        console.log('AdMob not available - native module not loaded. Run: npx expo prebuild');
+        console.log('[AdMob] Not available - native module required. Run: npx expo prebuild');
       }
       return;
     }
-    await module.default().initialize();
-    console.log('AdMob initialized successfully');
-  } catch (error) {
+    
+    // Initialize AdMob SDK
+    // In react-native-google-mobile-ads, we use mobileAds().initialize()
+    const mobileAds = module.default;
+    await mobileAds().initialize();
+    console.log('[AdMob] Initialized successfully');
+  } catch (error: any) {
     if (__DEV__) {
-      console.error('Error initializing AdMob:', error);
+      console.error('[AdMob] Initialization error:', error?.message || error);
     }
     // Don't crash the app if AdMob fails to initialize
   }
@@ -124,8 +149,8 @@ export const PRODUCTION_AD_UNITS = {
     android: 'ca-app-pub-3940256099942544/1033173712', // Using test ID - create interstitial ad unit in AdMob
   },
   rewarded: {
-    ios: 'ca-app-pub-2757517181313212/8725693825', // Your rewarded interstitial ad unit ID
-    android: 'ca-app-pub-2757517181313212/8725693825', // Your rewarded interstitial ad unit ID
+    ios: 'ca-app-pub-2757517181313212/8725693825', // Rewarded Interstitial Ad Unit ID
+    android: 'ca-app-pub-2757517181313212/8725693825', // Rewarded Interstitial Ad Unit ID
   },
 };
 
@@ -164,6 +189,7 @@ export async function loadInterstitialAd() {
   }
   
   try {
+    // Metro will redirect this import to our stub module
     const adModule = await import('react-native-google-mobile-ads').catch(() => null);
     
     if (!adModule || !adModule.InterstitialAd) {
@@ -211,7 +237,26 @@ export async function showInterstitialAd(): Promise<boolean> {
 }
 
 /**
- * Load a rewarded ad
+ * Check if we have the real native module (not the stub)
+ * Real module's default export is a function (mobileAds()), stub's is an object
+ */
+function isRealModule(adModule: any): boolean {
+  if (!adModule) return false;
+  
+  // Real module's default export is a function: mobileAds()
+  // Stub's default export is an object: { initialize: ... }
+  if (adModule.default) {
+    return typeof adModule.default === 'function';
+  }
+  
+  // Fallback: check if RewardedInterstitialAd exists and has proper methods
+  return adModule.RewardedInterstitialAd && 
+         typeof adModule.RewardedInterstitialAd.createForAdRequest === 'function';
+}
+
+/**
+ * Load a rewarded interstitial ad
+ * Note: Using RewardedInterstitialAd since your ad unit ID is for rewarded interstitial
  */
 export async function loadRewardedAd() {
   // Skip completely in Expo Go
@@ -220,30 +265,58 @@ export async function loadRewardedAd() {
   }
   
   try {
-    const adModule = await import('react-native-google-mobile-ads').catch(() => null);
+    // Try to load real module - use require to bypass Metro redirect
+    let adModule: any;
+    try {
+      adModule = require('react-native-google-mobile-ads');
+    } catch {
+      // If require fails, try import (will get stub in Expo Go)
+      adModule = await import('react-native-google-mobile-ads').catch(() => null);
+    }
     
-    if (!adModule || !adModule.RewardedAd) {
+    if (!adModule) {
+      if (__DEV__) {
+        console.log('[AdMob] Module not available');
+      }
       return;
     }
     
-    const { RewardedAd } = adModule;
-    rewardedAd = RewardedAd.createForAdRequest(getAdUnitId('rewarded'), {
+    // Check if we have the real module (not stub)
+    if (!isRealModule(adModule)) {
+      if (__DEV__) {
+        console.log('[AdMob] Stub module detected - this should not happen in native builds');
+        console.log('[AdMob] If you rebuilt with native code, try: npx expo start --clear');
+      }
+      return;
+    }
+    
+    // Use RewardedInterstitialAd instead of RewardedAd
+    // This matches your ad unit ID: ca-app-pub-2757517181313212/8725693825
+    const { RewardedInterstitialAd } = adModule;
+    
+    if (!RewardedInterstitialAd) {
+      if (__DEV__) {
+        console.warn('[AdMob] RewardedInterstitialAd not available');
+      }
+      return;
+    }
+    
+    rewardedAd = RewardedInterstitialAd.createForAdRequest(getAdUnitId('rewarded'), {
       requestNonPersonalizedAdsOnly: true,
     });
 
     // Preload the ad
     await rewardedAd.load();
-    console.log('Rewarded ad loaded');
+    console.log('[AdMob] Rewarded interstitial ad loaded');
   } catch (error: any) {
-    // Silently fail - don't log in production
     if (__DEV__) {
-      console.error('Error loading rewarded ad:', error?.message || error);
+      console.error('[AdMob] Error loading rewarded ad:', error?.message || error);
     }
   }
 }
 
 /**
- * Show a rewarded ad
+ * Show a rewarded interstitial ad
  * @param onReward Callback when user earns reward
  */
 export async function showRewardedAd(
@@ -251,42 +324,96 @@ export async function showRewardedAd(
 ): Promise<boolean> {
   // Skip completely in Expo Go
   if (IS_EXPO_GO) {
+    if (__DEV__) {
+      console.log('[AdMob] Cannot show ad in Expo Go - native module required');
+    }
     return false;
   }
   
   try {
-    // Check if native module is available
-    const adModule = await import('react-native-google-mobile-ads').catch(() => null);
+    // Try to load real module - use require to bypass Metro redirect
+    let adModule: any;
+    try {
+      adModule = require('react-native-google-mobile-ads');
+    } catch {
+      // If require fails, try import (will get stub in Expo Go)
+      adModule = await import('react-native-google-mobile-ads').catch(() => null);
+    }
     
     if (!adModule) {
+      if (__DEV__) {
+        console.log('[AdMob] Module not available');
+      }
+      return false;
+    }
+    
+    // Check if we have the real module (not stub)
+    if (!isRealModule(adModule)) {
+      if (__DEV__) {
+        console.log('[AdMob] Stub module detected - this should not happen in native builds');
+        console.log('[AdMob] If you rebuilt with native code, try: npx expo start --clear');
+      }
       return false;
     }
 
+    // Load ad if not already loaded
     if (!rewardedAd) {
       await loadRewardedAd();
     }
 
+    // Check if ad is loaded and ready
     if (rewardedAd && rewardedAd.loaded) {
+      // RewardedInterstitialAd uses RewardedAdEventType (same as RewardedAd)
       const { RewardedAdEventType } = adModule;
       
-      // Set up reward listener
+      if (!RewardedAdEventType) {
+        if (__DEV__) {
+          console.error('[AdMob] RewardedAdEventType not available');
+        }
+        return false;
+      }
+      
+      // Set up reward listener before showing
       if (onReward) {
-        const unsubscribe = rewardedAd.addAdEventListener(RewardedAdEventType.EARNED_REWARD, (reward) => {
-          onReward(reward);
-          unsubscribe();
-        });
+        const unsubscribeReward = rewardedAd.addAdEventListener(
+          RewardedAdEventType.EARNED_REWARD,
+          (reward: any) => {
+            console.log('[AdMob] Reward earned:', reward);
+            onReward(reward);
+            unsubscribeReward();
+          }
+        );
+        
+        // Also handle ad dismissed event to reload
+        rewardedAd.addAdEventListener(
+          RewardedAdEventType.DISMISSED,
+          () => {
+            console.log('[AdMob] Ad dismissed');
+            // Reload for next time
+            loadRewardedAd().catch(() => {});
+          }
+        );
       }
 
+      // Show the ad
       await rewardedAd.show();
-      // Reload for next time
-      await loadRewardedAd();
+      console.log('[AdMob] Rewarded interstitial ad shown');
+      
       return true;
     } else {
+      if (__DEV__) {
+        console.log('[AdMob] Ad not loaded yet. Loading...');
+      }
+      // Try to load and show
+      await loadRewardedAd();
+      if (rewardedAd && rewardedAd.loaded) {
+        return await showRewardedAd(onReward);
+      }
       return false;
     }
   } catch (error: any) {
     if (__DEV__) {
-      console.error('Error showing rewarded ad:', error?.message || error);
+      console.error('[AdMob] Error showing rewarded ad:', error?.message || error);
     }
     return false;
   }

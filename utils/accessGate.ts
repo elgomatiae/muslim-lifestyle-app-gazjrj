@@ -111,13 +111,31 @@ export async function checkAccessGate(
     // Return false - access will be granted after ad completes
     return false;
   } catch (error) {
-    // AdMob module not available (Expo Go)
-    console.log('AdMob not available:', error);
-    Alert.alert(
-      'Feature Unavailable',
-      'This feature requires watching an ad. Please rebuild the app with native code to enable ads.',
-      [{ text: 'OK', onPress: () => onCancelled?.() }]
-    );
+    // AdMob module not available or failed to load
+    console.error('AdMob error:', error);
+    
+    // Check if we're in Expo Go
+    let isExpoGo = false;
+    try {
+      const Constants = require('expo-constants');
+      isExpoGo = Constants.executionEnvironment === 'storeClient';
+    } catch {
+      // Can't determine, show generic message
+    }
+    
+    if (isExpoGo) {
+      Alert.alert(
+        'Ads Not Available in Expo Go',
+        'Ads require a development build with native code. Please build the app using:\n\nnpx expo run:ios\n\nor\n\neas build --profile development --platform ios',
+        [{ text: 'OK', onPress: () => onCancelled?.() }]
+      );
+    } else {
+      Alert.alert(
+        'Ad Not Available',
+        'Unable to load ad. Please check your connection and try again. If the problem persists, the app may need to be restarted.',
+        [{ text: 'OK', onPress: () => onCancelled?.() }]
+      );
+    }
     return false;
   }
 }

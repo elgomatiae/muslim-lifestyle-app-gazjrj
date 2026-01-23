@@ -21,33 +21,11 @@ import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-// Ad managers are loaded conditionally to avoid crashes in Expo Go
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore errors if splash screen is already prevented
 });
-
-// Initialize AdMob (lazy load to avoid crashes in Expo Go)
-// This will only work in native builds after running: npx expo prebuild
-// In Expo Go, it will gracefully skip initialization
-setTimeout(() => {
-  import('@/utils/adConfig')
-    .then((module) => {
-      module.initializeAds().catch((error) => {
-        // Silently fail - this is expected in Expo Go
-        if (__DEV__) {
-          console.log('[AdMob] Initialization skipped (expected in Expo Go)');
-        }
-      });
-    })
-    .catch((error) => {
-      // Ignore import errors - expected in Expo Go
-      if (__DEV__) {
-        console.log('[AdMob] Import failed (expected in Expo Go)');
-      }
-    });
-}, 2000); // Delay to avoid blocking app startup
 
 export const unstable_settings = {
   initialRouteName: "index", // Start at index which checks auth and redirects
@@ -137,10 +115,6 @@ export default function RootLayout() {
 
                     </Stack>
                     <SystemBars style={"auto"} />
-                    {/* Ad managers disabled in Expo Go - enable after rebuilding with native code */}
-                    {/* Uncomment after running: npx expo prebuild && npx expo run:ios/android */}
-                    {/* <InterstitialAdManager />
-                    <RewardedAdManager /> */}
                     </GestureHandlerRootView>
                   </WidgetProvider>
                 </ImanTrackerProvider>

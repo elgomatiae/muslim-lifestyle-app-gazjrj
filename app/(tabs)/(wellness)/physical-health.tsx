@@ -64,6 +64,11 @@ export default function PhysicalHealthScreen() {
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [workoutDurations, setWorkoutDurations] = useState<WorkoutDurations>({});
   
+  // Modal state for workout type selection
+  const [showWorkoutTypeModal, setShowWorkoutTypeModal] = useState(false);
+  const [pendingMinutes, setPendingMinutes] = useState<number | null>(null);
+  const [selectedWorkoutType, setSelectedWorkoutType] = useState<string>('');
+  
   // Animation values
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
   const slideAnim = React.useRef(new Animated.Value(50)).current;
@@ -250,6 +255,32 @@ export default function PhysicalHealthScreen() {
     setShowWorkoutModal(true);
   };
 
+  const handleQuickExercise = (minutes: number) => {
+    if (!goals?.workout_enabled) return;
+    
+    const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    
+    // If only one workout type, log directly
+    if (workoutTypes.length === 1) {
+      addSingleExerciseSession(minutes, workoutTypes[0]);
+      return;
+    }
+    
+    // Multiple workout types - show selection modal
+    setPendingMinutes(minutes);
+    setSelectedWorkoutType(workoutTypes[0]); // Default to first type
+    setShowWorkoutTypeModal(true);
+  };
+
+  const confirmQuickExercise = async () => {
+    if (pendingMinutes === null || !selectedWorkoutType) return;
+    
+    setShowWorkoutTypeModal(false);
+    await addSingleExerciseSession(pendingMinutes, selectedWorkoutType);
+    setPendingMinutes(null);
+    setSelectedWorkoutType('');
+  };
+
   const addExerciseSession = async () => {
     if (!user || !goals?.workout_enabled) return;
     
@@ -257,7 +288,7 @@ export default function PhysicalHealthScreen() {
     
     // If only one workout type, use quick add
     if (workoutTypes.length === 1) {
-      await addSingleExerciseSession(30);
+      await addSingleExerciseSession(30, workoutTypes[0]);
       return;
     }
     
@@ -265,12 +296,13 @@ export default function PhysicalHealthScreen() {
     openWorkoutModal();
   };
 
-  const addSingleExerciseSession = async (minutes: number) => {
+  const addSingleExerciseSession = async (minutes: number, workoutType?: string) => {
     if (!user || minutes <= 0 || !goals?.workout_enabled) return;
     
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     
     const workoutTypes = goals.workout_types || [goals.workout_type || 'general'];
+    const selectedType = workoutType || workoutTypes[0] || 'general';
     const today = new Date().toISOString().split('T')[0];
     
     try {
@@ -278,10 +310,10 @@ export default function PhysicalHealthScreen() {
         .from('physical_activities')
         .insert({
           user_id: user.id,
-          activity_type: workoutTypes[0] || 'general',
+          activity_type: selectedType,
           duration_minutes: minutes,
-          workout_type: workoutTypes[0] || 'general',
-          workout_types: workoutTypes,
+          workout_type: selectedType,
+          workout_types: [selectedType],
           is_multi_workout: false,
           date: today, // Ensure date is set for proper tracking
         });
@@ -299,13 +331,14 @@ export default function PhysicalHealthScreen() {
           // Log to activity_log for achievements
           if (user) {
             try {
+              const workoutTypeLabel = WORKOUT_TYPES.find(t => t.value === selectedType)?.label || 'Exercise';
               const { logActivity } = await import('@/utils/activityLogger');
               await logActivity({
                 userId: user.id,
                 activityType: 'workout_completed',
                 activityCategory: 'amanah',
                 activityTitle: 'Workout Completed',
-                activityDescription: `Completed ${minutes} minute(s) workout`,
+                activityDescription: `Completed ${minutes} minute(s) of ${workoutTypeLabel}`,
                 activityValue: 1,
                 pointsEarned: 15,
               });
@@ -329,13 +362,14 @@ export default function PhysicalHealthScreen() {
       // Directly log workout to activity_log for achievements
       if (user) {
         try {
+          const workoutTypeLabel = WORKOUT_TYPES.find(t => t.value === selectedType)?.label || 'Exercise';
           const { logActivity } = await import('@/utils/activityLogger');
           await logActivity({
             userId: user.id,
             activityType: 'workout_completed',
             activityCategory: 'amanah',
             activityTitle: 'Workout Completed',
-            activityDescription: `Completed ${minutes} minute(s) workout`,
+            activityDescription: `Completed ${minutes} minute(s) of ${workoutTypeLabel}`,
             activityValue: 1, // 1 session
             pointsEarned: 15,
           });
@@ -862,7 +896,7 @@ export default function PhysicalHealthScreen() {
                 <View style={styles.quickActionButtons}>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addSingleExerciseSession(15)}
+                    onPress={() => handleQuickExercise(15)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -876,7 +910,7 @@ export default function PhysicalHealthScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addSingleExerciseSession(30)}
+                    onPress={() => handleQuickExercise(30)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -890,7 +924,7 @@ export default function PhysicalHealthScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={styles.quickButton}
-                    onPress={() => addSingleExerciseSession(60)}
+                    onPress={() => handleQuickExercise(60)}
                     activeOpacity={0.7}
                   >
                     <LinearGradient
@@ -1209,6 +1243,123 @@ export default function PhysicalHealthScreen() {
       </View>
 
       <View style={styles.bottomPadding} />
+
+      {/* Workout Type Selection Modal */}
+      <Modal
+        visible={showWorkoutTypeModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowWorkoutTypeModal(false);
+          setPendingMinutes(null);
+          setSelectedWorkoutType('');
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Select Workout Type</Text>
+              <TouchableOpacity onPress={() => {
+                setShowWorkoutTypeModal(false);
+                setPendingMinutes(null);
+                setSelectedWorkoutType('');
+              }}>
+                <IconSymbol
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="cancel"
+                  size={28}
+                  color={colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalSubtitle}>
+              Choose the type of exercise you completed ({pendingMinutes} minutes)
+            </Text>
+
+            <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+              {(goals?.workout_types || [goals?.workout_type || 'general']).map((type, index) => {
+                const workoutType = WORKOUT_TYPES.find(t => t.value === type);
+                if (!workoutType) return null;
+
+                const isSelected = selectedWorkoutType === type;
+
+                return (
+                  <TouchableOpacity
+                    key={index}
+                    style={[
+                      styles.workoutTypeSelectionCard,
+                      isSelected && styles.workoutTypeSelectionCardActive,
+                    ]}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedWorkoutType(type);
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.workoutTypeSelectionContent}>
+                      <View style={[
+                        styles.workoutTypeSelectionIcon,
+                        isSelected && styles.workoutTypeSelectionIconActive,
+                      ]}>
+                        <IconSymbol
+                          ios_icon_name={workoutType.icon.ios}
+                          android_material_icon_name={workoutType.icon.android}
+                          size={32}
+                          color={isSelected ? colors.card : colors.warning}
+                        />
+                      </View>
+                      <Text style={[
+                        styles.workoutTypeSelectionLabel,
+                        isSelected && styles.workoutTypeSelectionLabelActive,
+                      ]}>
+                        {workoutType.label}
+                      </Text>
+                      {isSelected && (
+                        <View style={styles.workoutTypeSelectionCheckmark}>
+                          <IconSymbol
+                            ios_icon_name="checkmark.circle.fill"
+                            android_material_icon_name="check-circle"
+                            size={24}
+                            color={colors.warning}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.modalFooter}>
+              <TouchableOpacity
+                style={[
+                  styles.modalSaveButton,
+                  !selectedWorkoutType && styles.modalSaveButtonDisabled,
+                ]}
+                onPress={confirmQuickExercise}
+                activeOpacity={0.8}
+                disabled={!selectedWorkoutType}
+              >
+                <LinearGradient
+                  colors={selectedWorkoutType ? colors.gradientWarning : [colors.border, colors.border]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.modalSaveButtonGradient}
+                >
+                  <IconSymbol
+                    ios_icon_name="checkmark.circle.fill"
+                    android_material_icon_name="check-circle"
+                    size={20}
+                    color={colors.card}
+                  />
+                  <Text style={styles.modalSaveButtonText}>Log Exercise</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* Multi-Workout Modal */}
       <Modal
@@ -1739,5 +1890,48 @@ const styles = StyleSheet.create({
   modalSaveButtonText: {
     ...typography.h4,
     color: colors.card,
+  },
+  modalSaveButtonDisabled: {
+    opacity: 0.5,
+  },
+  workoutTypeSelectionCard: {
+    backgroundColor: colors.highlight,
+    borderRadius: borderRadius.md,
+    padding: spacing.lg,
+    marginBottom: spacing.md,
+    borderWidth: 2,
+    borderColor: colors.border,
+  },
+  workoutTypeSelectionCardActive: {
+    borderColor: colors.warning,
+    backgroundColor: colors.warning + '20',
+  },
+  workoutTypeSelectionContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  workoutTypeSelectionIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: borderRadius.round,
+    backgroundColor: colors.warning + '20',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  workoutTypeSelectionIconActive: {
+    backgroundColor: colors.warning,
+  },
+  workoutTypeSelectionLabel: {
+    ...typography.h4,
+    color: colors.text,
+    flex: 1,
+  },
+  workoutTypeSelectionLabelActive: {
+    color: colors.warning,
+    fontWeight: '700',
+  },
+  workoutTypeSelectionCheckmark: {
+    marginLeft: 'auto',
   },
 });

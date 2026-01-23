@@ -156,7 +156,7 @@ export default function CommunityDetailScreen() {
           <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
             <IconSymbol
               ios_icon_name="chevron.left"
-              android_material_icon_name="arrow_back"
+              android_material_icon_name="arrow-back"
               size={24}
               color={colors.text}
             />
@@ -318,7 +318,7 @@ export default function CommunityDetailScreen() {
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <IconSymbol
             ios_icon_name="chevron.left"
-            android_material_icon_name="arrow_back"
+            android_material_icon_name="arrow-back"
             size={24}
             color={colors.text}
           />
@@ -339,7 +339,7 @@ export default function CommunityDetailScreen() {
             >
               <IconSymbol
                 ios_icon_name="person.badge.plus"
-                android_material_icon_name="person_add"
+                android_material_icon_name="person-add"
                 size={24}
                 color={colors.primary}
               />
@@ -367,7 +367,7 @@ export default function CommunityDetailScreen() {
           >
             <IconSymbol
               ios_icon_name="trophy.fill"
-              android_material_icon_name="emoji_events"
+              android_material_icon_name="emoji-events"
               size={20}
               color={showLeaderboard ? '#fff' : colors.textSecondary}
             />
@@ -409,7 +409,7 @@ export default function CommunityDetailScreen() {
                 >
                   <IconSymbol
                     ios_icon_name="trophy.fill"
-                    android_material_icon_name="emoji_events"
+                    android_material_icon_name="emoji-events"
                     size={48}
                     color="#fff"
                   />
@@ -497,7 +497,7 @@ export default function CommunityDetailScreen() {
                     <View style={styles.podiumGlowFirst} />
                     <IconSymbol
                       ios_icon_name="crown.fill"
-                      android_material_icon_name="workspace_premium"
+                      android_material_icon_name="workspace-premium"
                       size={32}
                       color="#FFD700"
                       style={styles.crownIcon}
@@ -631,8 +631,8 @@ export default function CommunityDetailScreen() {
                           {member.role === 'admin' && (
                             <LinearGradient
                               colors={isCurrentUser 
-                                ? ['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)']
-                                : colors.gradientPrimary
+                                ? ['rgba(255,255,255,0.3)', 'rgba(255,255,255,0.1)'] as const
+                                : colors.gradientPrimary as any
                               }
                               style={[styles.adminBadge, isCurrentUser && styles.adminBadgeHighlight]}
                             >

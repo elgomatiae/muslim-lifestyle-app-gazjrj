@@ -694,6 +694,7 @@ export default function GoalsSettingsScreen() {
     const currentValue = currentGoals[config.goalField as keyof typeof currentGoals] as number;
     const isEnabled = currentValue > 0;
     const currentFreq = config.currentFrequency || config.defaultFrequency;
+    const isExerciseGoal = config.id === 'exercise' && activeSection === 'amanah';
 
     return (
       <View key={config.id} style={styles.goalItem}>
@@ -714,6 +715,63 @@ export default function GoalsSettingsScreen() {
 
         {isEnabled && (
           <View style={styles.goalControls}>
+            {/* Workout Type Selection for Exercise Goal */}
+            {isExerciseGoal && (
+              <View style={styles.workoutTypeSelectionInline}>
+                <Text style={styles.workoutTypeSelectionLabel}>Select Workout Types:</Text>
+                <Text style={styles.workoutTypeSelectionHint}>
+                  Choose the types of exercises you want to track
+                </Text>
+                <View style={styles.workoutTypesGridInline}>
+                  {WORKOUT_TYPES.map((type, index) => (
+                    <TouchableOpacity
+                      key={`workout-type-inline-${type.value}-${index}`}
+                      style={[
+                        styles.workoutTypeCardInline,
+                        selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardInlineActive,
+                      ]}
+                      onPress={() => toggleWorkoutType(type.value)}
+                      activeOpacity={0.7}
+                    >
+                      <IconSymbol
+                        ios_icon_name={type.icon.ios}
+                        android_material_icon_name={type.icon.android}
+                        size={20}
+                        color={selectedWorkoutTypes.includes(type.value) ? colors.accent : colors.textSecondary}
+                      />
+                      <Text style={[
+                        styles.workoutTypeLabelInline,
+                        selectedWorkoutTypes.includes(type.value) && styles.workoutTypeLabelInlineActive,
+                      ]}>
+                        {type.label}
+                      </Text>
+                      {selectedWorkoutTypes.includes(type.value) && (
+                        <View style={styles.checkmarkBadgeInline}>
+                          <IconSymbol
+                            ios_icon_name="checkmark"
+                            android_material_icon_name="check"
+                            size={10}
+                            color={colors.card}
+                          />
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <View style={styles.selectedTypesInfoInline}>
+                  <IconSymbol
+                    ios_icon_name="info.circle"
+                    android_material_icon_name="info"
+                    size={14}
+                    color={colors.accent}
+                  />
+                  <Text style={styles.selectedTypesTextInline}>
+                    {selectedWorkoutTypes.length} type{selectedWorkoutTypes.length !== 1 ? 's' : ''} selected
+                  </Text>
+                </View>
+              </View>
+            )}
+
             {/* Frequency Toggle */}
             <View style={styles.frequencyToggle}>
               <Text style={styles.frequencyLabel}>Frequency:</Text>
@@ -960,69 +1018,6 @@ export default function GoalsSettingsScreen() {
           </View>
         )}
 
-        {activeSection === 'amanah' && (
-          <View style={styles.workoutTypeSection}>
-            <View style={styles.workoutTypeHeader}>
-              <IconSymbol
-                ios_icon_name="figure.mixed.cardio"
-                android_material_icon_name="fitness-center"
-                size={24}
-                color={colors.accent}
-              />
-              <Text style={styles.workoutTypeTitle}>Workout Types (Select Multiple)</Text>
-            </View>
-            <Text style={styles.workoutTypeDescription}>
-              Select all workout types you want to track. You can choose multiple types to match your fitness routine.
-            </Text>
-            <View style={styles.workoutTypesGrid}>
-              {WORKOUT_TYPES.map((type, index) => (
-                <TouchableOpacity
-                  key={`workout-type-${type.value}-${index}`}
-                  style={[
-                    styles.workoutTypeCard,
-                    selectedWorkoutTypes.includes(type.value) && styles.workoutTypeCardActive,
-                  ]}
-                  onPress={() => toggleWorkoutType(type.value)}
-                  activeOpacity={0.7}
-                >
-                  <IconSymbol
-                    ios_icon_name={type.icon.ios}
-                    android_material_icon_name={type.icon.android}
-                    size={32}
-                    color={selectedWorkoutTypes.includes(type.value) ? colors.accent : colors.textSecondary}
-                  />
-                  <Text style={[
-                    styles.workoutTypeLabel,
-                    selectedWorkoutTypes.includes(type.value) && styles.workoutTypeLabelActive,
-                  ]}>
-                    {type.label}
-                  </Text>
-                  {selectedWorkoutTypes.includes(type.value) && (
-                    <View style={styles.checkmarkBadge}>
-                      <IconSymbol
-                        ios_icon_name="checkmark"
-                        android_material_icon_name="check"
-                        size={12}
-                        color={colors.card}
-                      />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
-            </View>
-            <View style={styles.selectedTypesInfo}>
-              <IconSymbol
-                ios_icon_name="info.circle"
-                android_material_icon_name="info"
-                size={16}
-                color={colors.accent}
-              />
-              <Text style={styles.selectedTypesText}>
-                {selectedWorkoutTypes.length} type{selectedWorkoutTypes.length !== 1 ? 's' : ''} selected
-              </Text>
-            </View>
-          </View>
-        )}
 
         <View style={styles.goalsSection}>
           <Text style={styles.goalsSectionTitle}>
@@ -1379,5 +1374,78 @@ const styles = StyleSheet.create({
   },
   bottomPadding: {
     height: 100,
+  },
+  workoutTypeSelectionInline: {
+    marginBottom: spacing.md,
+    paddingBottom: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  workoutTypeSelectionLabel: {
+    ...typography.bodyBold,
+    color: colors.text,
+    marginBottom: spacing.xs,
+  },
+  workoutTypeSelectionHint: {
+    ...typography.caption,
+    color: colors.textSecondary,
+    marginBottom: spacing.sm,
+  },
+  workoutTypesGridInline: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginBottom: spacing.sm,
+  },
+  workoutTypeCardInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    backgroundColor: colors.highlight,
+    borderRadius: borderRadius.sm,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    position: 'relative',
+    minWidth: 100,
+  },
+  workoutTypeCardInlineActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.accent + '20',
+  },
+  workoutTypeLabelInline: {
+    ...typography.small,
+    color: colors.textSecondary,
+    fontSize: 11,
+  },
+  workoutTypeLabelInlineActive: {
+    color: colors.accent,
+    fontWeight: '700',
+  },
+  checkmarkBadgeInline: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.card,
+  },
+  selectedTypesInfoInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  selectedTypesTextInline: {
+    ...typography.caption,
+    color: colors.accent,
+    fontWeight: '600',
+    fontSize: 11,
   },
 });

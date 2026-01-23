@@ -280,44 +280,10 @@ export default function WellnessScreen() {
 
   const activeCards = activeTab === 'mental' ? mentalHealthCards : physicalHealthCards;
 
-  // Map routes to access gate features
-  const getFeatureFromRoute = (route: string): string | null => {
-    if (route.includes('journal')) return 'wellness_journal';
-    if (route.includes('meditation')) return 'wellness_meditation';
-    if (route.includes('mental-duas')) return 'wellness_duas';
-    if (route.includes('emotional-support')) return 'wellness_support';
-    if (route.includes('activity-tracker')) return 'wellness_activity';
-    if (route.includes('sleep-tracker')) return 'wellness_sleep';
-    if (route.includes('physical-goals')) return 'wellness_goals';
-    if (route.includes('activity-history')) return 'wellness_history';
-    return null;
-  };
-
-  const handleCardPress = async (route: string) => {
+  const handleCardPress = (route: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    
-    const feature = getFeatureFromRoute(route);
-    
-    if (feature) {
-      // Check access gate
-      const { checkAccessGate } = await import('@/utils/accessGate');
-      const hasAccess = await checkAccessGate(
-        feature as any,
-        () => {
-          // Access granted, navigate
-          router.push(route as any);
-        },
-        () => {
-          // User cancelled or ad failed
-        }
-      );
-      if (hasAccess) {
-        router.push(route as any);
-      }
-    } else {
-      // No access gate needed, navigate directly
-      router.push(route as any);
-    }
+    // Navigate directly - no access gates
+    router.push(route as any);
   };
 
   return (

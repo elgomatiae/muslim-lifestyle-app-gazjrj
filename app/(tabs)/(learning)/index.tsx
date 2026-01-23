@@ -131,7 +131,7 @@ export default function LearningScreen() {
     },
   ];
 
-  const handleSectionPress = async (section: LearningSection) => {
+  const handleSectionPress = (section: LearningSection) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     
     if (!section.route) {
@@ -139,41 +139,8 @@ export default function LearningScreen() {
       return;
     }
 
-    // Check access gate for lectures and recitations
-    const { checkAccessGate } = await import('@/utils/accessGate');
-    
-    if (section.route.includes('lectures')) {
-      const hasAccess = await checkAccessGate(
-        'lectures',
-        () => {
-          // Access granted, navigate
-          router.push(section.route as any);
-        },
-        () => {
-          // User cancelled or ad failed
-        }
-      );
-      if (hasAccess) {
-        router.push(section.route as any);
-      }
-    } else if (section.route.includes('recitations')) {
-      const hasAccess = await checkAccessGate(
-        'recitations',
-        () => {
-          // Access granted, navigate
-          router.push(section.route as any);
-        },
-        () => {
-          // User cancelled or ad failed
-        }
-      );
-      if (hasAccess) {
-        router.push(section.route as any);
-      }
-    } else {
-      // Other routes don't need access gate
-      router.push(section.route as any);
-    }
+    // Navigate directly - no access gates
+    router.push(section.route as any);
   };
 
   return (

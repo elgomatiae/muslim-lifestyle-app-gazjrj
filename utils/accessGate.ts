@@ -1,24 +1,20 @@
 /**
- * ============================================================================
- * ACCESS GATE SYSTEM
- * ============================================================================
- * 
- * Manages access gates that require watching ads to unlock features
+ * Access Gate Utility
+ * Manages feature unlocking via rewarded ads
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
-// Lazy import adConfig to avoid loading AdMob module in Expo Go
+import { showRewardedAd } from './adConfig';
 
-// Feature keys for AsyncStorage
-const ACCESS_GATE_STORAGE_KEY = '@access_gates_unlocked';
+const STORAGE_KEY = '@access_gates_unlocked';
 
-// Features that require ad access
-export type GatedFeature = 
+/**
+ * Gated feature types
+ */
+export type GatedFeature =
   | 'lectures'
   | 'recitations'
-  | 'wellness_mental'
-  | 'wellness_physical'
   | 'wellness_journal'
   | 'wellness_meditation'
   | 'wellness_duas'
@@ -28,20 +24,16 @@ export type GatedFeature =
   | 'wellness_goals'
   | 'wellness_history';
 
-interface UnlockedFeatures {
-  [key: string]: boolean;
-}
-
 /**
- * Check if a feature is unlocked
+ * Check if a feature is already unlocked
  */
 export async function isFeatureUnlocked(feature: GatedFeature): Promise<boolean> {
   try {
-    const stored = await AsyncStorage.getItem(ACCESS_GATE_STORAGE_KEY);
-    if (!stored) return false;
-    
-    const unlocked: UnlockedFeatures = JSON.parse(stored);
-    return unlocked[feature] === true;
+    const unlockedStr = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!unlockedStr) return false;
+
+    const unlocked: string[] = JSON.parse(unlockedStr);
+    return unlocked.includes(feature);
   } catch (error) {
     console.error('Error checking feature unlock status:', error);
     return false;
@@ -49,114 +41,131 @@ export async function isFeatureUnlocked(feature: GatedFeature): Promise<boolean>
 }
 
 /**
- * Unlock a feature (after watching ad)
+ * Unlock a feature (mark as unlocked in storage)
  */
-export async function unlockFeature(feature: GatedFeature): Promise<void> {
+async function unlockFeature(feature: GatedFeature): Promise<void> {
   try {
-    const stored = await AsyncStorage.getItem(ACCESS_GATE_STORAGE_KEY);
-    const unlocked: UnlockedFeatures = stored ? JSON.parse(stored) : {};
-    
-    unlocked[feature] = true;
-    await AsyncStorage.setItem(ACCESS_GATE_STORAGE_KEY, JSON.stringify(unlocked));
+    const unlockedStr = await AsyncStorage.getItem(STORAGE_KEY);
+    const unlocked: string[] = unlockedStr ? JSON.parse(unlockedStr) : [];
+
+    if (!unlocked.includes(feature)) {
+      unlocked.push(feature);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(unlocked));
+      console.log(`[AccessGate] Feature unlocked: ${feature}`);
+    }
   } catch (error) {
     console.error('Error unlocking feature:', error);
   }
 }
 
 /**
- * Check if user can access a feature, and show ad if needed
- * @param feature The feature to check
- * @param onUnlocked Callback when feature is unlocked (after ad)
- * @param onCancelled Callback when user cancels or ad fails
- * @returns true if already unlocked, false if needs ad
+ * Check access gate for a feature
+ * Shows ad if feature is locked, then unlocks it
+ * 
+ * @param feature The feature to check access for
+ * @param onSuccess Callback when access is granted
+ * @param onCancel Callback when user cancels or ad fails
+ * @returns Promise<boolean> - true if access is granted, false otherwise
  */
 export async function checkAccessGate(
   feature: GatedFeature,
-  onUnlocked?: () => void,
-  onCancelled?: () => void
+  onSuccess?: () => void,
+  onCancel?: () => void
 ): Promise<boolean> {
-  // Check if already unlocked
-  const isUnlocked = await isFeatureUnlocked(feature);
-  if (isUnlocked) {
-    return true;
-  }
-
-  // Lazy load ad config to avoid crashes in Expo Go
   try {
-    const adConfig = await import('./adConfig');
-    const showRewardedAd = adConfig.showRewardedAd;
-    
-    // Show ad to unlock
-    const adShown = await showRewardedAd((reward) => {
-      // User watched the ad and earned reward
-      unlockFeature(feature).then(() => {
-        Alert.alert(
-          'Access Granted! 🎉',
-          'You now have access to this feature!',
-          [{ text: 'OK', onPress: () => onUnlocked?.() }]
-        );
-      });
+    // Check if already unlocked
+    const isUnlocked = await isFeatureUnlocked(feature);
+    if (isUnlocked) {
+      console.log(`[AccessGate] Feature already unlocked: ${feature}`);
+      // Don't call onSuccess here - let the caller handle navigation
+      return true;
+    }
+
+    // Show confirmation modal
+    return new Promise((resolve) => {
+      Alert.alert(
+        'Unlock Access',
+        'Watch a short rewarded ad to unlock access to this feature.',
+        [
+          {
+            text: 'Cancel',
+            style: 'cancel',
+            onPress: () => {
+              console.log(`[AccessGate] User cancelled: ${feature}`);
+              onCancel?.();
+              resolve(false);
+            },
+          },
+          {
+            text: 'Watch Ad',
+            onPress: async () => {
+              console.log(`[AccessGate] Showing ad for: ${feature}`);
+              
+              // Show rewarded ad
+              const adShown = await showRewardedAd((reward) => {
+                // User watched ad and earned reward
+                console.log(`[AccessGate] Ad reward earned for: ${feature}`, reward);
+                
+                // Unlock the feature
+                unlockFeature(feature);
+                
+                // Show success message
+                Alert.alert(
+                  'Access Granted! 🎉',
+                  'You now have access to this feature.',
+                  [{ text: 'OK' }]
+                );
+                
+                // Call success callback
+                onSuccess?.();
+                resolve(true);
+              });
+
+              if (!adShown) {
+                // Ad not available
+                Alert.alert(
+                  'Ad Not Available',
+                  'The ad is not ready. Please try again later.',
+                  [{ text: 'OK' }]
+                );
+                onCancel?.();
+                resolve(false);
+              }
+            },
+          },
+        ],
+        { cancelable: true }
+      );
     });
-
-    if (!adShown) {
-      // Ad not available or user cancelled
-      Alert.alert(
-        'Ad Not Available',
-        'The ad is not ready. Please try again later.',
-        [{ text: 'OK', onPress: () => onCancelled?.() }]
-      );
-      return false;
-    }
-
-    // Return false - access will be granted after ad completes
-    return false;
   } catch (error) {
-    // AdMob module not available or failed to load
-    console.error('AdMob error:', error);
-    
-    // Check if we're in Expo Go
-    let isExpoGo = false;
-    try {
-      const Constants = require('expo-constants');
-      isExpoGo = Constants.executionEnvironment === 'storeClient';
-    } catch {
-      // Can't determine, show generic message
-    }
-    
-    if (isExpoGo) {
-      Alert.alert(
-        'Ads Not Available in Expo Go',
-        'Ads require a development build with native code. Please build the app using:\n\nnpx expo run:ios\n\nor\n\neas build --profile development --platform ios',
-        [{ text: 'OK', onPress: () => onCancelled?.() }]
-      );
-    } else {
-      Alert.alert(
-        'Ad Not Available',
-        'Unable to load ad. Please check your connection and try again. If the problem persists, the app may need to be restarted.',
-        [{ text: 'OK', onPress: () => onCancelled?.() }]
-      );
-    }
+    console.error('Error checking access gate:', error);
+    onCancel?.();
     return false;
   }
 }
 
 /**
- * Get feature display name
+ * Get all unlocked features
  */
-export function getFeatureName(feature: GatedFeature): string {
-  const names: Record<GatedFeature, string> = {
-    lectures: 'Lectures',
-    recitations: 'Recitations',
-    wellness_mental: 'Mental Health',
-    wellness_physical: 'Physical Health',
-    wellness_journal: 'Journal',
-    wellness_meditation: 'Meditation',
-    wellness_duas: 'Healing Duas',
-    wellness_support: 'Support',
-    wellness_activity: 'Activity Tracker',
-    wellness_sleep: 'Sleep Tracker',
-    wellness_goals: 'Physical Goals',
-    wellness_history: 'Activity History',
-  };
-  return names[feature] || feature;
+export async function getUnlockedFeatures(): Promise<GatedFeature[]> {
+  try {
+    const unlockedStr = await AsyncStorage.getItem(STORAGE_KEY);
+    if (!unlockedStr) return [];
+    return JSON.parse(unlockedStr);
+  } catch (error) {
+    console.error('Error getting unlocked features:', error);
+    return [];
+  }
+}
+
+/**
+ * Reset all unlocks (for testing)
+ */
+export async function resetAllUnlocks(): Promise<void> {
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    console.log('[AccessGate] All unlocks reset');
+  } catch (error) {
+    console.error('Error resetting unlocks:', error);
+  }
 }

@@ -1,19 +1,14 @@
 /**
  * ============================================================================
- * IMAN SCORE CALCULATION SYSTEM - LONG-TERM TRACKING
+ * IMAN SCORE CALCULATION SYSTEM - SIMPLE & CLEAN
  * ============================================================================
  * 
  * CORE PRINCIPLES:
- * 1. Long-term consistency matters - score reflects historical performance
- * 2. Daily resets don't crash your score - gradual decay over time
- * 3. Today's progress blends with historical average (70% history, 30% today)
- * 4. Score only decays slowly when you're inactive, not at midnight
- * 5. Completing goals builds up your long-term score over time
- * 
- * CALCULATION METHOD:
- * - Today's score = (completed actions / enabled goals) * 100
- * - Long-term score = blend of historical average + today's contribution
- * - Historical average decays slowly (loses ~5% per day of inactivity)
+ * 1. Simple percentage calculation: (completed / goal) * 100
+ * 2. Weighted average for multiple goals
+ * 3. Each section (Ibadah, Ilm, Amanah) calculated independently
+ * 4. Overall score is weighted combination of sections
+ * 5. No complex decay - scores reflect current progress
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -52,13 +47,13 @@ export interface IbadahGoals {
   dhikrDailyGoal: number;
   dhikrDailyCompleted: number;
   duaDailyGoal: number;
-  duaDailyCompleted: number; // Note: Also supports legacy 'duaCompleted' field name
+  duaDailyCompleted: number;
   
   // Dhikr - Weekly
   dhikrWeeklyGoal: number;
   dhikrWeeklyCompleted: number;
   
-  // Fasting - Weekly (optional)
+  // Fasting - Weekly
   fastingWeeklyGoal: number;
   fastingWeeklyCompleted: number;
   
@@ -91,17 +86,37 @@ export interface AmanahGoals {
   weeklyWorkoutGoal: number;
   weeklyWorkoutCompleted: number;
   
-  // Mental health - Weekly (SEPARATED)
+  // Mental health - Weekly
   weeklyMeditationGoal: number;
   weeklyMeditationCompleted: number;
   weeklyJournalGoal: number;
   weeklyJournalCompleted: number;
   
-  // Legacy field for backward compatibility
+  // Legacy fields for backward compatibility
   weeklyMentalHealthGoal: number;
   weeklyMentalHealthCompleted: number;
   weeklyStressManagementGoal: number;
   weeklyStressManagementCompleted: number;
+  
+  // Workout type goals (per type, per frequency)
+  workoutTypeGoals?: {
+    general?: { daily?: number; weekly?: number };
+    cardio?: { daily?: number; weekly?: number };
+    strength?: { daily?: number; weekly?: number };
+    yoga?: { daily?: number; weekly?: number };
+    walking?: { daily?: number; weekly?: number };
+    running?: { daily?: number; weekly?: number };
+    sports?: { daily?: number; weekly?: number };
+  };
+  workoutTypeCompleted?: {
+    general?: { daily?: number; weekly?: number };
+    cardio?: { daily?: number; weekly?: number };
+    strength?: { daily?: number; weekly?: number };
+    yoga?: { daily?: number; weekly?: number };
+    walking?: { daily?: number; weekly?: number };
+    running?: { daily?: number; weekly?: number };
+    sports?: { daily?: number; weekly?: number };
+  };
   
   score?: number;
 }
@@ -116,382 +131,239 @@ export interface SectionScores {
 // CONFIGURATION
 // ============================================================================
 
-const WEIGHTS = {
-  // Overall ring weights for overall Iman score
+// Overall ring weights for final Iman score
+const SECTION_WEIGHTS = {
   ibadah: 0.60,  // 60% - Most important (Worship is the foundation)
-  ilm: 0.25,     // 25% - Knowledge (Understanding and learning)
-  amanah: 0.15,  // 15% - Well-being (Physical and mental health)
+  ilm: 0.25,     // 25% - Knowledge
+  amanah: 0.15,  // 15% - Well-being
+};
+
+// Ibadah goal weights (Fard prayers are most important)
+const IBADAH_WEIGHTS = {
+  fard: 5,       // Fard prayers weighted 5x
+  normal: 1,     // Other goals weighted 1x
 };
 
 // ============================================================================
-// DECAY + WEIGHT CONFIG
+// CALCULATION FUNCTIONS
 // ============================================================================
 
-type RingType = 'ibadah' | 'ilm' | 'amanah';
-
-const IBADAH_GOAL_WEIGHTS = {
-  // Fard should dominate ibadah
-  fard: 5,        // << HEAVY
-  normal: 1,
-};
-
-const DECAY_CONFIG: Record<RingType, { halfLifeHours: number; floor: number }> = {
-  // tweak these freely
-  ibadah: { halfLifeHours: 30, floor: 0.35 },  // decays slower, but not zero
-  ilm:    { halfLifeHours: 42, floor: 0.30 },
-  amanah: { halfLifeHours: 36, floor: 0.30 },
-};
-
-function nowISO() {
-  return new Date().toISOString();
-}
-
-function hoursBetween(a: Date, b: Date) {
-  return Math.max(0, (b.getTime() - a.getTime()) / (1000 * 60 * 60));
+/**
+ * Calculate progress percentage for a single goal
+ */
+function calculateProgress(completed: number, goal: number): number {
+  if (goal <= 0) return 0; // Goal not enabled
+  return Math.min(1, completed / goal); // Cap at 100%
 }
 
 /**
- * Exponential decay:
- * multiplier = floor + (1 - floor) * 0.5^(hours / halfLifeHours)
- * 
- * Decay is proportional to incomplete actions:
- * - If all actions complete (incompleteRatio = 0), no decay is applied
- * - Decay strength scales with incompleteRatio (0-1)
+ * Calculate weighted average of progress items
  */
-function applyDecay(rawScore: number, hoursInactive: number, ring: RingType, incompleteRatio: number = 1.0) {
-  // If all actions are complete, no decay
-  if (incompleteRatio <= 0) {
-    return rawScore;
-  }
-  
-  const { halfLifeHours, floor } = DECAY_CONFIG[ring];
-  // Base decay multiplier
-  const baseMultiplier = floor + (1 - floor) * Math.pow(0.5, hoursInactive / halfLifeHours);
-  
-  // Scale decay by incomplete ratio: more incomplete actions = more decay
-  // When incompleteRatio = 1.0, full decay applies
-  // When incompleteRatio = 0.0, no decay (already handled above)
-  const decayAmount = 1.0 - baseMultiplier;
-  const scaledDecay = decayAmount * incompleteRatio;
-  const multiplier = 1.0 - scaledDecay;
-  
-  return Math.round(rawScore * multiplier);
-}
-
-async function getLastActivity(userId: string | null | undefined, ring: RingType): Promise<Date | null> {
-  try {
-    if (!userId) return null;
-    const key = `iman_lastActivity_${ring}_${userId}`;
-    const v = await AsyncStorage.getItem(key);
-    if (!v) return null;
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
-}
-
-async function setLastActivity(userId: string | null | undefined, ring: RingType): Promise<void> {
-  try {
-    if (!userId) return;
-    const key = `iman_lastActivity_${ring}_${userId}`;
-    await AsyncStorage.setItem(key, nowISO());
-  } catch {
-    // ignore
-  }
-}
-
-function weightedAverage(items: Array<{ label: string; progress: number; weight: number }>): number {
+function weightedAverage(items: Array<{ progress: number; weight: number }>): number {
   if (items.length === 0) return 0;
-  const totalW = items.reduce((s, x) => s + x.weight, 0);
-  if (totalW <= 0) return 0;
-  const sum = items.reduce((s, x) => s + x.progress * x.weight, 0);
-  return (sum / totalW) * 100;
+  
+  const totalWeight = items.reduce((sum, item) => sum + item.weight, 0);
+  if (totalWeight <= 0) return 0;
+  
+  const weightedSum = items.reduce((sum, item) => sum + (item.progress * item.weight), 0);
+  return (weightedSum / totalWeight) * 100;
 }
 
-// ============================================================================
-// IBADAH SCORE CALCULATION - NEW SIMPLE SYSTEM
-// ============================================================================
-
 /**
- * Calculate Ibadah score based purely on completed actions vs enabled goals
- * Each enabled goal contributes equally to the final score
+ * Calculate Ibadah (Worship) score
  */
-export async function calculateIbadahScore(goals: IbadahGoals, userId?: string | null): Promise<number> {
-  console.log('\n🕌 ========== IBADAH SCORE CALCULATION (WEIGHTED + DECAY) ==========');
+export function calculateIbadahScore(goals: IbadahGoals): number {
+  const items: Array<{ progress: number; weight: number }> = [];
 
-  const items: Array<{ label: string; progress: number; weight: number }> = [];
-
-  // ===== FARD PRAYERS (ALWAYS ENABLED + HEAVY) =====
-  const totalFardPrayers = 5;
-  const completedFardPrayers =
+  // Fard Prayers (always enabled, heavily weighted)
+  const fardCompleted = 
     (goals.fardPrayers.fajr ? 1 : 0) +
     (goals.fardPrayers.dhuhr ? 1 : 0) +
     (goals.fardPrayers.asr ? 1 : 0) +
     (goals.fardPrayers.maghrib ? 1 : 0) +
     (goals.fardPrayers.isha ? 1 : 0);
+  const fardProgress = calculateProgress(fardCompleted, 5);
+  items.push({ progress: fardProgress, weight: IBADAH_WEIGHTS.fard });
 
-  const fardProgress = completedFardPrayers / totalFardPrayers;
-  items.push({ label: 'Fard Prayers', progress: fardProgress, weight: IBADAH_GOAL_WEIGHTS.fard });
-  console.log(`📿 Fard: ${completedFardPrayers}/${totalFardPrayers} = ${(fardProgress * 100).toFixed(1)}% (weight ${IBADAH_GOAL_WEIGHTS.fard})`);
-
-  // ===== OPTIONAL GOALS: ONLY IF ENABLED (goal > 0) =====
-
+  // Optional goals (only if enabled)
   if (goals.sunnahDailyGoal > 0) {
-    const p = Math.min(1, goals.sunnahCompleted / goals.sunnahDailyGoal);
-    items.push({ label: 'Sunnah', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.sunnahCompleted, goals.sunnahDailyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
   if (goals.tahajjudWeeklyGoal > 0) {
-    const p = Math.min(1, goals.tahajjudCompleted / goals.tahajjudWeeklyGoal);
-    items.push({ label: 'Tahajjud', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.tahajjudCompleted, goals.tahajjudWeeklyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
-  // Quran: if user enabled both pages + verses, BOTH count
   if (goals.quranDailyPagesGoal > 0) {
-    const p = Math.min(1, goals.quranDailyPagesCompleted / goals.quranDailyPagesGoal);
-    items.push({ label: "Qur'an Pages", progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.quranDailyPagesCompleted, goals.quranDailyPagesGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
+
   if (goals.quranDailyVersesGoal > 0) {
-    const p = Math.min(1, goals.quranDailyVersesCompleted / goals.quranDailyVersesGoal);
-    items.push({ label: "Qur'an Verses", progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.quranDailyVersesCompleted, goals.quranDailyVersesGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
   if (goals.quranWeeklyMemorizationGoal > 0) {
-    const p = Math.min(1, goals.quranWeeklyMemorizationCompleted / goals.quranWeeklyMemorizationGoal);
-    items.push({ label: 'Memorization', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.quranWeeklyMemorizationCompleted, goals.quranWeeklyMemorizationGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
-  // Dhikr: if user enabled both daily + weekly, BOTH count
   if (goals.dhikrDailyGoal > 0) {
-    const p = Math.min(1, goals.dhikrDailyCompleted / goals.dhikrDailyGoal);
-    items.push({ label: 'Dhikr Daily', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.dhikrDailyCompleted, goals.dhikrDailyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
+
   if (goals.dhikrWeeklyGoal > 0) {
-    const p = Math.min(1, goals.dhikrWeeklyCompleted / goals.dhikrWeeklyGoal);
-    items.push({ label: 'Dhikr Weekly', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.dhikrWeeklyCompleted, goals.dhikrWeeklyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
   if (goals.duaDailyGoal > 0) {
-    const completed = goals.duaDailyCompleted || 0;
-    const p = Math.min(1, completed / goals.duaDailyGoal);
-    items.push({ label: "Du'a", progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.duaDailyCompleted || 0, goals.duaDailyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
   if (goals.fastingWeeklyGoal > 0) {
-    const p = Math.min(1, goals.fastingWeeklyCompleted / goals.fastingWeeklyGoal);
-    items.push({ label: 'Fasting', progress: p, weight: IBADAH_GOAL_WEIGHTS.normal });
+    items.push({
+      progress: calculateProgress(goals.fastingWeeklyCompleted, goals.fastingWeeklyGoal),
+      weight: IBADAH_WEIGHTS.normal,
+    });
   }
 
-  // Weighted score
-  const rawScore = weightedAverage(items);
-  console.log(`📊 Raw weighted score: ${rawScore.toFixed(2)}%`);
-  console.log(`   Items: ${items.map(i => `${i.label} (${(i.progress * 100).toFixed(1)}% × weight ${i.weight})`).join(', ')}`);
-
-  // Check if ALL enabled goals are 100% complete
-  const allGoalsComplete = items.every(item => item.progress >= 1.0);
-  
-  let finalScore: number;
-  
-  if (allGoalsComplete) {
-    // All tracked goals are complete - always return 100%, no decay
-    finalScore = 100;
-    console.log(`✅ All enabled goals complete - returning 100% (no decay applied)`);
-  } else if (userId) {
-    // Not all goals complete - apply decay proportional to incomplete actions
-    finalScore = Math.round(rawScore);
-    const last = await getLastActivity(userId, 'ibadah');
-    const inactiveHours = last ? hoursBetween(last, new Date()) : 0;
-    
-    // Calculate incomplete ratio: how many actions are incomplete
-    const incompleteCount = items.filter(item => item.progress < 1.0).length;
-    const incompleteRatio = items.length > 0 ? incompleteCount / items.length : 1.0;
-    
-    const beforeDecay = finalScore;
-    finalScore = applyDecay(finalScore, inactiveHours, 'ibadah', incompleteRatio);
-    console.log(`⏳ Decay: inactive ${inactiveHours.toFixed(1)}h, incomplete ratio ${incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${finalScore}%`);
-  } else {
-    finalScore = Math.round(rawScore);
-    console.log(`ℹ️ No userId provided - skipping decay`);
-  }
-
-  console.log(`✨ IBADAH FINAL: ${finalScore}% (raw ${rawScore.toFixed(1)}%)`);
-  console.log(`Enabled items: ${items.map(i => i.label).join(', ')}`);
-  console.log(`================================================\n`);
-
-  return finalScore;
+  return Math.round(weightedAverage(items));
 }
 
-// ============================================================================
-// ILM SCORE CALCULATION - NEW SIMPLE SYSTEM
-// ============================================================================
-
 /**
- * Calculate Ilm score based purely on completed actions vs enabled goals
- * Each enabled goal contributes equally to the final score
- * Returns both the score and completion status
+ * Calculate Ilm (Knowledge) score
  */
-export function calculateIlmScore(goals: IlmGoals): { score: number; allComplete: boolean; incompleteRatio: number } {
-  console.log('\n📚 ========== ILM SCORE CALCULATION (NEW SYSTEM) ==========');
-  
-  const progressions: number[] = [];
-  const enabledGoals: string[] = [];
-  
+export function calculateIlmScore(goals: IlmGoals): number {
+  const items: Array<{ progress: number; weight: number }> = [];
+
   if (goals.weeklyLecturesGoal > 0) {
-    const progress = Math.min(1, goals.weeklyLecturesCompleted / goals.weeklyLecturesGoal);
-    progressions.push(progress);
-    enabledGoals.push('Lectures');
-    console.log(`🎓 Lectures: ${goals.weeklyLecturesCompleted}/${goals.weeklyLecturesGoal} = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyLecturesCompleted, goals.weeklyLecturesGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.weeklyRecitationsGoal > 0) {
-    const progress = Math.min(1, goals.weeklyRecitationsCompleted / goals.weeklyRecitationsGoal);
-    progressions.push(progress);
-    enabledGoals.push('Recitations');
-    console.log(`🎵 Recitations: ${goals.weeklyRecitationsCompleted}/${goals.weeklyRecitationsGoal} = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyRecitationsCompleted, goals.weeklyRecitationsGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.weeklyQuizzesGoal > 0) {
-    const progress = Math.min(1, goals.weeklyQuizzesCompleted / goals.weeklyQuizzesGoal);
-    progressions.push(progress);
-    enabledGoals.push('Quizzes');
-    console.log(`❓ Quizzes: ${goals.weeklyQuizzesCompleted}/${goals.weeklyQuizzesGoal} = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyQuizzesCompleted, goals.weeklyQuizzesGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.weeklyReflectionGoal > 0) {
-    const progress = Math.min(1, goals.weeklyReflectionCompleted / goals.weeklyReflectionGoal);
-    progressions.push(progress);
-    enabledGoals.push('Reflection');
-    console.log(`💭 Reflection: ${goals.weeklyReflectionCompleted}/${goals.weeklyReflectionGoal} = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyReflectionCompleted, goals.weeklyReflectionGoal),
+      weight: 1,
+    });
   }
-  
-  // Calculate final score: average of all enabled goal progressions
-  let finalScore = 0;
-  if (progressions.length > 0) {
-    const sum = progressions.reduce((acc, p) => acc + p, 0);
-    finalScore = (sum / progressions.length) * 100;
-  }
-  
-  // Check if all goals are complete
-  const allComplete = progressions.length > 0 && progressions.every(p => p >= 1.0);
-  const incompleteCount = progressions.filter(p => p < 1.0).length;
-  const incompleteRatio = progressions.length > 0 ? incompleteCount / progressions.length : 1.0;
-  
-  if (allComplete) {
-    finalScore = 100; // Always 100% when all complete
-    console.log(`✅ All enabled goals complete - returning 100%`);
-  }
-  
-  console.log(`\n✨ ILM FINAL: ${finalScore.toFixed(1)}%`);
-  console.log(`   Enabled goals: ${enabledGoals.length} (${enabledGoals.join(', ')})`);
-  console.log(`   Average progress: ${finalScore.toFixed(1)}%`);
-  if (progressions.length === 0) {
-    console.log(`   ⚠️ No goals enabled - returning 0%`);
-  }
-  console.log(`================================================\n`);
-  
-  return { score: Math.round(finalScore), allComplete, incompleteRatio };
+
+  return Math.round(weightedAverage(items));
 }
 
-// ============================================================================
-// AMANAH SCORE CALCULATION - NEW SIMPLE SYSTEM
-// ============================================================================
-
 /**
- * Calculate Amanah score based purely on completed actions vs enabled goals
- * Each enabled goal contributes equally to the final score
- * Returns both the score and completion status
+ * Calculate Amanah (Well-Being) score
  */
-export function calculateAmanahScore(goals: AmanahGoals): { score: number; allComplete: boolean; incompleteRatio: number } {
-  console.log('\n💪 ========== AMANAH SCORE CALCULATION (NEW SYSTEM) ==========');
-  
-  const progressions: number[] = [];
-  const enabledGoals: string[] = [];
-  
+export function calculateAmanahScore(goals: AmanahGoals): number {
+  const items: Array<{ progress: number; weight: number }> = [];
+
+  // Daily goals
   if (goals.dailyExerciseGoal > 0) {
-    const progress = Math.min(1, goals.dailyExerciseCompleted / goals.dailyExerciseGoal);
-    progressions.push(progress);
-    enabledGoals.push('Exercise');
-    console.log(`🏃 Exercise: ${goals.dailyExerciseCompleted}/${goals.dailyExerciseGoal} min = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.dailyExerciseCompleted, goals.dailyExerciseGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.dailyWaterGoal > 0) {
-    const progress = Math.min(1, goals.dailyWaterCompleted / goals.dailyWaterGoal);
-    progressions.push(progress);
-    enabledGoals.push('Water');
-    console.log(`💧 Water: ${goals.dailyWaterCompleted}/${goals.dailyWaterGoal} glasses = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.dailyWaterCompleted, goals.dailyWaterGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.dailySleepGoal > 0) {
-    const progress = Math.min(1, goals.dailySleepCompleted / goals.dailySleepGoal);
-    progressions.push(progress);
-    enabledGoals.push('Sleep');
-    console.log(`😴 Sleep: ${goals.dailySleepCompleted}/${goals.dailySleepGoal} hrs = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.dailySleepCompleted, goals.dailySleepGoal),
+      weight: 1,
+    });
   }
-  
+
+  // Weekly goals
   if (goals.weeklyWorkoutGoal > 0) {
-    const progress = Math.min(1, goals.weeklyWorkoutCompleted / goals.weeklyWorkoutGoal);
-    progressions.push(progress);
-    enabledGoals.push('Workout');
-    console.log(`🏋️ Workout: ${goals.weeklyWorkoutCompleted}/${goals.weeklyWorkoutGoal} sessions = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyWorkoutCompleted, goals.weeklyWorkoutGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.weeklyMeditationGoal > 0) {
-    const progress = Math.min(1, goals.weeklyMeditationCompleted / goals.weeklyMeditationGoal);
-    progressions.push(progress);
-    enabledGoals.push('Meditation');
-    console.log(`🧘 Meditation: ${goals.weeklyMeditationCompleted}/${goals.weeklyMeditationGoal} sessions = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyMeditationCompleted, goals.weeklyMeditationGoal),
+      weight: 1,
+    });
   }
-  
+
   if (goals.weeklyJournalGoal > 0) {
-    const progress = Math.min(1, goals.weeklyJournalCompleted / goals.weeklyJournalGoal);
-    progressions.push(progress);
-    enabledGoals.push('Journal');
-    console.log(`📔 Journal: ${goals.weeklyJournalCompleted}/${goals.weeklyJournalGoal} entries = ${(progress * 100).toFixed(1)}%`);
+    items.push({
+      progress: calculateProgress(goals.weeklyJournalCompleted, goals.weeklyJournalGoal),
+      weight: 1,
+    });
   }
-  
-  if (goals.weeklyStressManagementGoal > 0) {
-    const progress = Math.min(1, goals.weeklyStressManagementCompleted / goals.weeklyStressManagementGoal);
-    progressions.push(progress);
-    enabledGoals.push('Stress Management');
-    console.log(`🧘 Stress: ${goals.weeklyStressManagementCompleted}/${goals.weeklyStressManagementGoal} sessions = ${(progress * 100).toFixed(1)}%`);
+
+  // Workout type goals (if enabled)
+  if (goals.workoutTypeGoals) {
+    for (const [type, typeGoals] of Object.entries(goals.workoutTypeGoals)) {
+      if (typeGoals?.daily && typeGoals.daily > 0) {
+        const completed = goals.workoutTypeCompleted?.[type as keyof typeof goals.workoutTypeCompleted]?.daily || 0;
+        items.push({
+          progress: calculateProgress(completed, typeGoals.daily),
+          weight: 1,
+        });
+      }
+      if (typeGoals?.weekly && typeGoals.weekly > 0) {
+        const completed = goals.workoutTypeCompleted?.[type as keyof typeof goals.workoutTypeCompleted]?.weekly || 0;
+        items.push({
+          progress: calculateProgress(completed, typeGoals.weekly),
+          weight: 1,
+        });
+      }
+    }
   }
-  
-  // Calculate final score: average of all enabled goal progressions
-  let finalScore = 0;
-  if (progressions.length > 0) {
-    const sum = progressions.reduce((acc, p) => acc + p, 0);
-    finalScore = (sum / progressions.length) * 100;
-  }
-  
-  // Check if all goals are complete
-  const allComplete = progressions.length > 0 && progressions.every(p => p >= 1.0);
-  const incompleteCount = progressions.filter(p => p < 1.0).length;
-  const incompleteRatio = progressions.length > 0 ? incompleteCount / progressions.length : 1.0;
-  
-  if (allComplete) {
-    finalScore = 100; // Always 100% when all complete
-    console.log(`✅ All enabled goals complete - returning 100%`);
-  }
-  
-  console.log(`\n✨ AMANAH FINAL: ${finalScore.toFixed(1)}%`);
-  console.log(`   Enabled goals: ${enabledGoals.length} (${enabledGoals.join(', ')})`);
-  console.log(`   Average progress: ${finalScore.toFixed(1)}%`);
-  if (progressions.length === 0) {
-    console.log(`   ⚠️ No goals enabled - returning 0%`);
-  }
-  console.log(`================================================\n`);
-  
-  return { score: Math.round(finalScore), allComplete, incompleteRatio };
+
+  return Math.round(weightedAverage(items));
 }
 
-// ============================================================================
-// MAIN CALCULATION FUNCTIONS - SIMPLIFIED
-// ============================================================================
-
 /**
- * Calculate all section scores using the new simple system
- * No momentum, no decay - just pure completion percentages
+ * Calculate all section scores
  */
 export async function calculateAllSectionScores(
   ibadahGoals: IbadahGoals,
@@ -499,17 +371,13 @@ export async function calculateAllSectionScores(
   amanahGoals: AmanahGoals,
   userId?: string | null
 ): Promise<SectionScores> {
-  const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
-  const ilmResult = calculateIlmScore(ilmGoals);
-  const amanahResult = calculateAmanahScore(amanahGoals);
-  
   const scores: SectionScores = {
-    ibadah: ibadahResult,
-    ilm: ilmResult.score,
-    amanah: amanahResult.score,
+    ibadah: calculateIbadahScore(ibadahGoals),
+    ilm: calculateIlmScore(ilmGoals),
+    amanah: calculateAmanahScore(amanahGoals),
   };
 
-  // save section scores (your existing logic)
+  // Save scores to storage
   if (userId) {
     try {
       await AsyncStorage.setItem(`sectionScores_${userId}`, JSON.stringify(scores));
@@ -522,195 +390,59 @@ export async function calculateAllSectionScores(
   return scores;
 }
 
-export async function getCurrentSectionScores(userId?: string | null): Promise<SectionScores> {
+/**
+ * Get current section scores
+ */
+export async function getCurrentSectionScores(userId?: string | null, forceRecalculate?: boolean): Promise<SectionScores> {
   try {
+    // Check cache if not forcing recalculation
+    if (!forceRecalculate && userId) {
+      const cached = await AsyncStorage.getItem(`sectionScores_${userId}`);
+      const lastUpdated = await AsyncStorage.getItem(`sectionScoresLastUpdated_${userId}`);
+      
+      if (cached && lastUpdated) {
+        const lastUpdateTime = new Date(lastUpdated);
+        const now = new Date();
+        const hoursSinceUpdate = (now.getTime() - lastUpdateTime.getTime()) / (1000 * 60 * 60);
+        
+        // Use cache if less than 1 hour old
+        if (hoursSinceUpdate < 1) {
+          return JSON.parse(cached);
+        }
+      }
+    }
+
+    // Recalculate
     const ibadahGoals = await loadIbadahGoals(userId);
     const ilmGoals = await loadIlmGoals(userId);
     const amanahGoals = await loadAmanahGoals(userId);
 
-    // Get raw scores with completion info
-    const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
-    const ilmResult = calculateIlmScore(ilmGoals);
-    const amanahResult = calculateAmanahScore(amanahGoals);
-
-    let scores: SectionScores = {
-      ibadah: ibadahResult,
-      ilm: ilmResult.score,
-      amanah: amanahResult.score,
-    };
-
-    // Apply decay to ILM + AMANAH only if NOT all complete
-    // (ibadah already handles decay internally)
-    if (userId) {
-      // Only apply decay if there are incomplete actions
-      if (!ilmResult.allComplete) {
-        const ilmLast = await getLastActivity(userId, 'ilm');
-        const ilmInactive = ilmLast ? hoursBetween(ilmLast, new Date()) : 0;
-        const beforeDecay = scores.ilm;
-        scores.ilm = applyDecay(scores.ilm, ilmInactive, 'ilm', ilmResult.incompleteRatio);
-        if (beforeDecay !== scores.ilm) {
-          console.log(`⏳ Ilm decay: inactive ${ilmInactive.toFixed(1)}h, incomplete ratio ${ilmResult.incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${scores.ilm}%`);
-        }
-      } else {
-        console.log(`✅ All Ilm goals complete - no decay applied`);
-      }
-
-      if (!amanahResult.allComplete) {
-        const amanahLast = await getLastActivity(userId, 'amanah');
-        const amanahInactive = amanahLast ? hoursBetween(amanahLast, new Date()) : 0;
-        const beforeDecay = scores.amanah;
-        scores.amanah = applyDecay(scores.amanah, amanahInactive, 'amanah', amanahResult.incompleteRatio);
-        if (beforeDecay !== scores.amanah) {
-          console.log(`⏳ Amanah decay: inactive ${amanahInactive.toFixed(1)}h, incomplete ratio ${amanahResult.incompleteRatio.toFixed(2)}, ${beforeDecay}% -> ${scores.amanah}%`);
-        }
-      } else {
-        console.log(`✅ All Amanah goals complete - no decay applied`);
-      }
-    }
-
-    // Save section scores
-    if (userId) {
-      try {
-        await AsyncStorage.setItem(`sectionScores_${userId}`, JSON.stringify(scores));
-        await AsyncStorage.setItem(`sectionScoresLastUpdated_${userId}`, new Date().toISOString());
-      } catch (error) {
-        console.error('Error saving section scores:', error);
-      }
-    }
-
-    return scores;
+    return await calculateAllSectionScores(ibadahGoals, ilmGoals, amanahGoals, userId);
   } catch (error) {
     console.error('Error getting current section scores:', error);
     return { ibadah: 0, ilm: 0, amanah: 0 };
   }
 }
 
-// Long-term score blending configuration
-const LONG_TERM_CONFIG = {
-  historyWeight: 0.7, // 70% historical average, 30% today's progress
-  minHistoryScore: 20, // Minimum baseline score (never drops below this)
-  dailyDecayRate: 0.05, // 5% decay per day of complete inactivity
-};
-
 /**
- * Get and update historical score average
- */
-async function getHistoricalScore(userId: string | null): Promise<{ average: number; lastUpdate: string | null }> {
-  try {
-    const key = userId ? `imanHistoricalScore_${userId}` : 'imanHistoricalScore';
-    const stored = await AsyncStorage.getItem(key);
-    if (stored) {
-      return JSON.parse(stored);
-    }
-  } catch (error) {
-    console.log('Error loading historical score:', error);
-  }
-  return { average: 50, lastUpdate: null }; // Start at 50% baseline
-}
-
-async function saveHistoricalScore(userId: string | null, average: number): Promise<void> {
-  try {
-    const key = userId ? `imanHistoricalScore_${userId}` : 'imanHistoricalScore';
-    const today = new Date().toISOString().split('T')[0];
-    await AsyncStorage.setItem(key, JSON.stringify({ average, lastUpdate: today }));
-  } catch (error) {
-    console.log('Error saving historical score:', error);
-  }
-}
-
-/**
- * Get overall Iman score with long-term tracking
- * Blends historical average with today's progress for stability
+ * Get overall Iman score (weighted combination of sections)
  */
 export async function getOverallImanScore(userId?: string | null): Promise<number> {
   const scores = await getCurrentSectionScores(userId);
   
-  // Calculate today's weighted score: Ibadah (60%) > Ilm (25%) > Amanah (15%)
-  const todayScore = 
-    (scores.ibadah * WEIGHTS.ibadah) +
-    (scores.ilm * WEIGHTS.ilm) +
-    (scores.amanah * WEIGHTS.amanah);
+  const overallScore = 
+    (scores.ibadah * SECTION_WEIGHTS.ibadah) +
+    (scores.ilm * SECTION_WEIGHTS.ilm) +
+    (scores.amanah * SECTION_WEIGHTS.amanah);
   
-  // Check if all actions are complete across all sections
-  const ibadahGoals = await loadIbadahGoals(userId);
-  const ilmGoals = await loadIlmGoals(userId);
-  const amanahGoals = await loadAmanahGoals(userId);
-  
-  const ibadahResult = await calculateIbadahScore(ibadahGoals, userId);
-  const ilmResult = calculateIlmScore(ilmGoals);
-  const amanahResult = calculateAmanahScore(amanahGoals);
-  
-  const allActionsComplete = ibadahResult === 100 && ilmResult.allComplete && amanahResult.allComplete;
-  
-  // Get historical average
-  const { average: historicalAvg, lastUpdate } = await getHistoricalScore(userId ?? null);
-  
-  let finalScore: number;
-  
-  if (allActionsComplete) {
-    // All actions are complete - return 100% directly, no historical blending or decay
-    finalScore = 100;
-    console.log(`\n🌟 ========== OVERALL IMAN SCORE ==========`);
-    console.log(`   ✅ All actions complete - returning 100% (no decay, no historical blending)`);
-    console.log(`   Today's Score: ${Math.round(todayScore)}%`);
-    console.log(`   Ring Breakdown: Ibadah ${scores.ibadah}%, Ilm ${scores.ilm}%, Amanah ${scores.amanah}%`);
-    console.log(`================================================\n`);
-    
-    // Still update historical average (but use today's 100% score)
-    const newHistoricalAvg = (historicalAvg * 0.8) + (todayScore * 0.2);
-    await saveHistoricalScore(userId ?? null, Math.max(LONG_TERM_CONFIG.minHistoryScore, newHistoricalAvg));
-    
-    return finalScore;
-  }
-  
-  // Not all complete - apply historical blending with decay
-  // Apply decay to historical score only if there are incomplete actions
-  let decayedHistorical = historicalAvg;
-  if (lastUpdate) {
-    const daysSinceUpdate = Math.floor(
-      (new Date().getTime() - new Date(lastUpdate).getTime()) / (1000 * 60 * 60 * 24)
-    );
-    if (daysSinceUpdate > 0) {
-      // Gradual decay: lose 5% per day of inactivity, but never below minimum
-      const decayMultiplier = Math.pow(1 - LONG_TERM_CONFIG.dailyDecayRate, daysSinceUpdate);
-      decayedHistorical = Math.max(
-        LONG_TERM_CONFIG.minHistoryScore,
-        historicalAvg * decayMultiplier
-      );
-    }
-  }
-  
-  // Blend historical with today's score
-  // If today's score is higher, it pulls up the average faster
-  // If today's score is lower (e.g., after reset), historical cushions the drop
-  let blendedScore: number;
-  if (todayScore >= decayedHistorical) {
-    // Good day - let today's progress have more influence (40% history, 60% today)
-    blendedScore = (decayedHistorical * 0.4) + (todayScore * 0.6);
-  } else {
-    // Lower today (maybe just reset) - historical cushions the drop (70% history, 30% today)
-    blendedScore = (decayedHistorical * LONG_TERM_CONFIG.historyWeight) + 
-                   (todayScore * (1 - LONG_TERM_CONFIG.historyWeight));
-  }
-  
-  // Update historical average (moving average)
-  const newHistoricalAvg = (historicalAvg * 0.8) + (todayScore * 0.2);
-  await saveHistoricalScore(userId ?? null, Math.max(LONG_TERM_CONFIG.minHistoryScore, newHistoricalAvg));
-  
-  finalScore = Math.round(Math.max(LONG_TERM_CONFIG.minHistoryScore, blendedScore));
-  
-  console.log(`\n🌟 ========== OVERALL IMAN SCORE (LONG-TERM) ==========`);
-  console.log(`   Today's Score: ${Math.round(todayScore)}%`);
-  console.log(`   Historical Avg: ${Math.round(historicalAvg)}% → ${Math.round(decayedHistorical)}% (after decay)`);
-  console.log(`   Blended Score: ${finalScore}%`);
-  console.log(`   Ring Breakdown: Ibadah ${scores.ibadah}%, Ilm ${scores.ilm}%, Amanah ${scores.amanah}%`);
-  console.log(`================================================\n`);
-  
-  return finalScore;
+  return Math.round(overallScore);
 }
 
+/**
+ * Update section scores (alias for getCurrentSectionScores)
+ */
 export async function updateSectionScores(userId?: string | null): Promise<SectionScores> {
-  return await getCurrentSectionScores(userId);
+  return await getCurrentSectionScores(userId, true);
 }
 
 // ============================================================================
@@ -719,8 +451,6 @@ export async function updateSectionScores(userId?: string | null): Promise<Secti
 
 export async function resetDailyGoals(userId?: string | null): Promise<void> {
   try {
-    console.log(`🔄 Resetting daily goals for user: ${userId || 'unknown'}...`);
-    
     const ibadahGoals = await loadIbadahGoals(userId);
     const amanahGoals = await loadAmanahGoals(userId);
     
@@ -742,21 +472,29 @@ export async function resetDailyGoals(userId?: string | null): Promise<void> {
     amanahGoals.dailyWaterCompleted = 0;
     amanahGoals.dailySleepCompleted = 0;
     
+    // Reset workout type daily goals
+    if (amanahGoals.workoutTypeCompleted) {
+      for (const type in amanahGoals.workoutTypeCompleted) {
+        if (amanahGoals.workoutTypeCompleted[type as keyof typeof amanahGoals.workoutTypeCompleted]) {
+          const typeData = amanahGoals.workoutTypeCompleted[type as keyof typeof amanahGoals.workoutTypeCompleted];
+          if (typeData) {
+            typeData.daily = 0;
+          }
+        }
+      }
+    }
+    
     const ibadahKey = userId ? `ibadahGoals_${userId}` : 'ibadahGoals';
     const amanahKey = userId ? `amanahGoals_${userId}` : 'amanahGoals';
     await AsyncStorage.setItem(ibadahKey, JSON.stringify(ibadahGoals));
     await AsyncStorage.setItem(amanahKey, JSON.stringify(amanahGoals));
-    
-    console.log('✅ Daily goals reset successfully');
   } catch (error) {
-    console.error('❌ Error resetting daily goals:', error);
+    console.error('Error resetting daily goals:', error);
   }
 }
 
 export async function resetWeeklyGoals(userId?: string | null): Promise<void> {
   try {
-    console.log(`🔄 Resetting weekly goals for user: ${userId || 'unknown'}...`);
-    
     const ibadahGoals = await loadIbadahGoals(userId);
     const ilmGoals = await loadIlmGoals(userId);
     const amanahGoals = await loadAmanahGoals(userId);
@@ -778,22 +516,29 @@ export async function resetWeeklyGoals(userId?: string | null): Promise<void> {
     amanahGoals.weeklyMentalHealthCompleted = 0;
     amanahGoals.weeklyStressManagementCompleted = 0;
     
+    // Reset workout type weekly goals
+    if (amanahGoals.workoutTypeCompleted) {
+      for (const type in amanahGoals.workoutTypeCompleted) {
+        if (amanahGoals.workoutTypeCompleted[type as keyof typeof amanahGoals.workoutTypeCompleted]) {
+          const typeData = amanahGoals.workoutTypeCompleted[type as keyof typeof amanahGoals.workoutTypeCompleted];
+          if (typeData) {
+            typeData.weekly = 0;
+          }
+        }
+      }
+    }
+    
     const ibadahKey = userId ? `ibadahGoals_${userId}` : 'ibadahGoals';
     const ilmKey = userId ? `ilmGoals_${userId}` : 'ilmGoals';
     const amanahKey = userId ? `amanahGoals_${userId}` : 'amanahGoals';
     await AsyncStorage.setItem(ibadahKey, JSON.stringify(ibadahGoals));
     await AsyncStorage.setItem(ilmKey, JSON.stringify(ilmGoals));
     await AsyncStorage.setItem(amanahKey, JSON.stringify(amanahGoals));
-    
-    console.log('✅ Weekly goals reset successfully');
   } catch (error) {
-    console.error('❌ Error resetting weekly goals:', error);
+    console.error('Error resetting weekly goals:', error);
   }
 }
 
-/**
- * Get the user's local midnight date string
- */
 function getLocalMidnightDateString(): string {
   const now = new Date();
   const year = now.getFullYear();
@@ -804,9 +549,7 @@ function getLocalMidnightDateString(): string {
 }
 
 function isNewDay(lastDateString: string | null, currentDateString: string): boolean {
-  if (!lastDateString) {
-    return true;
-  }
+  if (!lastDateString) return true;
   return lastDateString !== currentDateString;
 }
 
@@ -817,9 +560,7 @@ function isSundayMidnight(now: Date): boolean {
 }
 
 function hasResetThisWeek(lastWeeklyResetDate: string | null, currentSundayDate: string): boolean {
-  if (!lastWeeklyResetDate) {
-    return false;
-  }
+  if (!lastWeeklyResetDate) return false;
   return lastWeeklyResetDate === currentSundayDate;
 }
 
@@ -832,7 +573,6 @@ export async function checkAndHandleResets(userId?: string | null): Promise<void
     const lastDate = await AsyncStorage.getItem(lastDateKey);
     
     if (isNewDay(lastDate, today)) {
-      console.log(`📅 New day detected for user ${userId || 'unknown'} (local time: ${now.toLocaleString()})`);
       await resetDailyGoals(userId);
       await AsyncStorage.setItem(lastDateKey, today);
     }
@@ -842,13 +582,12 @@ export async function checkAndHandleResets(userId?: string | null): Promise<void
     
     if (isSundayMidnight(now)) {
       if (!hasResetThisWeek(lastWeeklyReset, today)) {
-        console.log(`📅 Sunday midnight detected for user ${userId || 'unknown'} (local time: ${now.toLocaleString()})`);
         await resetWeeklyGoals(userId);
         await AsyncStorage.setItem(lastWeeklyResetKey, today);
       }
     }
   } catch (error) {
-    console.error('❌ Error checking and handling resets:', error);
+    console.error('Error checking and handling resets:', error);
   }
 }
 
@@ -947,6 +686,14 @@ export async function loadAmanahGoals(userId?: string | null): Promise<AmanahGoa
         parsed.weeklyJournalCompleted = Math.ceil(mentalHealthCompleted / 2);
       }
       
+      // Initialize workout type structures if missing
+      if (!parsed.workoutTypeGoals) {
+        parsed.workoutTypeGoals = {};
+      }
+      if (!parsed.workoutTypeCompleted) {
+        parsed.workoutTypeCompleted = {};
+      }
+      
       return parsed;
     }
   } catch (error) {
@@ -970,40 +717,13 @@ export async function loadAmanahGoals(userId?: string | null): Promise<AmanahGoa
     dailySleepCompleted: 0,
     weeklyStressManagementGoal: 0,
     weeklyStressManagementCompleted: 0,
+    workoutTypeGoals: {},
+    workoutTypeCompleted: {},
     score: 0,
   };
 }
 
 export async function saveIbadahGoals(goals: IbadahGoals, userId?: string | null): Promise<void> {
-  const oldGoals = await loadIbadahGoals(userId);
-
-  // Ring activity detection (IBADAH)
-  // Set activity timestamp BEFORE saving to ensure it's available for score calculation
-  if (userId) {
-    const didAnyPrayerTurnTrue =
-      (!oldGoals.fardPrayers.fajr && goals.fardPrayers.fajr) ||
-      (!oldGoals.fardPrayers.dhuhr && goals.fardPrayers.dhuhr) ||
-      (!oldGoals.fardPrayers.asr && goals.fardPrayers.asr) ||
-      (!oldGoals.fardPrayers.maghrib && goals.fardPrayers.maghrib) ||
-      (!oldGoals.fardPrayers.isha && goals.fardPrayers.isha);
-
-    const didAnyCountIncrease =
-      goals.sunnahCompleted > oldGoals.sunnahCompleted ||
-      goals.tahajjudCompleted > oldGoals.tahajjudCompleted ||
-      goals.quranDailyPagesCompleted > oldGoals.quranDailyPagesCompleted ||
-      goals.quranDailyVersesCompleted > oldGoals.quranDailyVersesCompleted ||
-      goals.quranWeeklyMemorizationCompleted > oldGoals.quranWeeklyMemorizationCompleted ||
-      goals.dhikrDailyCompleted > oldGoals.dhikrDailyCompleted ||
-      goals.dhikrWeeklyCompleted > oldGoals.dhikrWeeklyCompleted ||
-      (goals.duaDailyCompleted || 0) > (oldGoals.duaDailyCompleted || 0) ||
-      goals.fastingWeeklyCompleted > oldGoals.fastingWeeklyCompleted;
-
-    if (didAnyPrayerTurnTrue || didAnyCountIncrease) {
-      await setLastActivity(userId, 'ibadah');
-      console.log(`✅ Activity timestamp set for ibadah ring`);
-    }
-  }
-
   const storageKey = userId ? `ibadahGoals_${userId}` : 'ibadahGoals';
   await AsyncStorage.setItem(storageKey, JSON.stringify(goals));
   await updateSectionScores(userId);
@@ -1011,6 +731,7 @@ export async function saveIbadahGoals(goals: IbadahGoals, userId?: string | null
   if (userId) {
     try {
       const { trackPrayerCompletion, trackDhikrCompletion, trackQuranReading } = await import('./imanActivityIntegration');
+      const oldGoals = await loadIbadahGoals(userId);
 
       if (!oldGoals.fardPrayers.fajr && goals.fardPrayers.fajr) {
         await trackPrayerCompletion(userId, 'fajr');
@@ -1042,7 +763,7 @@ export async function saveIbadahGoals(goals: IbadahGoals, userId?: string | null
         await trackQuranReading(userId, quranPagesIncrease);
       }
     } catch (error) {
-      console.log('ℹ️ Activity tracking skipped:', error);
+      console.log('Activity tracking skipped:', error);
     }
   }
 }
@@ -1051,26 +772,13 @@ export async function saveIlmGoals(goals: IlmGoals, userId?: string | null): Pro
   const storageKey = userId ? `ilmGoals_${userId}` : 'ilmGoals';
   await AsyncStorage.setItem(storageKey, JSON.stringify(goals));
   await updateSectionScores(userId);
-
-  if (userId) {
-    const old = await loadIlmGoals(userId);
-    const increased =
-      goals.weeklyLecturesCompleted > old.weeklyLecturesCompleted ||
-      goals.weeklyRecitationsCompleted > old.weeklyRecitationsCompleted ||
-      goals.weeklyQuizzesCompleted > old.weeklyQuizzesCompleted ||
-      goals.weeklyReflectionCompleted > old.weeklyReflectionCompleted;
-
-    if (increased) {
-      await setLastActivity(userId, 'ilm');
-    }
-  }
   
   if (userId) {
     try {
       const { checkAndUnlockAchievements } = await import('./achievementService');
       await checkAndUnlockAchievements(userId);
     } catch (error) {
-      console.log('ℹ️ Achievement check skipped:', error);
+      console.log('Achievement check skipped:', error);
     }
   }
 }
@@ -1079,29 +787,13 @@ export async function saveAmanahGoals(goals: AmanahGoals, userId?: string | null
   const storageKey = userId ? `amanahGoals_${userId}` : 'amanahGoals';
   await AsyncStorage.setItem(storageKey, JSON.stringify(goals));
   await updateSectionScores(userId);
-
-  if (userId) {
-    const old = await loadAmanahGoals(userId);
-    const increased =
-      goals.dailyExerciseCompleted > old.dailyExerciseCompleted ||
-      goals.dailyWaterCompleted > old.dailyWaterCompleted ||
-      goals.dailySleepCompleted > old.dailySleepCompleted ||
-      goals.weeklyWorkoutCompleted > old.weeklyWorkoutCompleted ||
-      goals.weeklyMeditationCompleted > old.weeklyMeditationCompleted ||
-      goals.weeklyJournalCompleted > old.weeklyJournalCompleted ||
-      goals.weeklyStressManagementCompleted > old.weeklyStressManagementCompleted;
-
-    if (increased) {
-      await setLastActivity(userId, 'amanah');
-    }
-  }
   
   if (userId) {
     try {
       const { checkAndUnlockAchievements } = await import('./achievementService');
       await checkAndUnlockAchievements(userId);
     } catch (error) {
-      console.log('ℹ️ Achievement check skipped:', error);
+      console.log('Achievement check skipped:', error);
     }
   }
 }

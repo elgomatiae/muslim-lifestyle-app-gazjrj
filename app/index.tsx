@@ -17,14 +17,24 @@ export default function Index() {
       return;
     }
 
-    if (user) {
-      // User is signed in, redirect to home
-      console.log('✅ User authenticated, redirecting to home');
-      router.replace('/(tabs)/(home)/');
-    } else {
-      // User is not signed in, redirect to login
-      console.log('❌ User not authenticated, redirecting to login');
-      router.replace('/(auth)/login');
+    try {
+      if (user) {
+        // User is signed in, redirect to home
+        console.log('✅ User authenticated, redirecting to home');
+        router.replace('/(tabs)/(home)/');
+      } else {
+        // User is not signed in, redirect to login
+        console.log('❌ User not authenticated, redirecting to login');
+        router.replace('/(auth)/login');
+      }
+    } catch (error) {
+      console.error('Error during navigation:', error);
+      // Fallback to login screen if navigation fails
+      try {
+        router.replace('/(auth)/login');
+      } catch (fallbackError) {
+        console.error('Fallback navigation also failed:', fallbackError);
+      }
     }
   }, [user, loading]);
 

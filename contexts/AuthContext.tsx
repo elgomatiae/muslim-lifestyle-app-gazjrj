@@ -34,8 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Get initial session
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    // Get initial session - wrap in try-catch to prevent crashes
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (error) {
+        console.error('Error getting session:', error);
+        setLoading(false);
+        return;
+      }
+      
       console.log('Initial session check:', session?.user?.id || 'No session');
       setSession(session);
       setUser(session?.user ?? null);
@@ -57,10 +63,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setLoading(false);
+    }).catch((error) => {
+      console.error('Error in getSession:', error);
+      setLoading(false);
+      // Continue without session - app will show login screen
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // Listen for auth changes - wrap in try-catch
+    let subscription: { unsubscribe: () => void } | null = null;
+    try {
+      const { data: { subscription: sub } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log('Auth state changed:', _event, session?.user?.id || 'No session');
       setSession(session);
       setUser(session?.user ?? null);
@@ -103,8 +115,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       setLoading(false);
     });
+      subscription = sub;
+    } catch (error) {
+      console.error('Error setting up auth state listener:', error);
+      setLoading(false);
+    }
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (subscription) {
+        try {
+          subscription.unsubscribe();
+        } catch (error) {
+          console.error('Error unsubscribing from auth:', error);
+        }
+      }
+    };
   }, []); // Empty deps - subscription handles user state internally
 
   const signOut = async () => {

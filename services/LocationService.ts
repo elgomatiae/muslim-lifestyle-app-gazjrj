@@ -118,7 +118,7 @@ export async function getCurrentLocation(useCache: boolean = true): Promise<User
       if (addresses && addresses.length > 0) {
         const address = addresses[0];
         city = address.city || address.subregion || address.region || 'Unknown';
-        country = address.country;
+        country = address.country || undefined; // Handle null case
       }
     } catch (geocodeError) {
       console.warn('Could not get city name from coordinates');

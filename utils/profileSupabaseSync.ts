@@ -198,7 +198,7 @@ export async function initializeUserProfile(userId: string, username?: string, e
       throw new Error('Failed to create user profile');
     }
     
-    console.log('✅ User profile created successfully in Supabase with username:', finalUsername);
+    console.log('✅ User profile created successfully in Supabase with username:', finalName);
     
     // Save to local storage
     const localProfile = {

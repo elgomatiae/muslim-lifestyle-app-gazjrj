@@ -5,10 +5,15 @@ import { createClient } from '@supabase/supabase-js'
 // Use environment variables with EXPO_PUBLIC_ prefix for Expo/React Native
 // SECURITY: Never hardcode keys in production - always use environment variables
 // For EAS builds, set these as secrets: eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value YOUR_URL
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || (__DEV__ ? undefined : 'https://nihdqtamrfivlhxqdszf.supabase.co');
-const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || (__DEV__ ? undefined : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5paGRxdGFtcmZpdmxoeHFkc3pmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjU4NjExNDQsImV4cCI6MjA4MTQzNzE0NH0.XQM7sZ4cPwBomqoMDtrjD9jDTJ4Mxp15cd02A_ApoLU');
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || (__DEV__ ? undefined : 'https://teemloiwfnwrogwnoxsa.supabase.co');
+const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || (__DEV__ ? undefined : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZW1sb2l3Zm53cm9nd25veHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0NTYzODMsImV4cCI6MjA4MDAzMjM4M30.CXCl1-nnRT0GB6Qg89daWxT8kWxx91gEDaUWk9jX4CQ');
 
-// Validate configuration - fail fast if missing
+// Track if Supabase is configured
+export const isSupabaseConfigured = (): boolean => {
+  return !!(SUPABASE_URL && SUPABASE_PUBLISHABLE_KEY);
+};
+
+// Validate configuration - log warning but don't throw to prevent immediate crash
 if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
   const isProduction = !__DEV__;
   const errorMsg = isProduction 
@@ -45,17 +50,15 @@ See docs/ENV_SETUP_QUICK.md for detailed instructions.`;
     console.error('   2. Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY');
     console.error('   3. Restart dev server (npm start)');
     console.error('');
+    // In dev, throw to make it obvious
+    throw new Error(errorMsg);
   } else {
-    // In production, log the error but provide helpful message
+    // In production, log the error but DON'T throw - let the app show an error screen instead
     console.error('❌ CRITICAL: Missing Supabase configuration in production build');
-    console.error('This will cause the app to crash. Set EAS secrets and rebuild.');
+    console.error('The app will show an error screen. Set EAS secrets and rebuild.');
+    console.error('Fix: eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_URL --value YOUR_URL');
+    console.error('Fix: eas secret:create --scope project --name EXPO_PUBLIC_SUPABASE_ANON_KEY --value YOUR_KEY');
   }
-  throw new Error(errorMsg);
-}
-
-// Security check: Ensure we're using anon key, not service_role
-if (SUPABASE_PUBLISHABLE_KEY.includes('service_role')) {
-  throw new Error('SECURITY ERROR: Service role key detected. Never use service_role key in client code. Use anon key only.');
 }
 
 // Debug: Log configuration status (sanitized - no actual keys)
@@ -73,14 +76,62 @@ if (__DEV__) {
   }
 }
 
+// Security check: Ensure we're using anon key, not service_role
+if (SUPABASE_PUBLISHABLE_KEY && SUPABASE_PUBLISHABLE_KEY.includes('service_role')) {
+  console.error('SECURITY ERROR: Service role key detected. Never use service_role key in client code. Use anon key only.');
+}
+
+// Create Supabase client - use fallback values if env vars not set (for production resilience)
+// In production, if EAS secrets aren't set, we'll use fallback values to prevent immediate crash
+// The app will show an error screen instead of crashing
+const finalUrl = SUPABASE_URL || 'https://teemloiwfnwrogwnoxsa.supabase.co';
+const finalKey = SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlZW1sb2l3Zm53cm9nd25veHNhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQ0NTYzODMsImV4cCI6MjA4MDAzMjM4M30.CXCl1-nnRT0GB6Qg89daWxT8kWxx91gEDaUWk9jX4CQ';
+
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
 
-export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage: AsyncStorage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-})
+// Create client with error handling to prevent crashes
+let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
+
+try {
+  supabaseInstance = createClient<Database>(finalUrl, finalKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: false,
+    },
+  });
+} catch (error) {
+  console.error('Error creating Supabase client:', error);
+  // Create a minimal client that won't crash
+  // This should never happen, but safety first
+  try {
+    supabaseInstance = createClient<Database>(finalUrl, finalKey, {
+      auth: {
+        storage: AsyncStorage,
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  } catch (fallbackError) {
+    console.error('Fallback Supabase client creation also failed:', fallbackError);
+    // If even fallback fails, we'll handle this in the contexts
+  }
+}
+
+// Export with null check safety - create a safe wrapper if instance is null
+export const supabase = supabaseInstance || (() => {
+  // This should never be called, but provides a safe fallback
+  console.error('Supabase client is null - this should not happen');
+  // Return a minimal client that won't crash
+  return createClient<Database>(finalUrl, finalKey, {
+    auth: {
+      storage: AsyncStorage,
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  });
+})();

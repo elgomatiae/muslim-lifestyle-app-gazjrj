@@ -279,14 +279,14 @@ export async function getRecitationCategories(): Promise<string[]> {
       return [];
     }
 
-    // Get unique category IDs and convert to readable names
+    // Get unique category IDs - they should already be readable names
     const categoryIds = Array.from(
       new Set((data || []).map((item: any) => item.category_id).filter(Boolean))
     );
     
+    // Category IDs are already readable names, just filter and sort
     const categories = categoryIds
-      .map(id => getCategoryName(id))
-      .filter(Boolean)
+      .filter((id): id is string => typeof id === 'string' && id.length > 0)
       .sort();
 
     console.log(`✅ [RecitationService] Found ${categories.length} categories`);

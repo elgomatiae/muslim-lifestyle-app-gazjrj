@@ -27,6 +27,22 @@ SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore errors if splash screen is already prevented
 });
 
+// Global error handler to catch unhandled promise rejections
+if (typeof global !== 'undefined' && !__DEV__) {
+  const originalUnhandledRejection = global.onunhandledrejection;
+  global.onunhandledrejection = (event: any) => {
+    console.error('Unhandled promise rejection:', event?.reason || event);
+    // Prevent default crash behavior
+    if (event) {
+      event.preventDefault?.();
+    }
+    // Still call original handler if it exists
+    if (originalUnhandledRejection) {
+      originalUnhandledRejection(event);
+    }
+  };
+}
+
 export const unstable_settings = {
   initialRouteName: "index", // Start at index which checks auth and redirects
 };
@@ -34,9 +50,19 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
-  const [loaded] = useFonts({
+  
+  // Load fonts - useFonts hook must be called at top level
+  // It returns [loaded, error] tuple
+  const [loaded, fontError] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
+  
+  // Handle font loading errors gracefully
+  React.useEffect(() => {
+    if (fontError) {
+      console.warn('Font loading error (continuing without custom font):', fontError);
+    }
+  }, [fontError]);
   const splashScreenHidden = useRef(false);
 
   useEffect(() => {
@@ -63,9 +89,12 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  if (!loaded) {
-    return null;
+  // Continue even if font fails to load - use system fonts as fallback
+  // Only wait if font is still loading (not if it errored)
+  if (!loaded && !fontError) {
+    return null; // Still loading
   }
+  // If font errored, continue anyway with system fonts
 
   const CustomDefaultTheme: Theme = {
     ...DefaultTheme,

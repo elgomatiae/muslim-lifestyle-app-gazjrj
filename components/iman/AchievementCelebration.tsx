@@ -10,15 +10,16 @@ import {
   StyleSheet,
   Modal,
   Animated,
-  Dimensions,
   TouchableOpacity,
 } from 'react-native';
+import { getScreenWidth, getScreenHeight } from '@/utils/screenDimensions';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
+const SCREEN_HEIGHT = getScreenHeight();
 
 interface AchievementCelebrationProps {
   visible: boolean;

@@ -40,6 +40,7 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
+
   const [settings, setSettings] = useState<NotificationSettings>({
     prayerNotifications: true,
     dailyContentNotifications: true,
@@ -54,45 +55,96 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [scheduledCount, setScheduledCount] = useState(0);
 
-  // Load settings on mount and when user changes
+  // Load settings on mount and when user changes - delay to ensure native modules are ready
   useEffect(() => {
-    loadSettings();
+    // Delay loading to ensure React Native and native modules are fully initialized
+    const timeout = setTimeout(() => {
+      loadSettings().catch((error) => {
+        console.warn('Error loading notification settings on mount:', error);
+      });
+    }, 2000); // Wait 2 seconds for native modules to be ready
+
+    return () => clearTimeout(timeout);
   }, [user?.id]);
 
-  // Refresh scheduled count periodically
+  // Refresh scheduled count periodically - wrap in try-catch to prevent crashes
   useEffect(() => {
-    refreshScheduledCount();
+    // Delay initial call to ensure native modules are ready
+    const timeout = setTimeout(() => {
+      refreshScheduledCount().catch((error) => {
+        console.warn('Error in initial scheduled count refresh:', error);
+      });
+    }, 1000); // Wait 1 second for native modules to initialize
+
     const interval = setInterval(() => {
-      refreshScheduledCount();
+      refreshScheduledCount().catch((error) => {
+        console.warn('Error in periodic scheduled count refresh:', error);
+      });
     }, 30000); // Refresh every 30 seconds
 
-    return () => clearInterval(interval);
+    return () => {
+      clearTimeout(timeout);
+      clearInterval(interval);
+    };
   }, []);
 
   const loadSettings = async () => {
     try {
       setLoading(true);
+      
+      // Safety check: ensure we're not calling too early
+      // Check if React Native bridge is ready
+      const isReactNativeReady = 
+        (typeof global !== 'undefined' && global.__fbBatchedBridge) ||
+        (typeof window !== 'undefined');
+      
+      if (!isReactNativeReady) {
+        // React Native might not be fully initialized
+        console.warn('React Native not fully initialized, delaying settings load');
+        setTimeout(() => {
+          loadSettings().catch((err) => {
+            console.warn('Error in delayed settings load:', err);
+          });
+        }, 1000);
+        setLoading(false);
+        return;
+      }
+
       const loadedSettings = await getNotificationSettings(user?.id);
       
-      // Check if location services are enabled
+      // Check if location services are enabled - wrap in try-catch to prevent native module crashes
       let locationServicesEnabled = false;
       try {
-        // Check if location services are enabled on the device
-        if (Location.hasServicesEnabledAsync) {
-          locationServicesEnabled = await Location.hasServicesEnabledAsync();
-        } else {
+        // Safely check if Location module is available and methods exist
+        if (Location && typeof Location.hasServicesEnabledAsync === 'function') {
+          try {
+            locationServicesEnabled = await Location.hasServicesEnabledAsync();
+          } catch (hasServicesError) {
+            // If hasServicesEnabledAsync fails, try permission check
+            if (typeof Location.getForegroundPermissionsAsync === 'function') {
+              try {
+                const { status } = await Location.getForegroundPermissionsAsync();
+                locationServicesEnabled = status === 'granted';
+              } catch (permError) {
+                console.warn('Error checking location permissions:', permError);
+                locationServicesEnabled = false;
+              }
+            }
+          }
+        } else if (Location && typeof Location.getForegroundPermissionsAsync === 'function') {
           // Fallback: if location permission is granted, assume services are enabled
-          const { status } = await Location.getForegroundPermissionsAsync();
-          locationServicesEnabled = status === 'granted';
+          try {
+            const { status } = await Location.getForegroundPermissionsAsync();
+            locationServicesEnabled = status === 'granted';
+          } catch (permError) {
+            console.warn('Error checking location permissions:', permError);
+            locationServicesEnabled = false;
+          }
         }
       } catch (error) {
-        // If check fails, use permission status as fallback
-        try {
-          const { status } = await Location.getForegroundPermissionsAsync();
-          locationServicesEnabled = status === 'granted';
-        } catch (permError) {
-          locationServicesEnabled = false;
-        }
+        // If all checks fail, default to false - don't crash
+        console.warn('Error checking location services:', error);
+        locationServicesEnabled = false;
       }
       
       setSettings({
@@ -101,6 +153,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       });
     } catch (error) {
       console.error('Error loading notification settings:', error);
+      // Don't crash - use default settings
     } finally {
       setLoading(false);
     }
@@ -108,43 +161,84 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const requestPermissions = async (): Promise<void> => {
     try {
-      // Request notification permissions
-      const notificationGranted = await requestNotificationPermissions();
+      // Request notification permissions - wrap in try-catch
+      let notificationGranted = false;
+      try {
+        notificationGranted = await requestNotificationPermissions();
+      } catch (error) {
+        console.error('Error requesting notification permissions:', error);
+        // Continue even if notification permission request fails
+      }
       
-      // Request location permissions
-      const locationGranted = await requestLocationPermissions();
+      // Request location permissions - wrap in try-catch
+      let locationGranted = false;
+      try {
+        locationGranted = await requestLocationPermissions();
+      } catch (error) {
+        console.error('Error requesting location permissions:', error);
+        // Continue even if location permission request fails
+      }
       
-      // Check location services
+      // Check location services - wrap in try-catch
       let locationServicesEnabled = false;
       try {
-        if (Location.hasServicesEnabledAsync) {
-          locationServicesEnabled = await Location.hasServicesEnabledAsync();
-        } else {
-          const { status } = await Location.getForegroundPermissionsAsync();
-          locationServicesEnabled = status === 'granted';
+        if (Location && typeof Location.hasServicesEnabledAsync === 'function') {
+          try {
+            locationServicesEnabled = await Location.hasServicesEnabledAsync();
+          } catch (hasServicesError) {
+            if (Location && typeof Location.getForegroundPermissionsAsync === 'function') {
+              try {
+                const { status } = await Location.getForegroundPermissionsAsync();
+                locationServicesEnabled = status === 'granted';
+              } catch (permError) {
+                console.warn('Error checking location permissions:', permError);
+                locationServicesEnabled = false;
+              }
+            }
+          }
+        } else if (Location && typeof Location.getForegroundPermissionsAsync === 'function') {
+          try {
+            const { status } = await Location.getForegroundPermissionsAsync();
+            locationServicesEnabled = status === 'granted';
+          } catch (permError) {
+            console.warn('Error checking location permissions:', permError);
+            locationServicesEnabled = false;
+          }
         }
       } catch (error) {
-        try {
-          const { status } = await Location.getForegroundPermissionsAsync();
-          locationServicesEnabled = status === 'granted';
-        } catch (permError) {
-          locationServicesEnabled = false;
-        }
+        console.warn('Error checking location services:', error);
+        locationServicesEnabled = false;
       }
       
       // Reload settings to get updated permissions
-      await loadSettings();
+      try {
+        await loadSettings();
+      } catch (error) {
+        console.error('Error reloading settings after permission request:', error);
+      }
       
       // Get updated settings after reload
-      const updatedSettings = await getNotificationSettings(user?.id);
+      let updatedSettings;
+      try {
+        updatedSettings = await getNotificationSettings(user?.id);
+      } catch (error) {
+        console.error('Error getting updated settings:', error);
+        // Use current settings as fallback
+        updatedSettings = settings;
+      }
       
       // If both permissions granted and prayer notifications enabled, schedule notifications
       if (notificationGranted && locationGranted && updatedSettings.prayerNotifications) {
-        await refreshPrayerTimesAndNotifications();
+        try {
+          await refreshPrayerTimesAndNotifications();
+        } catch (error) {
+          console.error('Error refreshing prayer notifications after permission grant:', error);
+          // Don't throw - permissions were granted successfully
+        }
       }
     } catch (error) {
       console.error('Error requesting permissions:', error);
-      throw error;
+      // Don't throw - return gracefully
     }
   };
 
@@ -153,21 +247,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const updatedSettings = { ...settings, ...newSettings };
       setSettings(updatedSettings);
       
-      // Update in service (saves to Supabase and AsyncStorage)
-      await updateNotificationSettingsService(newSettings, user?.id);
+      // Update in service (saves to Supabase and AsyncStorage) - wrap in try-catch
+      try {
+        await updateNotificationSettingsService(newSettings, user?.id);
+      } catch (error) {
+        console.error('Error updating notification settings in service:', error);
+        // Continue - settings were updated in state
+      }
       
       // If prayer notifications were enabled and we have permissions, schedule them
       if (newSettings.prayerNotifications === true && 
           updatedSettings.notificationPermissionGranted && 
           updatedSettings.locationPermissionGranted) {
-        await refreshPrayerTimesAndNotifications();
+        try {
+          await refreshPrayerTimesAndNotifications();
+        } catch (error) {
+          console.error('Error refreshing prayer notifications after settings update:', error);
+          // Don't throw - settings were updated successfully
+        }
       }
       
-      // Refresh scheduled count
-      await refreshScheduledCount();
+      // Refresh scheduled count - wrap in try-catch
+      try {
+        await refreshScheduledCount();
+      } catch (error) {
+        console.warn('Error refreshing scheduled count after settings update:', error);
+        // Don't throw - this is not critical
+      }
     } catch (error) {
       console.error('Error updating notification settings:', error);
-      throw error;
+      // Don't throw - return gracefully
     }
   };
 
@@ -179,28 +288,61 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       }
 
       // Check if prayer notifications are enabled
-      const currentSettings = await getNotificationSettings(user.id);
+      let currentSettings;
+      try {
+        currentSettings = await getNotificationSettings(user.id);
+      } catch (error) {
+        console.error('Error getting notification settings:', error);
+        return;
+      }
+
       if (!currentSettings.prayerNotifications) {
         console.log('Prayer notifications disabled, skipping refresh');
         return;
       }
 
-      // Check permissions
-      const { status: notificationStatus } = await Notifications.getPermissionsAsync();
+      // Check permissions - wrap in try-catch to prevent native module crashes
+      let notificationStatus = 'undetermined';
+      try {
+        if (Notifications && typeof Notifications.getPermissionsAsync === 'function') {
+          const permissions = await Notifications.getPermissionsAsync();
+          notificationStatus = permissions.status;
+        }
+      } catch (error) {
+        console.warn('Error checking notification permissions:', error);
+        return; // Can't proceed without knowing permission status
+      }
+
       if (notificationStatus !== 'granted') {
         console.log('Notification permission not granted');
         return;
       }
 
-      const { status: locationStatus } = await Location.getForegroundPermissionsAsync();
+      let locationStatus = 'undetermined';
+      try {
+        if (Location && typeof Location.getForegroundPermissionsAsync === 'function') {
+          const permissions = await Location.getForegroundPermissionsAsync();
+          locationStatus = permissions.status;
+        }
+      } catch (error) {
+        console.warn('Error checking location permissions:', error);
+        return; // Can't proceed without knowing permission status
+      }
+
       if (locationStatus !== 'granted') {
         console.log('Location permission not granted');
         return;
       }
 
-      // Get today's and tomorrow's prayer times
-      const todayPrayerTimes = await getTodayPrayerTimes(user.id);
-      const tomorrowPrayerTimes = await getTomorrowPrayerTimes(user.id);
+      // Get today's and tomorrow's prayer times - wrap in try-catch
+      let todayPrayerTimes, tomorrowPrayerTimes;
+      try {
+        todayPrayerTimes = await getTodayPrayerTimes(user.id);
+        tomorrowPrayerTimes = await getTomorrowPrayerTimes(user.id);
+      } catch (error) {
+        console.error('Error getting prayer times:', error);
+        return; // Can't schedule notifications without prayer times
+      }
 
       // Convert to format expected by schedulePrayerNotifications
       const prayerTimes = {
@@ -269,23 +411,36 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         },
       };
 
-      // Schedule notifications
-      await schedulePrayerNotifications(prayerTimes, user.id, tomorrowTimes);
+      // Schedule notifications - wrap in try-catch
+      try {
+        await schedulePrayerNotifications(prayerTimes, user.id, tomorrowTimes);
+      } catch (error) {
+        console.error('Error scheduling prayer notifications:', error);
+        // Don't throw - continue to refresh count
+      }
       
-      // Refresh scheduled count
-      await refreshScheduledCount();
+      // Refresh scheduled count - wrap in try-catch
+      try {
+        await refreshScheduledCount();
+      } catch (error) {
+        console.warn('Error refreshing scheduled count after notification update:', error);
+        // Don't throw - this is not critical
+      }
     } catch (error) {
       console.error('Error refreshing prayer times and notifications:', error);
-      throw error;
+      // Don't throw - return gracefully
     }
   };
 
   const refreshScheduledCount = async (): Promise<void> => {
     try {
+      // Safely get scheduled notifications - wrap in try-catch
       const notifications = await getScheduledNotifications();
-      setScheduledCount(notifications.length);
+      setScheduledCount(notifications?.length || 0);
     } catch (error) {
-      console.error('Error refreshing scheduled count:', error);
+      console.warn('Error refreshing scheduled count:', error);
+      // Don't crash - just set count to 0
+      setScheduledCount(0);
     }
   };
 

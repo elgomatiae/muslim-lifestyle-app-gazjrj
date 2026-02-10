@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "ok": "OK",
+    "yes": "Yes",
+    "no": "No",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "retry": "Retry"
+  },
+  "profile": {
+    "title": "Profile",
+    "editProfile": "Edit Profile",
+    "contactInformation": "Contact Information",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "about": "About",
+    "logout": "Logout",
+    "deleteAccount": "Delete Account",
+    "email": "Email",
+    "name": "Name",
+    "daysActive": "Days Active",
+    "prayers": "Prayers",
+    "dayStreak": "Day Streak",
+    "enterYourName": "Enter your name",
+    "enterYourEmail": "Enter your email",
+    "emailCannotBeChanged": "Email cannot be changed",
+    "changesAreSavedAutomatically": "Changes are saved automatically",
+    "saving": "Saving...",
+    "logoutConfirm": "Are you sure you want to logout?",
+    "deleteAccountConfirm": "Are you sure you want to delete your account? This action cannot be undone. All your data will be permanently deleted.",
+    "accountDeleted": "Account Deleted",
+    "accountDeletedSuccess": "Your account has been successfully deleted.",
+    "accountDeletion": "Account Deletion",
+    "accountDeletionProcessing": "Your account deletion is being processed. You have been signed out.",
+    "failedToDeleteAccount": "Failed to delete account. Please try again.",
+    "failedToSaveProfile": "Failed to save profile",
+    "language": "Language"
+  },
+  "language": {
+    "title": "Language Settings",
+    "selectLanguage": "Select Language",
+    "english": "English",
+    "arabic": "Arabic",
+    "spanish": "Spanish",
+    "french": "French",
+    "german": "German",
+    "turkish": "Turkish",
+    "urdu": "Urdu",
+    "indonesian": "Indonesian",
+    "malay": "Malay",
+    "languageChanged": "Language changed successfully"
+  },
+  "notifications": {
+    "title": "Notification Settings",
+    "permissionsRequired": "Permissions Required",
+    "enableNotificationPermissions": "Please enable notification permissions first.",
+    "permissionsUpdated": "Permissions Updated",
+    "permissionsUpdatedMessage": "Your notification permissions have been updated.",
+    "failedToUpdatePermissions": "Failed to update permissions. Please try again."
+  },
+  "prayer": {
+    "title": "Prayer Settings",
+    "locationPermissionNotGranted": "Location permission not granted",
+    "unableToGetLocation": "Unable to get location. Please check your location settings."
+  }
+}

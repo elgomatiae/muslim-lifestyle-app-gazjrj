@@ -8,7 +8,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { getScreenWidth } from '@/utils/screenDimensions';
+
+const SCREEN_WIDTH = getScreenWidth();
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.xl * 2 - spacing.md) / 2;
 
 // Header animation constants (matching Iman Tracker)

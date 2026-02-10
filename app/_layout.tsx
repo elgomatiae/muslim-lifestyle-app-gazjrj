@@ -5,6 +5,7 @@ import { useFonts } from "expo-font";
 import { Stack, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { useColorScheme, Alert } from "react-native";
 import { useNetworkState } from "expo-network";
@@ -17,31 +18,70 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { WidgetProvider } from "@/contexts/WidgetContext";
 import { AuthProvider } from "@/contexts/AuthContext";
-import { NotificationProvider } from "@/contexts/NotificationContext";
+// NotificationProvider is lazy-loaded - don't import at top level
 import { ImanTrackerProvider } from "@/contexts/ImanTrackerContext";
 import { AchievementCelebrationProvider } from "@/contexts/AchievementCelebrationContext";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+
+// Lazy NotificationProvider - only loads after React Native is fully initialized
+// This prevents native module crashes by delaying NotificationProvider initialization
+function LazyNotificationProvider({ children }: { children: React.ReactNode }) {
+  const [NotificationProviderComponent, setNotificationProviderComponent] = React.useState<React.ComponentType<{ children: React.ReactNode }> | null>(null);
+  const [shouldLoad, setShouldLoad] = React.useState(false);
+
+  React.useEffect(() => {
+    // Wait 5 seconds to ensure React Native and all native modules are fully ready
+    const timer = setTimeout(() => {
+      // Double-check that React Native bridge is ready
+      const isReady = 
+        (typeof global !== 'undefined' && global.__fbBatchedBridge) ||
+        (typeof window !== 'undefined');
+      
+      if (isReady) {
+        setShouldLoad(true);
+      } else {
+        // If not ready, wait another 2 seconds
+        setTimeout(() => setShouldLoad(true), 2000);
+      }
+    }, 5000); // Wait 5 seconds before attempting to load
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Dynamically import NotificationProvider only when ready
+  React.useEffect(() => {
+    if (!shouldLoad) return;
+
+    // Use dynamic import to load NotificationProvider only when needed
+    import('@/contexts/NotificationContext')
+      .then((module) => {
+        setNotificationProviderComponent(() => module.NotificationProvider);
+      })
+      .catch((error) => {
+        console.error('Error dynamically loading NotificationProvider:', error);
+        // Continue without NotificationProvider - app will work without notifications
+      });
+  }, [shouldLoad]);
+
+  // Don't render NotificationProvider until it's loaded
+  if (!NotificationProviderComponent) {
+    return <>{children}</>;
+  }
+
+  // Now safe to render NotificationProvider
+  return (
+    <ErrorBoundary fallback={null}>
+      <NotificationProviderComponent>
+        {children}
+      </NotificationProviderComponent>
+    </ErrorBoundary>
+  );
+}
 
 // Prevent the splash screen from auto-hiding before asset loading is complete.
 SplashScreen.preventAutoHideAsync().catch(() => {
   // Ignore errors if splash screen is already prevented
 });
-
-// Global error handler to catch unhandled promise rejections
-if (typeof global !== 'undefined' && !__DEV__) {
-  const originalUnhandledRejection = global.onunhandledrejection;
-  global.onunhandledrejection = (event: any) => {
-    console.error('Unhandled promise rejection:', event?.reason || event);
-    // Prevent default crash behavior
-    if (event) {
-      event.preventDefault?.();
-    }
-    // Still call original handler if it exists
-    if (originalUnhandledRejection) {
-      originalUnhandledRejection(event);
-    }
-  };
-}
 
 export const unstable_settings = {
   initialRouteName: "index", // Start at index which checks auth and redirects
@@ -50,23 +90,54 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const networkState = useNetworkState();
-  
-  // Load fonts - useFonts hook must be called at top level
-  // It returns [loaded, error] tuple
   const [loaded, fontError] = useFonts({
     SpaceMono: require("../assets/fonts/SpaceMono-Regular.ttf"),
   });
-  
-  // Handle font loading errors gracefully
-  React.useEffect(() => {
-    if (fontError) {
-      console.warn('Font loading error (continuing without custom font):', fontError);
-    }
-  }, [fontError]);
   const splashScreenHidden = useRef(false);
 
+  // Global error handler for unhandled promise rejections
+  React.useEffect(() => {
+    const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      console.error('Unhandled promise rejection:', event.reason);
+      // Prevent default crash behavior
+      event.preventDefault?.();
+    };
+
+    // Add global error handlers - only on web (React Native doesn't have window.addEventListener)
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    }
+
+    // Also handle React Native's global error handler
+    // ErrorUtils is available in React Native runtime
+    if (typeof ErrorUtils !== 'undefined') {
+      const originalHandler = ErrorUtils.getGlobalHandler?.();
+      ErrorUtils.setGlobalHandler?.((error: Error, isFatal?: boolean) => {
+        console.error('Global error handler:', error, isFatal);
+        // Don't crash - log and continue
+        if (originalHandler) {
+          originalHandler(error, isFatal);
+        }
+      });
+    }
+
+    return () => {
+      // Only remove listener if it was added (web only)
+      if (typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+        window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+      }
+    };
+  }, []);
+
   useEffect(() => {
-    if (loaded && !splashScreenHidden.current) {
+    // Handle font loading - continue even if font fails
+    if (fontError) {
+      console.warn('Font loading error (using system font):', fontError);
+      // Continue with app - use system fonts
+    }
+    
+    // Hide splash screen when fonts are loaded (or errored)
+    if ((loaded || fontError) && !splashScreenHidden.current) {
       splashScreenHidden.current = true;
       SplashScreen.hideAsync().catch((error) => {
         // Ignore errors if splash screen is already hidden or not registered
@@ -75,7 +146,7 @@ export default function RootLayout() {
         }
       });
     }
-  }, [loaded]);
+  }, [loaded, fontError]);
 
   React.useEffect(() => {
     if (
@@ -89,12 +160,10 @@ export default function RootLayout() {
     }
   }, [networkState.isConnected, networkState.isInternetReachable]);
 
-  // Continue even if font fails to load - use system fonts as fallback
-  // Only wait if font is still loading (not if it errored)
+  // Don't block app if font fails - continue with system fonts
   if (!loaded && !fontError) {
-    return null; // Still loading
+    return null;
   }
-  // If font errored, continue anyway with system fonts
 
   const CustomDefaultTheme: Theme = {
     ...DefaultTheme,
@@ -122,13 +191,15 @@ export default function RootLayout() {
   };
   return (
     <ErrorBoundary>
-      <StatusBar style="auto" animated />
-        <ThemeProvider
-          value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
-        >
-          <AuthProvider>
+      <SafeAreaProvider>
+        <StatusBar style="auto" animated />
+          <ThemeProvider
+            value={colorScheme === "dark" ? CustomDarkTheme : CustomDefaultTheme}
+          >
+            <AuthProvider>
             <AchievementCelebrationProvider>
-              <NotificationProvider>
+              {/* Lazy load NotificationProvider to prevent immediate native module crashes */}
+              <LazyNotificationProvider>
                 <ImanTrackerProvider>
                   <WidgetProvider>
                     <GestureHandlerRootView>
@@ -147,10 +218,11 @@ export default function RootLayout() {
                     </GestureHandlerRootView>
                   </WidgetProvider>
                 </ImanTrackerProvider>
-              </NotificationProvider>
+              </LazyNotificationProvider>
             </AchievementCelebrationProvider>
-          </AuthProvider>
-        </ThemeProvider>
+            </AuthProvider>
+          </ThemeProvider>
+      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }

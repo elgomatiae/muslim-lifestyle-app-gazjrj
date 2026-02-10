@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import { getScreenWidth } from '@/utils/screenDimensions';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from './IconSymbol';
 import { Video, getYouTubeThumbnailUrl, isYouTubeUrl } from '@/lib/supabase';
@@ -10,7 +11,7 @@ interface VideoCardProps {
   onPress: () => void;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
 const CARD_WIDTH = SCREEN_WIDTH * 0.42;
 const CARD_HEIGHT = CARD_WIDTH * 1.4;
 

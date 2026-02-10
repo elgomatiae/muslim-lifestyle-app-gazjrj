@@ -11,7 +11,9 @@ import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { supabase } from "@/app/integrations/supabase/client";
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { getScreenWidth } from '@/utils/screenDimensions';
+
+const SCREEN_WIDTH = getScreenWidth();
 
 interface DailyStats {
   date: string;

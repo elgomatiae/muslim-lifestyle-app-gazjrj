@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "delete": "Hapus",
+    "edit": "Edit",
+    "ok": "OK",
+    "yes": "Ya",
+    "no": "Tidak",
+    "loading": "Memuat...",
+    "error": "Kesalahan",
+    "success": "Berhasil",
+    "retry": "Coba Lagi"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Edit Profil",
+    "contactInformation": "Informasi Kontak",
+    "settings": "Pengaturan",
+    "notifications": "Notifikasi",
+    "about": "Tentang",
+    "logout": "Keluar",
+    "deleteAccount": "Hapus Akun",
+    "email": "Email",
+    "name": "Nama",
+    "daysActive": "Hari Aktif",
+    "prayers": "Sholat",
+    "dayStreak": "Rentang Hari",
+    "enterYourName": "Masukkan nama Anda",
+    "enterYourEmail": "Masukkan email Anda",
+    "emailCannotBeChanged": "Email tidak dapat diubah",
+    "changesAreSavedAutomatically": "Perubahan disimpan secara otomatis",
+    "saving": "Menyimpan...",
+    "logoutConfirm": "Apakah Anda yakin ingin keluar?",
+    "deleteAccountConfirm": "Apakah Anda yakin ingin menghapus akun Anda? Tindakan ini tidak dapat dibatalkan. Semua data Anda akan dihapus secara permanen.",
+    "accountDeleted": "Akun Dihapus",
+    "accountDeletedSuccess": "Akun Anda berhasil dihapus.",
+    "accountDeletion": "Penghapusan Akun",
+    "accountDeletionProcessing": "Penghapusan akun Anda sedang diproses. Anda telah keluar.",
+    "failedToDeleteAccount": "Gagal menghapus akun. Silakan coba lagi.",
+    "failedToSaveProfile": "Gagal menyimpan profil",
+    "language": "Bahasa"
+  },
+  "language": {
+    "title": "Pengaturan Bahasa",
+    "selectLanguage": "Pilih Bahasa",
+    "english": "Inggris",
+    "arabic": "Arab",
+    "spanish": "Spanyol",
+    "french": "Prancis",
+    "german": "Jerman",
+    "turkish": "Turki",
+    "urdu": "Urdu",
+    "indonesian": "Indonesia",
+    "malay": "Melayu",
+    "languageChanged": "Bahasa berhasil diubah"
+  },
+  "notifications": {
+    "title": "Pengaturan Notifikasi",
+    "permissionsRequired": "Izin Diperlukan",
+    "enableNotificationPermissions": "Harap aktifkan izin notifikasi terlebih dahulu.",
+    "permissionsUpdated": "Izin Diperbarui",
+    "permissionsUpdatedMessage": "Izin notifikasi Anda telah diperbarui.",
+    "failedToUpdatePermissions": "Gagal memperbarui izin. Silakan coba lagi."
+  },
+  "prayer": {
+    "title": "Pengaturan Sholat",
+    "locationPermissionNotGranted": "Izin lokasi tidak diberikan",
+    "unableToGetLocation": "Tidak dapat mendapatkan lokasi. Harap periksa pengaturan lokasi Anda."
+  }
+}

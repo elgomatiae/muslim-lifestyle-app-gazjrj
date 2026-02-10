@@ -16,9 +16,9 @@ import {
   ScrollView,
   ActivityIndicator,
   Alert,
-  Dimensions,
   Animated,
 } from 'react-native';
+import { getScreenWidth, getScreenHeight } from '@/utils/screenDimensions';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
@@ -27,7 +27,8 @@ import { ShareCardData } from '@/utils/shareCardGenerator';
 import { shareCard, shareToInstagramStories, shareToWhatsApp, shareToSnapchat } from '@/utils/shareService';
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
+const SCREEN_HEIGHT = getScreenHeight();
 
 interface ShareCardModalProps {
   visible: boolean;

@@ -6,67 +6,106 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '@/lib/supabase';
 import * as Location from 'expo-location';
 
-// Configure notification handler
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-  }),
-});
+// Configure notification handler - DO NOT call at module load time
+// This will be called lazily when first needed to prevent immediate crashes
+let notificationHandlerConfigured = false;
+
+function configureNotificationHandler() {
+  if (notificationHandlerConfigured) return;
+  
+  try {
+    if (Notifications && typeof Notifications.setNotificationHandler === 'function') {
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: true,
+        }),
+      });
+      notificationHandlerConfigured = true;
+    }
+  } catch (error) {
+    // Native module not ready yet - will be configured when first used
+    console.warn('Could not set notification handler:', error);
+  }
+}
 
 // Request notification permissions
 export async function registerForPushNotificationsAsync(): Promise<string | undefined> {
-  let token;
-
-  if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-
-    // Create prayer channel
-    await Notifications.setNotificationChannelAsync('prayer', {
-      name: 'Prayer Times',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#10B981',
-      sound: 'default',
-    });
-
-    // Create achievement channel
-    await Notifications.setNotificationChannelAsync('achievements', {
-      name: 'Achievements',
-      importance: Notifications.AndroidImportance.HIGH,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FFD700',
-      sound: 'default',
-    });
-  }
-
-  if (Device.isDevice) {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-    
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
+  try {
+    if (!Notifications) {
+      console.warn('Notifications module not available');
+      return undefined;
     }
-    
-    if (finalStatus !== 'granted') {
-      console.log('Failed to get push token for push notification!');
-      return;
-    }
-    
-    token = (await Notifications.getExpoPushTokenAsync()).data;
-    console.log('Push token:', token);
-  } else {
-    console.log('Must use physical device for Push Notifications');
-  }
 
-  return token;
+    let token;
+
+    if (Platform.OS === 'android' && typeof Notifications.setNotificationChannelAsync === 'function') {
+      try {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+
+        // Create prayer channel
+        await Notifications.setNotificationChannelAsync('prayer', {
+          name: 'Prayer Times',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#10B981',
+          sound: 'default',
+        });
+
+        // Create achievement channel
+        await Notifications.setNotificationChannelAsync('achievements', {
+          name: 'Achievements',
+          importance: Notifications.AndroidImportance.HIGH,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FFD700',
+          sound: 'default',
+        });
+      } catch (channelError) {
+        console.warn('Error setting notification channels:', channelError);
+        // Continue - channels might already exist
+      }
+    }
+
+    if (Device.isDevice) {
+      if (typeof Notifications.getPermissionsAsync !== 'function') {
+        console.warn('getPermissionsAsync not available');
+        return undefined;
+      }
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted' && typeof Notifications.requestPermissionsAsync === 'function') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        console.log('Failed to get push token for push notification!');
+        return undefined;
+      }
+      
+      if (typeof Notifications.getExpoPushTokenAsync === 'function') {
+        token = (await Notifications.getExpoPushTokenAsync()).data;
+        console.log('Push token:', token);
+      } else {
+        console.warn('getExpoPushTokenAsync not available');
+      }
+    } else {
+      console.log('Must use physical device for Push Notifications');
+    }
+
+    return token;
+  } catch (error) {
+    console.error('Error in registerForPushNotificationsAsync:', error);
+    return undefined;
+  }
 }
 
 // Check if notifications are enabled
@@ -476,10 +515,18 @@ export async function initializeNotifications(): Promise<void> {
 // Request notification permissions
 export async function requestNotificationPermissions(): Promise<boolean> {
   try {
+    // Configure notification handler lazily when first needed
+    configureNotificationHandler();
+
+    if (!Notifications || typeof Notifications.getPermissionsAsync !== 'function') {
+      console.warn('Notifications module not available');
+      return false;
+    }
+
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
     let finalStatus = existingStatus;
     
-    if (existingStatus !== 'granted') {
+    if (existingStatus !== 'granted' && typeof Notifications.requestPermissionsAsync === 'function') {
       const { status } = await Notifications.requestPermissionsAsync();
       finalStatus = status;
     }
@@ -494,10 +541,15 @@ export async function requestNotificationPermissions(): Promise<boolean> {
 // Request location permissions
 export async function requestLocationPermissions(): Promise<boolean> {
   try {
+    if (!Location || typeof Location.getForegroundPermissionsAsync !== 'function') {
+      console.warn('Location module not available');
+      return false;
+    }
+
     const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
     let finalStatus = existingStatus;
     
-    if (existingStatus !== 'granted') {
+    if (existingStatus !== 'granted' && typeof Location.requestForegroundPermissionsAsync === 'function') {
       const { status } = await Location.requestForegroundPermissionsAsync();
       finalStatus = status;
     }

@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "محفوظ کریں",
+    "cancel": "منسوخ کریں",
+    "close": "بند کریں",
+    "delete": "حذف کریں",
+    "edit": "ترمیم",
+    "ok": "ٹھیک ہے",
+    "yes": "ہاں",
+    "no": "نہیں",
+    "loading": "لوڈ ہو رہا ہے...",
+    "error": "خرابی",
+    "success": "کامیابی",
+    "retry": "دوبارہ کوشش کریں"
+  },
+  "profile": {
+    "title": "پروفائل",
+    "editProfile": "پروفائل میں ترمیم کریں",
+    "contactInformation": "رابطے کی معلومات",
+    "settings": "ترتیبات",
+    "notifications": "اطلاعات",
+    "about": "کے بارے میں",
+    "logout": "لاگ آؤٹ",
+    "deleteAccount": "اکاؤنٹ حذف کریں",
+    "email": "ای میل",
+    "name": "نام",
+    "daysActive": "فعال دن",
+    "prayers": "نمازیں",
+    "dayStreak": "دنوں کی لڑی",
+    "enterYourName": "اپنا نام درج کریں",
+    "enterYourEmail": "اپنا ای میل درج کریں",
+    "emailCannotBeChanged": "ای میل تبدیل نہیں کی جا سکتی",
+    "changesAreSavedAutomatically": "تبدیلیاں خود بخود محفوظ ہو جاتی ہیں",
+    "saving": "محفوظ ہو رہا ہے...",
+    "logoutConfirm": "کیا آپ واقعی لاگ آؤٹ کرنا چاہتے ہیں؟",
+    "deleteAccountConfirm": "کیا آپ واقعی اپنا اکاؤنٹ حذف کرنا چاہتے ہیں؟ یہ عمل واپس نہیں لیا جا سکتا۔ آپ کا تمام ڈیٹا مستقل طور پر حذف ہو جائے گا۔",
+    "accountDeleted": "اکاؤنٹ حذف ہو گیا",
+    "accountDeletedSuccess": "آپ کا اکاؤنٹ کامیابی سے حذف ہو گیا۔",
+    "accountDeletion": "اکاؤنٹ کی حذف شدگی",
+    "accountDeletionProcessing": "آپ کے اکاؤنٹ کی حذف شدگی پر کارروائی ہو رہی ہے۔ آپ کو لاگ آؤٹ کر دیا گیا ہے۔",
+    "failedToDeleteAccount": "اکاؤنٹ حذف کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔",
+    "failedToSaveProfile": "پروفائل محفوظ کرنے میں ناکام",
+    "language": "زبان"
+  },
+  "language": {
+    "title": "زبان کی ترتیبات",
+    "selectLanguage": "زبان منتخب کریں",
+    "english": "انگریزی",
+    "arabic": "عربی",
+    "spanish": "ہسپانوی",
+    "french": "فرانسیسی",
+    "german": "جرمن",
+    "turkish": "ترکی",
+    "urdu": "اردو",
+    "indonesian": "انڈونیشیائی",
+    "malay": "مالے",
+    "languageChanged": "زبان کامیابی سے تبدیل ہو گئی"
+  },
+  "notifications": {
+    "title": "اطلاعات کی ترتیبات",
+    "permissionsRequired": "اجازتیں درکار",
+    "enableNotificationPermissions": "براہ کرم پہلے اطلاعات کی اجازتیں فعال کریں۔",
+    "permissionsUpdated": "اجازتیں اپ ڈیٹ ہو گئیں",
+    "permissionsUpdatedMessage": "آپ کی اطلاعات کی اجازتیں اپ ڈیٹ ہو گئیں۔",
+    "failedToUpdatePermissions": "اجازتیں اپ ڈیٹ کرنے میں ناکام۔ براہ کرم دوبارہ کوشش کریں۔"
+  },
+  "prayer": {
+    "title": "نماز کی ترتیبات",
+    "locationPermissionNotGranted": "مقام کی اجازت نہیں دی گئی",
+    "unableToGetLocation": "مقام حاصل نہیں کیا جا سکا۔ براہ کرم اپنی مقام کی ترتیبات چیک کریں۔"
+  }
+}

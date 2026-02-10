@@ -7,14 +7,15 @@
  */
 
 import React, { forwardRef, useEffect, useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions, Animated } from 'react-native';
+import { View, Text, StyleSheet, Animated } from 'react-native';
+import { getScreenWidth } from '@/utils/screenDimensions';
 import { LinearGradient } from 'expo-linear-gradient';
 import { IconSymbol } from '@/components/IconSymbol';
 import { colors, typography } from '@/styles/commonStyles';
 import { ShareCardData, getShareCardIcon, SHARE_CARD_WIDTH, SHARE_CARD_HEIGHT } from '@/utils/shareCardGenerator';
 import Svg, { Circle, Defs, RadialGradient, Stop } from 'react-native-svg';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
 
 interface ShareCardProps {
   data: ShareCardData;

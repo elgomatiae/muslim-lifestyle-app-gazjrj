@@ -17,18 +17,23 @@ export function ProtectedRoute({ children, redirectTo = '/(auth)/login' }: Prote
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === '(auth)';
+    try {
+      const inAuthGroup = segments[0] === '(auth)';
 
-    if (!user && !inAuthGroup) {
-      // User is not signed in and trying to access protected route
-      console.log('Redirecting to auth - user not authenticated');
-      router.replace(redirectTo);
-    } else if (user && inAuthGroup) {
-      // User is signed in but on auth screen, redirect to home
-      console.log('Redirecting to home - user already authenticated');
-      router.replace('/(tabs)/(home)/');
+      if (!user && !inAuthGroup) {
+        // User is not signed in and trying to access protected route
+        console.log('Redirecting to auth - user not authenticated');
+        router.replace(redirectTo);
+      } else if (user && inAuthGroup) {
+        // User is signed in but on auth screen, redirect to home
+        console.log('Redirecting to home - user already authenticated');
+        router.replace('/(tabs)/(home)/');
+      }
+    } catch (error) {
+      console.error('Navigation error in ProtectedRoute:', error);
+      // Don't crash - continue rendering
     }
-  }, [user, loading, segments]);
+  }, [user, loading, segments, redirectTo]);
 
   // Show loading spinner while checking auth state
   if (loading) {

@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "ok": "OK",
+    "yes": "Sí",
+    "no": "No",
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "retry": "Reintentar"
+  },
+  "profile": {
+    "title": "Perfil",
+    "editProfile": "Editar Perfil",
+    "contactInformation": "Información de Contacto",
+    "settings": "Configuración",
+    "notifications": "Notificaciones",
+    "about": "Acerca de",
+    "logout": "Cerrar Sesión",
+    "deleteAccount": "Eliminar Cuenta",
+    "email": "Correo Electrónico",
+    "name": "Nombre",
+    "daysActive": "Días Activos",
+    "prayers": "Oraciones",
+    "dayStreak": "Racha de Días",
+    "enterYourName": "Ingresa tu nombre",
+    "enterYourEmail": "Ingresa tu correo electrónico",
+    "emailCannotBeChanged": "El correo electrónico no se puede cambiar",
+    "changesAreSavedAutomatically": "Los cambios se guardan automáticamente",
+    "saving": "Guardando...",
+    "logoutConfirm": "¿Estás seguro de que quieres cerrar sesión?",
+    "deleteAccountConfirm": "¿Estás seguro de que quieres eliminar tu cuenta? Esta acción no se puede deshacer. Todos tus datos se eliminarán permanentemente.",
+    "accountDeleted": "Cuenta Eliminada",
+    "accountDeletedSuccess": "Tu cuenta ha sido eliminada exitosamente.",
+    "accountDeletion": "Eliminación de Cuenta",
+    "accountDeletionProcessing": "La eliminación de tu cuenta se está procesando. Has cerrado sesión.",
+    "failedToDeleteAccount": "Error al eliminar la cuenta. Por favor, inténtalo de nuevo.",
+    "failedToSaveProfile": "Error al guardar el perfil",
+    "language": "Idioma"
+  },
+  "language": {
+    "title": "Configuración de Idioma",
+    "selectLanguage": "Seleccionar Idioma",
+    "english": "Inglés",
+    "arabic": "Árabe",
+    "spanish": "Español",
+    "french": "Francés",
+    "german": "Alemán",
+    "turkish": "Turco",
+    "urdu": "Urdu",
+    "indonesian": "Indonesio",
+    "malay": "Malayo",
+    "languageChanged": "Idioma cambiado exitosamente"
+  },
+  "notifications": {
+    "title": "Configuración de Notificaciones",
+    "permissionsRequired": "Permisos Requeridos",
+    "enableNotificationPermissions": "Por favor, habilita los permisos de notificación primero.",
+    "permissionsUpdated": "Permisos Actualizados",
+    "permissionsUpdatedMessage": "Tus permisos de notificación han sido actualizados.",
+    "failedToUpdatePermissions": "Error al actualizar permisos. Por favor, inténtalo de nuevo."
+  },
+  "prayer": {
+    "title": "Configuración de Oración",
+    "locationPermissionNotGranted": "Permiso de ubicación no concedido",
+    "unableToGetLocation": "No se pudo obtener la ubicación. Por favor, verifica la configuración de ubicación."
+  }
+}

@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "close": "Tutup",
+    "delete": "Padam",
+    "edit": "Edit",
+    "ok": "OK",
+    "yes": "Ya",
+    "no": "Tidak",
+    "loading": "Memuatkan...",
+    "error": "Ralat",
+    "success": "Berjaya",
+    "retry": "Cuba Lagi"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Edit Profil",
+    "contactInformation": "Maklumat Hubungan",
+    "settings": "Tetapan",
+    "notifications": "Pemberitahuan",
+    "about": "Mengenai",
+    "logout": "Log Keluar",
+    "deleteAccount": "Padam Akaun",
+    "email": "E-mel",
+    "name": "Nama",
+    "daysActive": "Hari Aktif",
+    "prayers": "Solat",
+    "dayStreak": "Rentang Hari",
+    "enterYourName": "Masukkan nama anda",
+    "enterYourEmail": "Masukkan e-mel anda",
+    "emailCannotBeChanged": "E-mel tidak boleh diubah",
+    "changesAreSavedAutomatically": "Perubahan disimpan secara automatik",
+    "saving": "Menyimpan...",
+    "logoutConfirm": "Adakah anda pasti mahu log keluar?",
+    "deleteAccountConfirm": "Adakah anda pasti mahu memadam akaun anda? Tindakan ini tidak boleh dibatalkan. Semua data anda akan dipadam secara kekal.",
+    "accountDeleted": "Akaun Dipadam",
+    "accountDeletedSuccess": "Akaun anda telah berjaya dipadam.",
+    "accountDeletion": "Pemadaman Akaun",
+    "accountDeletionProcessing": "Pemadaman akaun anda sedang diproses. Anda telah log keluar.",
+    "failedToDeleteAccount": "Gagal memadam akaun. Sila cuba lagi.",
+    "failedToSaveProfile": "Gagal menyimpan profil",
+    "language": "Bahasa"
+  },
+  "language": {
+    "title": "Tetapan Bahasa",
+    "selectLanguage": "Pilih Bahasa",
+    "english": "Bahasa Inggeris",
+    "arabic": "Bahasa Arab",
+    "spanish": "Bahasa Sepanyol",
+    "french": "Bahasa Perancis",
+    "german": "Bahasa Jerman",
+    "turkish": "Bahasa Turki",
+    "urdu": "Bahasa Urdu",
+    "indonesian": "Bahasa Indonesia",
+    "malay": "Bahasa Melayu",
+    "languageChanged": "Bahasa berjaya ditukar"
+  },
+  "notifications": {
+    "title": "Tetapan Pemberitahuan",
+    "permissionsRequired": "Kebenaran Diperlukan",
+    "enableNotificationPermissions": "Sila aktifkan kebenaran pemberitahuan terlebih dahulu.",
+    "permissionsUpdated": "Kebenaran Dikemaskini",
+    "permissionsUpdatedMessage": "Kebenaran pemberitahuan anda telah dikemaskini.",
+    "failedToUpdatePermissions": "Gagal mengemaskini kebenaran. Sila cuba lagi."
+  },
+  "prayer": {
+    "title": "Tetapan Solat",
+    "locationPermissionNotGranted": "Kebenaran lokasi tidak diberikan",
+    "unableToGetLocation": "Tidak dapat mendapatkan lokasi. Sila semak tetapan lokasi anda."
+  }
+}

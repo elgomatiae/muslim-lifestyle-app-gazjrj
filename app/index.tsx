@@ -28,13 +28,8 @@ export default function Index() {
         router.replace('/(auth)/login');
       }
     } catch (error) {
-      console.error('Error during navigation:', error);
-      // Fallback to login screen if navigation fails
-      try {
-        router.replace('/(auth)/login');
-      } catch (fallbackError) {
-        console.error('Fallback navigation also failed:', fallbackError);
-      }
+      console.error('Navigation error in index:', error);
+      // Don't crash - stay on loading screen
     }
   }, [user, loading]);
 

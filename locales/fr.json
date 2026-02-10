@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "ok": "OK",
+    "yes": "Oui",
+    "no": "Non",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "retry": "Réessayer"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Modifier le Profil",
+    "contactInformation": "Informations de Contact",
+    "settings": "Paramètres",
+    "notifications": "Notifications",
+    "about": "À Propos",
+    "logout": "Déconnexion",
+    "deleteAccount": "Supprimer le Compte",
+    "email": "E-mail",
+    "name": "Nom",
+    "daysActive": "Jours Actifs",
+    "prayers": "Prières",
+    "dayStreak": "Série de Jours",
+    "enterYourName": "Entrez votre nom",
+    "enterYourEmail": "Entrez votre e-mail",
+    "emailCannotBeChanged": "L'e-mail ne peut pas être modifié",
+    "changesAreSavedAutomatically": "Les modifications sont enregistrées automatiquement",
+    "saving": "Enregistrement...",
+    "logoutConfirm": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "deleteAccountConfirm": "Êtes-vous sûr de vouloir supprimer votre compte ? Cette action est irréversible. Toutes vos données seront définitivement supprimées.",
+    "accountDeleted": "Compte Supprimé",
+    "accountDeletedSuccess": "Votre compte a été supprimé avec succès.",
+    "accountDeletion": "Suppression de Compte",
+    "accountDeletionProcessing": "La suppression de votre compte est en cours de traitement. Vous avez été déconnecté.",
+    "failedToDeleteAccount": "Échec de la suppression du compte. Veuillez réessayer.",
+    "failedToSaveProfile": "Échec de l'enregistrement du profil",
+    "language": "Langue"
+  },
+  "language": {
+    "title": "Paramètres de Langue",
+    "selectLanguage": "Sélectionner la Langue",
+    "english": "Anglais",
+    "arabic": "Arabe",
+    "spanish": "Espagnol",
+    "french": "Français",
+    "german": "Allemand",
+    "turkish": "Turc",
+    "urdu": "Ourdou",
+    "indonesian": "Indonésien",
+    "malay": "Malais",
+    "languageChanged": "Langue modifiée avec succès"
+  },
+  "notifications": {
+    "title": "Paramètres de Notifications",
+    "permissionsRequired": "Autorisations Requises",
+    "enableNotificationPermissions": "Veuillez d'abord activer les autorisations de notification.",
+    "permissionsUpdated": "Autorisations Mises à Jour",
+    "permissionsUpdatedMessage": "Vos autorisations de notification ont été mises à jour.",
+    "failedToUpdatePermissions": "Échec de la mise à jour des autorisations. Veuillez réessayer."
+  },
+  "prayer": {
+    "title": "Paramètres de Prière",
+    "locationPermissionNotGranted": "Autorisation de localisation non accordée",
+    "unableToGetLocation": "Impossible d'obtenir la localisation. Veuillez vérifier vos paramètres de localisation."
+  }
+}

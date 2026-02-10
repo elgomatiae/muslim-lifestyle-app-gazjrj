@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "close": "Kapat",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "ok": "Tamam",
+    "yes": "Evet",
+    "no": "Hayır",
+    "loading": "Yükleniyor...",
+    "error": "Hata",
+    "success": "Başarılı",
+    "retry": "Yeniden Dene"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Profili Düzenle",
+    "contactInformation": "İletişim Bilgileri",
+    "settings": "Ayarlar",
+    "notifications": "Bildirimler",
+    "about": "Hakkında",
+    "logout": "Çıkış Yap",
+    "deleteAccount": "Hesabı Sil",
+    "email": "E-posta",
+    "name": "İsim",
+    "daysActive": "Aktif Günler",
+    "prayers": "Namazlar",
+    "dayStreak": "Gün Serisi",
+    "enterYourName": "İsminizi girin",
+    "enterYourEmail": "E-postanızı girin",
+    "emailCannotBeChanged": "E-posta değiştirilemez",
+    "changesAreSavedAutomatically": "Değişiklikler otomatik olarak kaydedilir",
+    "saving": "Kaydediliyor...",
+    "logoutConfirm": "Çıkış yapmak istediğinizden emin misiniz?",
+    "deleteAccountConfirm": "Hesabınızı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz. Tüm verileriniz kalıcı olarak silinecektir.",
+    "accountDeleted": "Hesap Silindi",
+    "accountDeletedSuccess": "Hesabınız başarıyla silindi.",
+    "accountDeletion": "Hesap Silme",
+    "accountDeletionProcessing": "Hesap silme işleminiz işleniyor. Çıkış yaptınız.",
+    "failedToDeleteAccount": "Hesap silinemedi. Lütfen tekrar deneyin.",
+    "failedToSaveProfile": "Profil kaydedilemedi",
+    "language": "Dil"
+  },
+  "language": {
+    "title": "Dil Ayarları",
+    "selectLanguage": "Dil Seç",
+    "english": "İngilizce",
+    "arabic": "Arapça",
+    "spanish": "İspanyolca",
+    "french": "Fransızca",
+    "german": "Almanca",
+    "turkish": "Türkçe",
+    "urdu": "Urduca",
+    "indonesian": "Endonezce",
+    "malay": "Malayca",
+    "languageChanged": "Dil başarıyla değiştirildi"
+  },
+  "notifications": {
+    "title": "Bildirim Ayarları",
+    "permissionsRequired": "İzinler Gerekli",
+    "enableNotificationPermissions": "Lütfen önce bildirim izinlerini etkinleştirin.",
+    "permissionsUpdated": "İzinler Güncellendi",
+    "permissionsUpdatedMessage": "Bildirim izinleriniz güncellendi.",
+    "failedToUpdatePermissions": "İzinler güncellenemedi. Lütfen tekrar deneyin."
+  },
+  "prayer": {
+    "title": "Namaz Ayarları",
+    "locationPermissionNotGranted": "Konum izni verilmedi",
+    "unableToGetLocation": "Konum alınamadı. Lütfen konum ayarlarınızı kontrol edin."
+  }
+}

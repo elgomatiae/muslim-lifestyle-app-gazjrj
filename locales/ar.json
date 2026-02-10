@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "close": "إغلاق",
+    "delete": "حذف",
+    "edit": "تعديل",
+    "ok": "موافق",
+    "yes": "نعم",
+    "no": "لا",
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "success": "نجح",
+    "retry": "إعادة المحاولة"
+  },
+  "profile": {
+    "title": "الملف الشخصي",
+    "editProfile": "تعديل الملف الشخصي",
+    "contactInformation": "معلومات الاتصال",
+    "settings": "الإعدادات",
+    "notifications": "الإشعارات",
+    "about": "حول",
+    "logout": "تسجيل الخروج",
+    "deleteAccount": "حذف الحساب",
+    "email": "البريد الإلكتروني",
+    "name": "الاسم",
+    "daysActive": "أيام نشطة",
+    "prayers": "صلوات",
+    "dayStreak": "سلسلة الأيام",
+    "enterYourName": "أدخل اسمك",
+    "enterYourEmail": "أدخل بريدك الإلكتروني",
+    "emailCannotBeChanged": "لا يمكن تغيير البريد الإلكتروني",
+    "changesAreSavedAutomatically": "يتم حفظ التغييرات تلقائياً",
+    "saving": "جاري الحفظ...",
+    "logoutConfirm": "هل أنت متأكد أنك تريد تسجيل الخروج؟",
+    "deleteAccountConfirm": "هل أنت متأكد أنك تريد حذف حسابك؟ لا يمكن التراجع عن هذا الإجراء. سيتم حذف جميع بياناتك نهائياً.",
+    "accountDeleted": "تم حذف الحساب",
+    "accountDeletedSuccess": "تم حذف حسابك بنجاح.",
+    "accountDeletion": "حذف الحساب",
+    "accountDeletionProcessing": "جاري معالجة حذف حسابك. تم تسجيل خروجك.",
+    "failedToDeleteAccount": "فشل حذف الحساب. يرجى المحاولة مرة أخرى.",
+    "failedToSaveProfile": "فشل حفظ الملف الشخصي",
+    "language": "اللغة"
+  },
+  "language": {
+    "title": "إعدادات اللغة",
+    "selectLanguage": "اختر اللغة",
+    "english": "الإنجليزية",
+    "arabic": "العربية",
+    "spanish": "الإسبانية",
+    "french": "الفرنسية",
+    "german": "الألمانية",
+    "turkish": "التركية",
+    "urdu": "الأردية",
+    "indonesian": "الإندونيسية",
+    "malay": "الماليزية",
+    "languageChanged": "تم تغيير اللغة بنجاح"
+  },
+  "notifications": {
+    "title": "إعدادات الإشعارات",
+    "permissionsRequired": "الأذونات مطلوبة",
+    "enableNotificationPermissions": "يرجى تفعيل أذونات الإشعارات أولاً.",
+    "permissionsUpdated": "تم تحديث الأذونات",
+    "permissionsUpdatedMessage": "تم تحديث أذونات الإشعارات الخاصة بك.",
+    "failedToUpdatePermissions": "فشل تحديث الأذونات. يرجى المحاولة مرة أخرى."
+  },
+  "prayer": {
+    "title": "إعدادات الصلاة",
+    "locationPermissionNotGranted": "لم يتم منح إذن الموقع",
+    "unableToGetLocation": "تعذر الحصول على الموقع. يرجى التحقق من إعدادات الموقع الخاصة بك."
+  }
+}

@@ -10,7 +10,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { getScreenWidth } from '@/utils/screenDimensions';
+
+const SCREEN_WIDTH = getScreenWidth();
 
 const WORKOUT_TYPES = [
   { value: 'general', label: 'General Fitness', icon: { ios: 'figure.mixed.cardio', android: 'fitness-center' } },

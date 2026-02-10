@@ -6,8 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   Platform,
-  Dimensions,
 } from 'react-native';
+import { getScreenWidth } from '@/utils/screenDimensions';
 import { useRouter, usePathname } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -22,7 +22,7 @@ import Animated, {
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 import { Href } from 'expo-router';
 
-const { width: screenWidth } = Dimensions.get('window');
+const screenWidth = getScreenWidth();
 
 export interface TabBarItem {
   name: string;

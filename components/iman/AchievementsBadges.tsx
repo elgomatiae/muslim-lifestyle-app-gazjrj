@@ -14,8 +14,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LOCAL_ACHIEVEMENTS } from '@/data/localAchievements';
 import { sendAchievementUnlocked } from '@/utils/notificationService';
 import { checkAndUnlockAchievements } from '@/utils/achievementService';
-import ShareButton from '@/components/share/ShareButton';
-import { generateAchievementCard } from '@/utils/shareCardGenerator';
 
 interface Achievement {
   id: string;
@@ -524,7 +522,7 @@ export default function AchievementsBadges() {
         router.push('/(tabs)/(ilm)' as any);
         break;
       case 'workouts_completed':
-        router.push('/(tabs)/(wellness)/activity-tracker' as any);
+        router.push('/(tabs)/(wellness)/physical-health' as any);
         break;
       case 'meditation_sessions':
         router.push('/(tabs)/(wellness)/mental-health' as any);
@@ -1272,21 +1270,6 @@ export default function AchievementsBadges() {
                             </View>
                           </View>
                         )}
-
-                        {/* Share Button */}
-                        <View style={styles.modalShareSection}>
-                          <View style={styles.modalShareButtonContainer}>
-                            <ShareButton
-                              data={generateAchievementCard(
-                                selectedAchievement.title,
-                                selectedAchievement.description
-                              )}
-                              size={28}
-                              color={getTierColor(selectedAchievement.tier)}
-                            />
-                            <Text style={styles.modalShareText}>Share your achievement!</Text>
-                          </View>
-                        </View>
                       </>
                     )}
 
@@ -1684,26 +1667,6 @@ const styles = StyleSheet.create({
     ...typography.caption,
     color: colors.text,
     lineHeight: 18,
-  },
-  modalShareSection: {
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.lg,
-  },
-  modalShareButtonContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-    backgroundColor: colors.card,
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  modalShareText: {
-    ...typography.body,
-    color: colors.text,
-    fontWeight: '600',
   },
   modalProgressCard: {
     backgroundColor: colors.card,

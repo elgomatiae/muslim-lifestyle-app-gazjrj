@@ -1,11 +1,26 @@
 
-import { StyleSheet, ViewStyle, TextStyle, Dimensions } from 'react-native';
+import { StyleSheet, ViewStyle, TextStyle, Dimensions, Platform } from 'react-native';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+// Safe function to get dimensions - handles cases where Dimensions might not be ready
+function getScreenDimensions() {
+  try {
+    const dims = Dimensions.get('window');
+    return {
+      width: dims.width || 390, // Default to iPhone 13 width
+      height: dims.height || 844, // Default to iPhone 13 height
+    };
+  } catch (error) {
+    console.warn('Error getting screen dimensions, using defaults:', error);
+    return { width: 390, height: 844 };
+  }
+}
 
-// iPhone 13 dimensions: 390 x 844
-// Optimize spacing and sizing for smaller screens
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = getScreenDimensions();
+
+// Detect device type safely
+const isIPad = Platform.OS === 'ios' && (Platform.isPad || SCREEN_WIDTH >= 768);
 const isSmallScreen = SCREEN_WIDTH < 400;
+const isLargeScreen = SCREEN_WIDTH >= 768; // iPad and large phones
 
 export const colors = {
   // Light mode colors - ENHANCED MODERN PURPLE/TEAL THEME
@@ -56,27 +71,27 @@ export const colors = {
   gradientEmerald: ['#6EE7B7', '#34D399', '#10B981'],      // New emerald gradient
 };
 
-// Typography scale - optimized for smaller screens
+// Typography scale - optimized for all screen sizes including iPad
 export const typography = {
   h1: {
-    fontSize: isSmallScreen ? 28 : 32,
+    fontSize: isIPad ? 40 : (isSmallScreen ? 28 : 32),
     fontWeight: '800' as const,
-    lineHeight: isSmallScreen ? 36 : 40,
+    lineHeight: isIPad ? 48 : (isSmallScreen ? 36 : 40),
   },
   h2: {
-    fontSize: isSmallScreen ? 24 : 28,
+    fontSize: isIPad ? 32 : (isSmallScreen ? 24 : 28),
     fontWeight: '700' as const,
-    lineHeight: isSmallScreen ? 32 : 36,
+    lineHeight: isIPad ? 40 : (isSmallScreen ? 32 : 36),
   },
   h3: {
-    fontSize: isSmallScreen ? 20 : 24,
+    fontSize: isIPad ? 28 : (isSmallScreen ? 20 : 24),
     fontWeight: '700' as const,
-    lineHeight: isSmallScreen ? 28 : 32,
+    lineHeight: isIPad ? 36 : (isSmallScreen ? 28 : 32),
   },
   h4: {
-    fontSize: isSmallScreen ? 18 : 20,
+    fontSize: isIPad ? 24 : (isSmallScreen ? 18 : 20),
     fontWeight: '600' as const,
-    lineHeight: isSmallScreen ? 24 : 28,
+    lineHeight: isIPad ? 32 : (isSmallScreen ? 24 : 28),
   },
   body: {
     fontSize: 16,
@@ -110,16 +125,16 @@ export const typography = {
   },
 };
 
-// Enhanced spacing scale - optimized for smaller screens with better rhythm
+// Enhanced spacing scale - optimized for all screen sizes including iPad
 export const spacing = {
   xs: 4,
   sm: 8,
   md: 12,
-  lg: isSmallScreen ? 16 : 18,
-  xl: isSmallScreen ? 20 : 24,
-  xxl: isSmallScreen ? 24 : 28,
-  xxxl: isSmallScreen ? 32 : 40,
-  xxxxl: isSmallScreen ? 40 : 48,  // New extra large spacing
+  lg: isIPad ? 20 : (isSmallScreen ? 16 : 18),
+  xl: isIPad ? 28 : (isSmallScreen ? 20 : 24),
+  xxl: isIPad ? 32 : (isSmallScreen ? 24 : 28),
+  xxxl: isIPad ? 48 : (isSmallScreen ? 32 : 40),
+  xxxxl: isIPad ? 64 : (isSmallScreen ? 40 : 48),  // New extra large spacing
 };
 
 // Enhanced border radius scale for modern aesthetics
@@ -212,8 +227,9 @@ export const commonStyles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    maxWidth: 800,
+    maxWidth: isIPad ? 1200 : 800, // Wider max width for iPad
     width: '100%',
+    paddingHorizontal: isIPad ? spacing.xxl : spacing.xl,
   },
   title: {
     ...typography.h3,

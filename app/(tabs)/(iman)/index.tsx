@@ -1,6 +1,6 @@
 
 import React, { useCallback, useState, useEffect, useRef } from "react";
-import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, ActivityIndicator, Animated, Dimensions } from "react-native";
+import { View, Text, StyleSheet, RefreshControl, TouchableOpacity, ActivityIndicator, Animated } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, typography, spacing, borderRadius, shadows } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useImanTracker } from '@/contexts/ImanTrackerContext';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import { getScreenWidth } from '@/utils/screenDimensions';
 
 import ImanRingsDisplay from "@/components/iman/ImanRingsDisplay";
 import IbadahSection from "./ibadah-section";
@@ -16,7 +17,7 @@ import IlmSection from "./ilm-section";
 import AmanahSection from "./amanah-section";
 import AchievementsBadges from "@/components/iman/AchievementsBadges";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
 
 // Header animation constants
 const HEADER_MAX_HEIGHT = 150;

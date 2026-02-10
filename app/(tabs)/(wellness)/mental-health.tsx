@@ -11,7 +11,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import * as Haptics from 'expo-haptics';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { getScreenWidth } from '@/utils/screenDimensions';
+
+const SCREEN_WIDTH = getScreenWidth();
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.xl * 2 - spacing.md) / 2;
 
 interface JournalEntry {

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { getScreenWidth } from '@/utils/screenDimensions';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors, typography, spacing, borderRadius, shadows } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -22,7 +23,7 @@ interface ScoreData {
   amanah_score: number;
 }
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const SCREEN_WIDTH = getScreenWidth();
 const CHART_WIDTH = SCREEN_WIDTH - (spacing.lg * 4);
 const CHART_HEIGHT = 200;
 const CHART_PADDING = 40;

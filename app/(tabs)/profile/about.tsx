@@ -58,20 +58,17 @@ export default function AboutScreen() {
         { 
           label: 'Privacy Policy', 
           value: 'View our privacy policy',
-          // TODO: Update with your actual Privacy Policy URL before App Store submission
-          action: () => handleOpenLink('https://example.com/privacy'),
+          action: () => handleOpenLink('https://muslim-space-146.created.app/privacy'),
         },
         { 
-          label: 'Terms of Service', 
-          value: 'Read our terms of service',
-          // TODO: Update with your actual Terms of Service URL before App Store submission
-          action: () => handleOpenLink('https://example.com/terms'),
+          label: 'Support Center', 
+          value: 'Get help and find answers',
+          action: () => handleOpenLink('https://muslim-space-146.created.app/support'),
         },
         { 
           label: 'Contact Us', 
           value: 'Get in touch with our team',
-          // TODO: Update with your actual support email before App Store submission
-          action: () => handleOpenLink('mailto:support@example.com'),
+          action: () => handleOpenLink('mailto:aniselgomati@gmail.com'),
         },
       ],
     },

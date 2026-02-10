@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Natively",
+    "name": "Muslim-Space",
     "slug": "muslim-space",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -15,10 +15,12 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.createinc.70b3026932584f00a21b8830ccd84bfa",
+      "bundleDisplayName": "Muslim-Space",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSLocationWhenInUseUsageDescription": "We need your location to calculate accurate prayer times based on your current position.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to provide prayer time notifications even when the app is in the background."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We need your location to provide prayer time notifications even when the app is in the background.",
+        "NSUserNotificationsUsageDescription": "We need permission to send you prayer time reminders and achievement notifications."
       }
     },
     "android": {
@@ -59,7 +61,7 @@
           "sounds": [],
           "mode": "production"
         }
-      ],
+      ]
     ],
     "scheme": "natively",
     "experiments": {

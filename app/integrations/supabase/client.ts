@@ -93,12 +93,24 @@ const finalKey = SUPABASE_PUBLISHABLE_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVC
 // Create client with error handling to prevent crashes
 let supabaseInstance: ReturnType<typeof createClient<Database>> | null = null;
 
+// Safely get AsyncStorage - it might not be ready at module load time
+let safeAsyncStorage: typeof AsyncStorage | null = null;
+try {
+  // Check if AsyncStorage is available
+  if (AsyncStorage && typeof AsyncStorage.getItem === 'function') {
+    safeAsyncStorage = AsyncStorage;
+  }
+} catch (storageError) {
+  console.warn('AsyncStorage not available at module load:', storageError);
+  // Will create client without storage
+}
+
 try {
   supabaseInstance = createClient<Database>(finalUrl, finalKey, {
     auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: true,
-      persistSession: true,
+      storage: safeAsyncStorage || undefined, // Only use storage if available
+      autoRefreshToken: !!safeAsyncStorage, // Only auto-refresh if storage available
+      persistSession: !!safeAsyncStorage, // Only persist if storage available
       detectSessionInUrl: false,
     },
   });
@@ -109,7 +121,7 @@ try {
   try {
     supabaseInstance = createClient<Database>(finalUrl, finalKey, {
       auth: {
-        storage: AsyncStorage,
+        storage: undefined, // Don't use storage if initial creation failed
         autoRefreshToken: false,
         persistSession: false,
         detectSessionInUrl: false,
@@ -125,13 +137,19 @@ try {
 export const supabase = supabaseInstance || (() => {
   // This should never be called, but provides a safe fallback
   console.error('Supabase client is null - this should not happen');
-  // Return a minimal client that won't crash
-  return createClient<Database>(finalUrl, finalKey, {
-    auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: false,
-      persistSession: false,
-      detectSessionInUrl: false,
-    },
-  });
+  // Return a minimal client that won't crash - don't use AsyncStorage in fallback
+  try {
+    return createClient<Database>(finalUrl, finalKey, {
+      auth: {
+        storage: undefined, // Don't use storage in fallback
+        autoRefreshToken: false,
+        persistSession: false,
+        detectSessionInUrl: false,
+      },
+    });
+  } catch (error) {
+    console.error('Even fallback client creation failed:', error);
+    // Return a minimal client without auth config
+    return createClient<Database>(finalUrl, finalKey);
+  }
 })();

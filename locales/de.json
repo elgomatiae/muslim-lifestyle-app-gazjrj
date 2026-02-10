@@ -1,0 +1,72 @@
+{
+  "common": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "ok": "OK",
+    "yes": "Ja",
+    "no": "Nein",
+    "loading": "Lädt...",
+    "error": "Fehler",
+    "success": "Erfolg",
+    "retry": "Wiederholen"
+  },
+  "profile": {
+    "title": "Profil",
+    "editProfile": "Profil Bearbeiten",
+    "contactInformation": "Kontaktinformationen",
+    "settings": "Einstellungen",
+    "notifications": "Benachrichtigungen",
+    "about": "Über",
+    "logout": "Abmelden",
+    "deleteAccount": "Konto Löschen",
+    "email": "E-Mail",
+    "name": "Name",
+    "daysActive": "Aktive Tage",
+    "prayers": "Gebete",
+    "dayStreak": "Tages-Serie",
+    "enterYourName": "Geben Sie Ihren Namen ein",
+    "enterYourEmail": "Geben Sie Ihre E-Mail ein",
+    "emailCannotBeChanged": "E-Mail kann nicht geändert werden",
+    "changesAreSavedAutomatically": "Änderungen werden automatisch gespeichert",
+    "saving": "Speichern...",
+    "logoutConfirm": "Sind Sie sicher, dass Sie sich abmelden möchten?",
+    "deleteAccountConfirm": "Sind Sie sicher, dass Sie Ihr Konto löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden. Alle Ihre Daten werden dauerhaft gelöscht.",
+    "accountDeleted": "Konto Gelöscht",
+    "accountDeletedSuccess": "Ihr Konto wurde erfolgreich gelöscht.",
+    "accountDeletion": "Konto-Löschung",
+    "accountDeletionProcessing": "Die Löschung Ihres Kontos wird bearbeitet. Sie wurden abgemeldet.",
+    "failedToDeleteAccount": "Fehler beim Löschen des Kontos. Bitte versuchen Sie es erneut.",
+    "failedToSaveProfile": "Fehler beim Speichern des Profils",
+    "language": "Sprache"
+  },
+  "language": {
+    "title": "Spracheinstellungen",
+    "selectLanguage": "Sprache Auswählen",
+    "english": "Englisch",
+    "arabic": "Arabisch",
+    "spanish": "Spanisch",
+    "french": "Französisch",
+    "german": "Deutsch",
+    "turkish": "Türkisch",
+    "urdu": "Urdu",
+    "indonesian": "Indonesisch",
+    "malay": "Malaiisch",
+    "languageChanged": "Sprache erfolgreich geändert"
+  },
+  "notifications": {
+    "title": "Benachrichtigungseinstellungen",
+    "permissionsRequired": "Berechtigungen Erforderlich",
+    "enableNotificationPermissions": "Bitte aktivieren Sie zuerst die Benachrichtigungsberechtigungen.",
+    "permissionsUpdated": "Berechtigungen Aktualisiert",
+    "permissionsUpdatedMessage": "Ihre Benachrichtigungsberechtigungen wurden aktualisiert.",
+    "failedToUpdatePermissions": "Fehler beim Aktualisieren der Berechtigungen. Bitte versuchen Sie es erneut."
+  },
+  "prayer": {
+    "title": "Gebetseinstellungen",
+    "locationPermissionNotGranted": "Standortberechtigung nicht erteilt",
+    "unableToGetLocation": "Standort konnte nicht abgerufen werden. Bitte überprüfen Sie Ihre Standorteinstellungen."
+  }
+}

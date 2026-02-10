@@ -10,7 +10,9 @@ import { useImanTracker } from "@/contexts/ImanTrackerContext";
 import { router } from "expo-router";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+import { getScreenWidth } from '@/utils/screenDimensions';
+
+const SCREEN_WIDTH = getScreenWidth();
 const CARD_WIDTH = (SCREEN_WIDTH - spacing.lg * 3) / 2;
 
 // Header animation constants

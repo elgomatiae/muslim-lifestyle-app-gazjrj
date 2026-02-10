@@ -7,11 +7,9 @@
  * Supports sharing to Instagram Stories, Snapchat, WhatsApp, etc.
  */
 
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors, typography } from '@/styles/commonStyles';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Standard share card dimensions (Instagram Stories: 1080x1920)
 export const SHARE_CARD_WIDTH = 1080;

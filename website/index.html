@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Muslim Space - Your comprehensive spiritual companion for prayer times, Quran, Hadith, Iman tracking, and wellness.">
+    <title>Muslim Space - Spiritual Companion App</title>
+    <link rel="icon" type="image/png" href="./favicon.png">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            text-align: center;
+            padding: 60px 20px 40px;
+            color: white;
+        }
+
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        header p {
+            font-size: 1.3rem;
+            opacity: 0.95;
+        }
+
+        .app-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 30px;
+            border-radius: 25px;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            font-size: 4rem;
+        }
+
+        .content {
+            background: white;
+            border-radius: 20px;
+            padding: 40px;
+            margin: 40px auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .feature {
+            padding: 30px;
+            background: #f8f9fa;
+            border-radius: 15px;
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .feature:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+
+        .feature h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 1.3rem;
+        }
+
+        .feature p {
+            color: #666;
+            font-size: 0.95rem;
+        }
+
+        .download-section {
+            text-align: center;
+            padding: 60px 20px;
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            border-radius: 20px;
+            margin: 40px 0;
+            color: white;
+        }
+
+        .download-section h2 {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+
+        .download-btn {
+            display: inline-block;
+            padding: 15px 40px;
+            background: white;
+            color: #667eea;
+            text-decoration: none;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .download-btn.apple {
+            color: #000;
+        }
+
+        .download-btn.google {
+            color: #000;
+        }
+
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: white;
+            opacity: 0.9;
+        }
+
+        footer a {
+            color: white;
+            text-decoration: underline;
+            margin: 0 10px;
+        }
+
+        footer a:hover {
+            opacity: 0.8;
+        }
+
+        .contact-section {
+            background: #f8f9fa;
+            padding: 40px;
+            border-radius: 15px;
+            margin: 40px 0;
+            text-align: center;
+        }
+
+        .contact-section h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .contact-section p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .contact-section a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .contact-section a:hover {
+            text-decoration: underline;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+
+            header p {
+                font-size: 1rem;
+            }
+
+            .content {
+                padding: 20px;
+            }
+
+            .features {
+                grid-template-columns: 1fr;
+            }
+
+            .download-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .download-btn {
+                width: 100%;
+                max-width: 300px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="app-icon">🕌</div>
+            <h1>Muslim Space</h1>
+            <p>Your Comprehensive Spiritual Companion</p>
+        </header>
+
+        <div class="content">
+            <section>
+                <h2 style="color: #667eea; margin-bottom: 20px; text-align: center; font-size: 2rem;">About Muslim Space</h2>
+                <p style="font-size: 1.1rem; color: #666; text-align: center; margin-bottom: 30px;">
+                    Muslim Space is a comprehensive mobile application designed to support your spiritual journey. 
+                    Track your Iman, stay connected with prayer times, access daily Quran verses and Hadith, 
+                    and maintain your wellness - all in one beautiful, intuitive app.
+                </p>
+            </section>
+
+            <section class="features">
+                <div class="feature">
+                    <div class="feature-icon">🕐</div>
+                    <h3>Prayer Times</h3>
+                    <p>Accurate prayer times based on your location with notifications and Qibla direction.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">📖</div>
+                    <h3>Daily Content</h3>
+                    <p>Receive daily Quran verses and Hadith to inspire and guide your day.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Iman Tracker</h3>
+                    <p>Track your spiritual progress with comprehensive Iman scoring and goal setting.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">🎯</div>
+                    <h3>Achievements</h3>
+                    <p>Unlock achievements as you complete prayers, read Quran, and maintain streaks.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">📚</div>
+                    <h3>Learning</h3>
+                    <p>Access Islamic lectures, Quran recitations, and interactive quizzes.</p>
+                </div>
+
+                <div class="feature">
+                    <div class="feature-icon">💚</div>
+                    <h3>Wellness</h3>
+                    <p>Journal, meditation, dhikr, and track your physical and mental wellness.</p>
+                </div>
+            </section>
+
+            <section class="download-section">
+                <h2>Download Muslim Space</h2>
+                <p style="font-size: 1.2rem; margin-bottom: 20px;">Available on iOS and Android</p>
+                <div class="download-buttons">
+                    <a href="https://apps.apple.com/app/muslim-space" class="download-btn apple" target="_blank" rel="noopener">
+                        📱 Download for iOS
+                    </a>
+                    <a href="https://play.google.com/store/apps/details?id=com.anonymous.Natively" class="download-btn google" target="_blank" rel="noopener">
+                        🤖 Download for Android
+                    </a>
+                </div>
+            </section>
+
+            <section class="contact-section">
+                <h2>Contact & Support</h2>
+                <p>
+                    For questions, support, or feedback, please contact us at:<br>
+                    <a href="mailto:support@muslimspace.app">support@muslimspace.app</a>
+                </p>
+            </section>
+        </div>
+
+        <footer>
+            <p>&copy; 2026 Muslim Space. All rights reserved.</p>
+            <p style="margin-top: 10px;">
+                <a href="./privacy.html">Privacy Policy</a> | 
+                <a href="./terms.html">Terms of Service</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
